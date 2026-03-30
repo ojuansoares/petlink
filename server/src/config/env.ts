@@ -8,6 +8,9 @@ const envSchema = z.object({
   SUPABASE_ANON_KEY: z.string().min(1),
   /** Opcional: validação local de JWT (middleware usa getUser no Supabase). */
   SUPABASE_JWT_SECRET: z.string().optional(),
+  CLOUDINARY_CLOUD_NAME: z.string().min(1).optional(),
+  CLOUDINARY_API_KEY: z.string().min(1).optional(),
+  CLOUDINARY_API_SECRET: z.string().min(1).optional(),
   PORT: z.string().default('3000'),
 })
 
