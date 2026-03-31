@@ -1,20 +1,41 @@
 import axios from 'axios'
-import * as Keychain from 'react-native-keychain'
-import { store } from '../store'
-import { logout, setTokens } from '../store/slices/authSlice'
+import { Platform } from 'react-native'
+import { readAuthTokens, writeAuthTokens } from '../utils/authStorage'
+
+type AuthInterceptorHandlers = {
+  onTokenRefresh?: (accessToken: string) => void
+  onAuthFailure?: () => void
+}
+
+let authHandlers: AuthInterceptorHandlers = {}
+
+export const API_BASE_URL =
+  process.env.EXPO_PUBLIC_API_URL ??
+  (Platform.OS === 'android' ? 'http://10.0.2.2:3000' : 'http://localhost:3000')
+
+export const setApiAuthHandlers = (handlers: AuthInterceptorHandlers) => {
+  authHandlers = handlers
+}
 
 export const api = axios.create({
-  baseURL: 'http://localhost:3000',
+  baseURL: API_BASE_URL,
   timeout: 10000,
 })
 
 // Injeta token em toda requisição
 api.interceptors.request.use(async (config) => {
-  const credentials = await Keychain.getGenericPassword()
-  if (credentials) {
-    const { accessToken } = JSON.parse(credentials.password)
+  const tokens = await readAuthTokens()
+  if (tokens?.accessToken) {
+    const { accessToken } = tokens
     config.headers.Authorization = `Bearer ${accessToken}`
   }
+
+  if (__DEV__) {
+    const method = (config.method ?? 'GET').toUpperCase()
+    const url = `${config.baseURL ?? ''}${config.url ?? ''}`
+    console.log(`[API] ${method} ${url}`)
+  }
+
   return config
 })
 
@@ -22,37 +43,44 @@ api.interceptors.request.use(async (config) => {
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
+    if (__DEV__) {
+      const status = error.response?.status ?? 'NETWORK'
+      const method = (error.config?.method ?? 'GET').toUpperCase()
+      const url = `${error.config?.baseURL ?? API_BASE_URL}${error.config?.url ?? ''}`
+      console.log(`[API][ERROR] ${method} ${url} -> ${status}`)
+    }
+
     const original = error.config
 
     if (error.response?.status === 401 && !original._retry) {
       original._retry = true
 
       try {
-        const credentials = await Keychain.getGenericPassword()
-        const { refreshToken } = JSON.parse(credentials!.password)
+        const tokens = await readAuthTokens()
+        if (!tokens?.refreshToken) {
+          throw new Error('Sem credenciais para refresh')
+        }
 
-        const { data } = await axios.post('http://localhost:3000/auth/refresh', {
+        const { refreshToken } = tokens
+
+        const { data } = await axios.post(`${API_BASE_URL}/auth/refresh`, {
           refreshToken,
         })
 
-        // Salva novos tokens no Keychain (nunca AsyncStorage)
-        await Keychain.setGenericPassword(
-          'petlink',
-          JSON.stringify({
-            accessToken: data.accessToken,
-            refreshToken: data.refreshToken,
-          })
-        )
+        await writeAuthTokens({
+          accessToken: data.accessToken,
+          refreshToken: data.refreshToken,
+        })
 
-        store.dispatch(setTokens(data))
+        authHandlers.onTokenRefresh?.(data.accessToken)
         original.headers.Authorization = `Bearer ${data.accessToken}`
 
         return api(original) // retenta a requisição original
       } catch {
-        store.dispatch(logout())
+        authHandlers.onAuthFailure?.()
       }
     }
 
-    return Promise.reject(error)
+    throw error
   }
 )
