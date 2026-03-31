@@ -1,6 +1,28 @@
 import { supabaseAdmin } from '../../config/supabase'
 
 export const authRepository = {
+  async emailExists(email: string) {
+    let page = 1
+    const perPage = 200
+    const target = email.trim().toLowerCase()
+
+    while (true) {
+      const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage })
+      if (error) throw error
+
+      const users = data.users ?? []
+      if (users.some((user) => user.email?.toLowerCase() === target)) {
+        return true
+      }
+
+      if (users.length < perPage) {
+        return false
+      }
+
+      page += 1
+    }
+  },
+
   async findProfileMaybe(id: string) {
     const { data, error } = await supabaseAdmin
       .from('profiles')
@@ -23,10 +45,10 @@ export const authRepository = {
     return data
   },
 
-  async createProfile(id: string, name: string, location?: string) {
+  async upsertProfile(id: string, name: string, location?: string) {
     const { data, error } = await supabaseAdmin
       .from('profiles')
-      .insert({ id, name, location })
+      .upsert({ id, name, location }, { onConflict: 'id' })
       .select()
       .single()
 

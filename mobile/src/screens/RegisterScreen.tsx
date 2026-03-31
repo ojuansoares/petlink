@@ -1,6 +1,6 @@
 import React from 'react'
 import { StackScreenProps } from '@react-navigation/stack'
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import { AuthStackParamList } from '../navigation/types'
 import { useAppDispatch, useAppSelector } from '../store'
 import { registerThunk, selectAuthError, selectAuthLoading } from '../store/slices/authSlice'
@@ -15,13 +15,27 @@ export default function RegisterScreen({ navigation }: Readonly<Props>) {
   const [name, setName] = React.useState('')
   const [email, setEmail] = React.useState('')
   const [password, setPassword] = React.useState('')
-  const [successMessage, setSuccessMessage] = React.useState<string | null>(null)
+  const [showSuccessOverlay, setShowSuccessOverlay] = React.useState(false)
+
+  const successMessage = 'Cadastro criado. Confira seu email e confirme a conta antes de fazer login.'
 
   const canSubmit =
     name.trim().length > 0 &&
     email.trim().length > 0 &&
     password.length >= 8 &&
-    !isLoading
+    !isLoading &&
+    !showSuccessOverlay
+
+  React.useEffect(() => {
+    if (!showSuccessOverlay) return
+
+    const timer = setTimeout(() => {
+      setShowSuccessOverlay(false)
+      navigation.replace('Login')
+    }, 1200)
+
+    return () => clearTimeout(timer)
+  }, [navigation, showSuccessOverlay])
 
   const handleRegister = async () => {
     if (!canSubmit) return
@@ -35,8 +49,7 @@ export default function RegisterScreen({ navigation }: Readonly<Props>) {
     )
 
     if (registerThunk.fulfilled.match(result)) {
-      setSuccessMessage('Conta criada com sucesso. Faça login para entrar.')
-      navigation.navigate('Login')
+      setShowSuccessOverlay(true)
     }
   }
 
@@ -92,7 +105,6 @@ export default function RegisterScreen({ navigation }: Readonly<Props>) {
       </Pressable>
 
       {authError ? <Text style={styles.error}>{authError}</Text> : null}
-      {successMessage ? <Text style={styles.success}>{successMessage}</Text> : null}
 
       <View style={styles.loginRow}>
         <Text style={styles.loginText}>Ja tem uma conta? </Text>
@@ -100,6 +112,17 @@ export default function RegisterScreen({ navigation }: Readonly<Props>) {
           <Text style={styles.loginLink}>Faca log-in</Text>
         </Pressable>
       </View>
+
+      <Modal visible={showSuccessOverlay} transparent animationType="fade" statusBarTranslucent>
+        <View style={styles.overlayBackdrop}>
+          <View style={styles.overlayCard}>
+            <ActivityIndicator color="#2563eb" />
+            <Text style={styles.overlayTitle}>Cadastro realizado</Text>
+            <Text style={styles.overlayMessage}>{successMessage}</Text>
+            <Text style={styles.overlayHint}>Redirecionando para o login...</Text>
+          </View>
+        </View>
+      </Modal>
     </View>
   )
 }
@@ -168,11 +191,6 @@ const styles = StyleSheet.create({
     color: '#b91c1c',
     textAlign: 'center',
   },
-  success: {
-    color: '#166534',
-    textAlign: 'center',
-    fontSize: 13,
-  },
   loginRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -185,6 +203,38 @@ const styles = StyleSheet.create({
   loginLink: {
     color: '#2563eb',
     fontSize: 14,
+    fontWeight: '600',
+  },
+  overlayBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.35)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  overlayCard: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 16,
+    gap: 10,
+    alignItems: 'center',
+  },
+  overlayTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  overlayMessage: {
+    textAlign: 'center',
+    color: '#1f2937',
+    fontSize: 14,
+  },
+  overlayHint: {
+    textAlign: 'center',
+    color: '#2563eb',
+    fontSize: 13,
     fontWeight: '600',
   },
 })

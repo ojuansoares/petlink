@@ -27,22 +27,45 @@ async function ensureOAuthProfile(user: User) {
     user.email?.split('@')[0] ||
     'Usuário'
 
-  return authRepository.createProfile(user.id, name, undefined)
+  return authRepository.upsertProfile(user.id, name)
 }
 
 export const authService = {
   async register(email: string, password: string, name: string, location?: string) {
-    const { data, error } = await supabaseAdmin.auth.admin.createUser({
-      email,
+    const normalizedEmail = email.trim().toLowerCase()
+    const alreadyExists = await authRepository.emailExists(normalizedEmail)
+    if (alreadyExists) {
+      throw new AppError('Email já cadastrado', 409)
+    }
+
+    const { data, error } = await supabaseAuth.auth.signUp({
+      email: normalizedEmail,
       password,
-      email_confirm: true,
+      options: {
+        data: {
+          name,
+        },
+      },
     })
 
-    if (error) throw new AppError(error.message, 400)
+    if (error) {
+      const lower = error.message.toLowerCase()
+      if (lower.includes('already registered') || lower.includes('already been registered')) {
+        throw new AppError('Email já cadastrado', 409)
+      }
+      throw new AppError(error.message, 400)
+    }
+    if (!data.user) throw new AppError('Falha ao criar usuario', 400)
 
-    const profile = await authRepository.createProfile(data.user.id, name, location)
+    // O profile base é criado pelo trigger do Supabase (auth.users -> public.profiles).
+    // Aqui só sincronizamos dados extras de forma idempotente.
+    const profile = await authRepository.upsertProfile(data.user.id, name, location)
 
-    return { user: data.user, profile }
+    return {
+      user: data.user,
+      profile,
+      message: 'Cadastro criado. Confira seu email e confirme a conta antes de fazer login.',
+    }
   },
 
   async login(email: string, password: string) {
@@ -51,9 +74,16 @@ export const authService = {
       password,
     })
 
-    if (error) throw new AppError('Credenciais inválidas', 401)
+    if (error) {
+      const lower = error.message.toLowerCase()
+      if (lower.includes('email not confirmed')) {
+        throw new AppError('Confirme seu email antes de fazer login', 403)
+      }
 
-    return sessionResponse(data.session!, data.user)
+      throw new AppError('Credenciais inválidas', 401)
+    }
+
+    return sessionResponse(data.session, data.user)
   },
 
   /**

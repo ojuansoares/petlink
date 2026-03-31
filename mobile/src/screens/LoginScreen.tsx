@@ -79,7 +79,7 @@ export default function LoginScreen({ navigation }: Readonly<Props>) {
       >
         <Text style={styles.submitButtonText}>{isLoading ? 'Entrando...' : 'Entrar'}</Text>
       </Pressable>
-      <Button title="Testar API" onPress={handleTestApi} />
+      {/* <Button title="Testar API" onPress={handleTestApi} /> */}
       {authError ? <Text style={styles.error}>{authError}</Text> : null}
       {healthStatus ? <Text style={styles.status}>{healthStatus}</Text> : null}
       <View style={styles.registerRow}>
