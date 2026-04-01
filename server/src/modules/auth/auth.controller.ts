@@ -5,8 +5,8 @@ import { AuthRequest } from '../../middlewares/auth.middleware'
 export const authController = {
   async register(req: Request, res: Response) {
     try {
-      const { email, password, name, location } = req.body
-      const result = await authService.register(email, password, name, location)
+      const { email, password, name, location, redirectTo } = req.body
+      const result = await authService.register(email, password, name, location, redirectTo)
       return res.status(201).json(result)
     } catch (err: any) {
       return res.status(err.statusCode ?? 500).json({ error: err.message })

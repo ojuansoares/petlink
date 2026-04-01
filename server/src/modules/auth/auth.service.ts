@@ -31,7 +31,7 @@ async function ensureOAuthProfile(user: User) {
 }
 
 export const authService = {
-  async register(email: string, password: string, name: string, location?: string) {
+  async register(email: string, password: string, name: string, location?: string, redirectTo?: string) {
     const normalizedEmail = email.trim().toLowerCase()
     const alreadyExists = await authRepository.emailExists(normalizedEmail)
     if (alreadyExists) {
@@ -45,6 +45,7 @@ export const authService = {
         data: {
           name,
         },
+        ...(redirectTo ? { emailRedirectTo: redirectTo } : {}),
       },
     })
 
@@ -56,6 +57,12 @@ export const authService = {
       throw new AppError(error.message, 400)
     }
     if (!data.user) throw new AppError('Falha ao criar usuario', 400)
+
+    // Quando "Confirm email" está habilitado, o Supabase pode mascarar usuário já existente
+    // retornando sucesso sem sessão e com identities vazias (anti-enumeration).
+    if (!data.session && (!data.user.identities || data.user.identities.length === 0)) {
+      throw new AppError('Email já cadastrado', 409)
+    }
 
     // O profile base é criado pelo trigger do Supabase (auth.users -> public.profiles).
     // Aqui só sincronizamos dados extras de forma idempotente.

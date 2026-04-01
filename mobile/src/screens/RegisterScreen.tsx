@@ -1,6 +1,12 @@
 import React from 'react'
 import { StackScreenProps } from '@react-navigation/stack'
-import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
+import { ActivityIndicator, Modal, Pressable, StyleSheet, View } from 'react-native'
+import { Button } from '../components/ui/Button'
+import { Card } from '../components/ui/Card'
+import { Input } from '../components/ui/Input'
+import { Heading, Text } from '../components/ui/Typography'
+import { useTheme } from '../hooks/useTheme'
 import { AuthStackParamList } from '../navigation/types'
 import { useAppDispatch, useAppSelector } from '../store'
 import { registerThunk, selectAuthError, selectAuthLoading } from '../store/slices/authSlice'
@@ -9,6 +15,7 @@ type Props = StackScreenProps<AuthStackParamList, 'Register'>
 
 export default function RegisterScreen({ navigation }: Readonly<Props>) {
   const dispatch = useAppDispatch()
+  const { colors, withAlpha } = useTheme()
   const isLoading = useAppSelector(selectAuthLoading)
   const authError = useAppSelector(selectAuthError)
 
@@ -54,73 +61,79 @@ export default function RegisterScreen({ navigation }: Readonly<Props>) {
   }
 
   return (
-    <View style={styles.container}>
-      <Pressable style={styles.backTopButton} onPress={() => navigation.navigate('Login')}>
-        <Text style={styles.backTopButtonText}>← Voltar</Text>
+    <View style={[styles.container, { backgroundColor: colors.background }]}> 
+      <Pressable
+        style={[
+          styles.backTopButton,
+          { backgroundColor: withAlpha(colors.card, 0.85), borderColor: colors.border },
+        ]}
+        onPress={() => navigation.navigate('Login')}
+      >
+        <Ionicons name="arrow-back" size={16} color={colors.foreground} />
+        <Text size="sm" weight="700">Voltar</Text>
       </Pressable>
 
-      <Text style={styles.title}>Registro</Text>
+      <Card variant="organic" style={styles.card}>
+        <Heading size="3xl" weight="800">Registro</Heading>
+        <Text size="sm" color="mutedForeground" style={styles.subtitle}>Crie sua conta para comecar a acompanhar seus pets.</Text>
 
-      <TextInput
-        style={styles.input}
+        <Input
         placeholder="Nome"
         value={name}
         onChangeText={setName}
-      />
+          leftIcon={<Ionicons name="person-outline" size={18} color={colors.mutedForeground} />}
+        />
 
-      <TextInput
-        style={styles.input}
+        <Input
         autoCapitalize="none"
         autoCorrect={false}
         keyboardType="email-address"
         placeholder="Email"
         value={email}
         onChangeText={setEmail}
-      />
+          leftIcon={<Ionicons name="mail-outline" size={18} color={colors.mutedForeground} />}
+        />
 
-      <TextInput
-        style={styles.input}
+        <Input
         autoCapitalize="none"
         autoCorrect={false}
         secureTextEntry
         placeholder="Senha"
         value={password}
         onChangeText={setPassword}
-      />
+          leftIcon={<Ionicons name="lock-closed-outline" size={18} color={colors.mutedForeground} />}
+        />
 
       {password.length > 0 && password.length < 8 ? (
-        <Text style={styles.hint}>A senha precisa ter pelo menos 8 caracteres.</Text>
+          <Text size="xs" color="mutedForeground" style={styles.hint}>A senha precisa ter pelo menos 8 caracteres.</Text>
       ) : null}
 
-      <Pressable
-        onPress={handleRegister}
-        disabled={!canSubmit}
-        style={({ pressed }) => [
-          styles.submitButton,
-          canSubmit ? styles.submitButtonEnabled : styles.submitButtonDisabled,
-          pressed && canSubmit ? styles.submitButtonPressed : null,
-        ]}
-      >
-        <Text style={styles.submitButtonText}>{isLoading ? 'Registrando...' : 'Registrar'}</Text>
-      </Pressable>
+        <Button
+          label={isLoading ? 'Registrando...' : 'Registrar'}
+          onPress={handleRegister}
+          disabled={!canSubmit}
+          loading={isLoading}
+          style={styles.buttonSpacing}
+        />
 
-      {authError ? <Text style={styles.error}>{authError}</Text> : null}
+        {authError ? <Text style={{ color: colors.destructive }}>{authError}</Text> : null}
 
-      <View style={styles.loginRow}>
-        <Text style={styles.loginText}>Ja tem uma conta? </Text>
-        <Pressable onPress={() => navigation.navigate('Login')}>
-          <Text style={styles.loginLink}>Faca log-in</Text>
-        </Pressable>
-      </View>
+        <View style={styles.loginRow}>
+          <Text size="sm" color="mutedForeground">Ja tem uma conta? </Text>
+          <Pressable onPress={() => navigation.navigate('Login')}>
+            <Text size="sm" weight="700" color="secondary">Faca log-in</Text>
+          </Pressable>
+        </View>
+      </Card>
 
       <Modal visible={showSuccessOverlay} transparent animationType="fade" statusBarTranslucent>
         <View style={styles.overlayBackdrop}>
-          <View style={styles.overlayCard}>
-            <ActivityIndicator color="#2563eb" />
-            <Text style={styles.overlayTitle}>Cadastro realizado</Text>
-            <Text style={styles.overlayMessage}>{successMessage}</Text>
-            <Text style={styles.overlayHint}>Redirecionando para o login...</Text>
-          </View>
+          <Card variant="organic" style={[styles.overlayCard, { backgroundColor: colors.card }]}> 
+            <ActivityIndicator color={colors.primary} />
+            <Heading size="xl" weight="800">Cadastro realizado</Heading>
+            <Text size="sm" style={styles.overlayMessage}>{successMessage}</Text>
+            <Text size="sm" weight="700" color="secondary">Redirecionando para o login...</Text>
+          </Card>
         </View>
       </Modal>
     </View>
@@ -130,80 +143,39 @@ export default function RegisterScreen({ navigation }: Readonly<Props>) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: 'center',
     justifyContent: 'center',
     padding: 16,
-    gap: 12,
     position: 'relative',
+  },
+  card: {
+    width: '100%',
+    gap: 12,
   },
   backTopButton: {
     position: 'absolute',
-    top: 20,
+    top: 56,
     left: 16,
     paddingVertical: 8,
-    paddingHorizontal: 6,
-  },
-  backTopButtonText: {
-    color: '#2563eb',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '600',
-  },
-  input: {
-    width: '100%',
+    paddingHorizontal: 10,
+    borderRadius: 999,
     borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    backgroundColor: '#fff',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  subtitle: {
+    marginBottom: 8,
+  },
+  buttonSpacing: {
+    marginTop: 4,
   },
   hint: {
-    color: '#374151',
-    fontSize: 12,
     alignSelf: 'flex-start',
-  },
-  submitButton: {
-    width: '100%',
-    borderRadius: 8,
-    paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  submitButtonEnabled: {
-    backgroundColor: '#2563eb',
-  },
-  submitButtonDisabled: {
-    backgroundColor: '#9ca3af',
-  },
-  submitButtonPressed: {
-    opacity: 0.9,
-  },
-  submitButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  error: {
-    color: '#b91c1c',
-    textAlign: 'center',
   },
   loginRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 4,
-  },
-  loginText: {
-    color: '#374151',
-    fontSize: 14,
-  },
-  loginLink: {
-    color: '#2563eb',
-    fontSize: 14,
-    fontWeight: '600',
+    marginTop: 8,
   },
   overlayBackdrop: {
     flex: 1,
@@ -215,26 +187,11 @@ const styles = StyleSheet.create({
   overlayCard: {
     width: '100%',
     maxWidth: 360,
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 16,
+    padding: 18,
     gap: 10,
     alignItems: 'center',
   },
-  overlayTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#111827',
-  },
   overlayMessage: {
     textAlign: 'center',
-    color: '#1f2937',
-    fontSize: 14,
-  },
-  overlayHint: {
-    textAlign: 'center',
-    color: '#2563eb',
-    fontSize: 13,
-    fontWeight: '600',
   },
 })

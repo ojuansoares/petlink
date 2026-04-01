@@ -1,6 +1,8 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit'
 import axios from 'axios'
 import { api } from '../../api/axios'
+import { supabase } from '../../config/supabase'
+import { getRedirectUrl } from '../../services/AuthDeepLinkService'
 import { clearAuthTokens, readAuthTokens, writeAuthTokens } from '../../utils/authStorage'
 
 // ─── Types ───────────────────────────────────────────────────
@@ -33,14 +35,22 @@ const toAuthUser = (user: { id: string; email: string; name?: string; avatarUrl?
 export const registerThunk = createAsyncThunk(
   'auth/register',
   async (
-    payload: { email: string; password: string; name: string; location?: string },
+    payload: { email: string; password: string; name: string },
     { rejectWithValue }
   ) => {
     try {
-      const { data } = await api.post('/auth/register', payload)
+      const redirectTo = getRedirectUrl()
+      const { data } = await api.post('/auth/register', { ...payload, redirectTo })
       return data
     } catch (err: any) {
-      return rejectWithValue(err.response?.data?.error ?? 'Erro ao cadastrar')
+      if (axios.isAxiosError(err)) {
+        const message = err.response?.data?.error ?? err.response?.data?.message
+        if (message) {
+          return rejectWithValue(message)
+        }
+      }
+
+      return rejectWithValue('Erro ao cadastrar')
     }
   }
 )
@@ -132,6 +142,36 @@ export const refreshTokenThunk = createAsyncThunk(
   }
 )
 
+export const forgotPasswordThunk = createAsyncThunk(
+  'auth/forgotPassword',
+  async (email: string, { rejectWithValue }) => {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: getRedirectUrl(),
+      })
+
+      if (error) {
+        console.log('[SUPABASE][RESET_PASSWORD][ERROR]', {
+          message: error.message,
+          name: error.name,
+          status: (error as any).status,
+          code: (error as any).code,
+        })
+
+        if (error.message.toLowerCase().includes('error sending confirmation email')) {
+          return rejectWithValue('Erro ao enviar email de confirmacao. Verifique SMTP/Auth Logs no Supabase.')
+        }
+
+        return rejectWithValue(error.message)
+      }
+
+      return { sent: true }
+    } catch {
+      return rejectWithValue('Erro ao enviar email')
+    }
+  }
+)
+
 // ─── Slice ───────────────────────────────────────────────────
 const initialState: AuthState = {
   user:         null,
@@ -212,6 +252,12 @@ const authSlice = createSlice({
         s.user         = null
         s.accessToken  = null
       })
+
+    // ── forgot password ──
+    builder
+      .addCase(forgotPasswordThunk.pending,   (s) => { s.isLoading = true; s.error = null })
+      .addCase(forgotPasswordThunk.fulfilled, (s) => { s.isLoading = false })
+      .addCase(forgotPasswordThunk.rejected,  (s, a) => { s.isLoading = false; s.error = a.payload as string })
   },
 })
 
