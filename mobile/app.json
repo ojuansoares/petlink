@@ -18,6 +18,7 @@
     },
     "android": {
       "package": "com.petlink.app",
+      "softwareKeyboardLayoutMode": "pan",
       "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
