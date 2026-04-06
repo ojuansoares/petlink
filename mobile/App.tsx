@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar'
 import { Provider } from 'react-redux'
 import * as Linking from 'expo-linking'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { SafeAreaProvider } from 'react-native-safe-area-context'
 import {
   Fraunces_600SemiBold,
   Fraunces_800ExtraBold,
@@ -16,16 +17,35 @@ import {
   useFonts as useNunitoFonts,
 } from '@expo-google-fonts/nunito'
 import { store, useAppDispatch, useAppSelector } from './src/store'
-import { hydrateAuthThunk, selectAuthHydrated } from './src/store/slices/authSlice'
+import {
+  hydrateAuthThunk,
+  selectAuthHydrated,
+  selectAuthLoading,
+  selectAuthLoadingContext,
+} from './src/store/slices/authSlice'
 import { selectIsDark, systemThemeChanged } from './src/store/slices/uiSlice'
 import { supabase } from './src/config/supabase'
 import RootNavigator from './src/navigation/RootNavigator'
 import { tokens, withAlpha } from './src/theme'
 import OnboardingScreen, { OnboardingStep } from './src/screens/OnboardingScreen'
+import { AppLoadingOverlay } from './src/components/ui/AppLoadingOverlay'
 
 LogBox.ignoreLogs([
   'InteractionManager has been deprecated',
 ])
+
+if (__DEV__) {
+  const originalWarn = console.warn
+
+  console.warn = (...args: any[]) => {
+    const firstArg = args[0]
+    if (typeof firstArg === 'string' && firstArg.includes('InteractionManager has been deprecated')) {
+      return
+    }
+
+    originalWarn(...args)
+  }
+}
 
 const SPLASH_LOGO_SIZE = Math.round(Dimensions.get('window').width * 0.86)
 
@@ -49,6 +69,16 @@ const ONBOARDING_STEPS: readonly OnboardingStep[] = [
     description: 'Use notificacoes, localizacao e outras funcoes para acompanhar melhor a rotina.',
   },
 ]
+
+function getAuthLoadingMessage(
+  loadingContext: 'login' | 'logout' | 'register' | 'hydrate' | 'forgotPassword' | null
+): string {
+  if (loadingContext === 'login') return 'Bem-vindo'
+  if (loadingContext === 'logout') return 'Ate mais'
+  if (loadingContext === 'register') return 'Criando sua conta...'
+  if (loadingContext === 'forgotPassword') return 'Enviando email...'
+  return 'Carregando...'
+}
 
 function extractParamsFromUrl(url: string): Record<string, string> {
   const params: Record<string, string> = {}
@@ -113,6 +143,8 @@ function handleDeepLink(
 function AppContent() {
   const dispatch = useAppDispatch()
   const hydrated = useAppSelector(selectAuthHydrated)
+  const authLoading = useAppSelector(selectAuthLoading)
+  const authLoadingContext = useAppSelector(selectAuthLoadingContext)
   const isDark = useAppSelector(selectIsDark)
   const [toastMessage, setToastMessage] = React.useState<string | null>(null)
   const [showLaunchSplash, setShowLaunchSplash] = React.useState(true)
@@ -192,7 +224,7 @@ function AppContent() {
       <View style={[styles.splash, { backgroundColor: splashPalette.background }]}>
         <Image source={require('./src/assets/icon.png')} style={styles.splashLogo} resizeMode="contain" />
         <ActivityIndicator size="small" color={splashPalette.primary} style={styles.splashLoader} />
-        <StatusBar style="auto" />
+        <StatusBar style={isDark ? 'light' : 'dark'} />
       </View>
     )
   }
@@ -211,9 +243,11 @@ function AppContent() {
 
   const isOnboardingActive = hasSeenOnboarding === false
 
+  const loadingMessage = getAuthLoadingMessage(authLoadingContext)
+
   return (
     <>
-      <StatusBar style="auto" />
+      <StatusBar style={isDark ? 'light' : 'dark'} />
       {isOnboardingActive ? (
         <OnboardingScreen
           palette={palette}
@@ -245,6 +279,8 @@ function AppContent() {
           </View>
         </View>
       ) : null}
+
+      <AppLoadingOverlay visible={authLoading && hydrated} message={loadingMessage} />
     </>
   )
 }
@@ -252,9 +288,11 @@ function AppContent() {
 // Provider envolve tudo — sem ele os hooks do Redux não funcionam
 export default function App() {
   return (
-    <Provider store={store}>
-      <AppContent />
-    </Provider>
+    <SafeAreaProvider>
+      <Provider store={store}>
+        <AppContent />
+      </Provider>
+    </SafeAreaProvider>
   )
 }
 

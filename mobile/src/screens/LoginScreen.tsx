@@ -14,7 +14,6 @@ import { useTheme } from '../hooks/useTheme'
 import { AuthStackParamList } from '../navigation/types'
 import { useAppDispatch, useAppSelector } from '../store'
 import { loginThunk, selectAuthError, selectAuthLoading } from '../store/slices/authSlice'
-import { selectIsDark, toggleTheme } from '../store/slices/uiSlice'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Input } from '../components/ui/Input'
@@ -24,12 +23,12 @@ type Props = StackScreenProps<AuthStackParamList, 'Login'>
 
 export default function LoginScreen({ navigation }: Readonly<Props>) {
   const dispatch = useAppDispatch()
-  const { colors, withAlpha } = useTheme()
+  const { colors } = useTheme()
   const isLoading = useAppSelector(selectAuthLoading)
   const authError = useAppSelector(selectAuthError)
-  const isDark = useAppSelector(selectIsDark)
   const [email, setEmail] = React.useState('')
   const [password, setPassword] = React.useState('')
+  const [showPassword, setShowPassword] = React.useState(false)
 
   const hasMinPassword = password.length >= 8
   const canSubmit = email.trim().length > 0 && hasMinPassword
@@ -59,28 +58,42 @@ export default function LoginScreen({ navigation }: Readonly<Props>) {
             <Text size="sm" color="mutedForeground" style={styles.subtitle}>Entre para acessar seu espaco no PetLink.</Text>
 
             <Input
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="email-address"
-            placeholder="Email"
-            value={email}
-            onChangeText={setEmail}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+              placeholder="Email"
+              value={email}
+              onChangeText={setEmail}
               leftIcon={<Ionicons name="mail-outline" size={18} color={colors.mutedForeground} />}
             />
 
             <Input
-            autoCapitalize="none"
-            autoCorrect={false}
-            secureTextEntry
-            placeholder="Senha"
-            value={password}
-            onChangeText={setPassword}
+              autoCapitalize="none"
+              autoCorrect={false}
+              secureTextEntry={!showPassword}
+              placeholder="Senha"
+              value={password}
+              onChangeText={setPassword}
               leftIcon={<Ionicons name="lock-closed-outline" size={18} color={colors.mutedForeground} />}
+              rightIcon={(
+                <Pressable
+                  onPress={() => setShowPassword((value) => !value)}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                >
+                  <Ionicons
+                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={18}
+                    color={colors.mutedForeground}
+                  />
+                </Pressable>
+              )}
             />
 
-          {!hasMinPassword && password.length > 0 ? (
+            {!hasMinPassword && password.length > 0 ? (
               <Text size="xs" color="mutedForeground" style={styles.hint}>A senha precisa ter pelo menos 8 caracteres.</Text>
-          ) : null}
+            ) : null}
 
             <Button
               label={isLoading ? 'Entrando...' : 'Entrar'}
@@ -103,16 +116,6 @@ export default function LoginScreen({ navigation }: Readonly<Props>) {
           </Card>
         </ScrollView>
       </KeyboardAvoidingView>
-
-      <Pressable
-        style={[
-          styles.themeSwitch,
-          { backgroundColor: withAlpha(colors.card, 0.85), borderColor: colors.border },
-        ]}
-        onPress={() => dispatch(toggleTheme())}
-      >
-        <Ionicons name={isDark ? 'sunny-outline' : 'moon-outline'} size={18} color={colors.foreground} />
-      </Pressable>
     </View>
   )
 }
@@ -133,19 +136,6 @@ const styles = StyleSheet.create({
   card: {
     width: '100%',
     gap: 12,
-  },
-  themeSwitch: {
-    position: 'absolute',
-    top: 56,
-    right: 20,
-    zIndex: 20,
-    elevation: 20,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   subtitle: {
     marginBottom: 8,

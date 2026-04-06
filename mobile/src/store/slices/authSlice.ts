@@ -18,6 +18,7 @@ interface AuthState {
   user:         AuthUser | null
   accessToken:  string | null
   isLoading:    boolean
+  loadingContext: 'login' | 'logout' | 'register' | 'hydrate' | 'forgotPassword' | null
   isRefreshing: boolean
   error:        string | null
   hydrated:     boolean  // true depois que lemos o Keychain na inicialização
@@ -177,6 +178,7 @@ const initialState: AuthState = {
   user:         null,
   accessToken:  null,
   isLoading:    false,
+  loadingContext: null,
   isRefreshing: false,
   error:        null,
   hydrated:     false,
@@ -209,36 +211,48 @@ const authSlice = createSlice({
   extraReducers: (builder) => {
     // ── register ──
     builder
-      .addCase(registerThunk.pending,   (s) => { s.isLoading = true; s.error = null })
-      .addCase(registerThunk.fulfilled, (s) => { s.isLoading = false })
-      .addCase(registerThunk.rejected,  (s, a) => { s.isLoading = false; s.error = a.payload as string })
+      .addCase(registerThunk.pending,   (s) => { s.isLoading = true; s.loadingContext = 'register'; s.error = null })
+      .addCase(registerThunk.fulfilled, (s) => { s.isLoading = false; s.loadingContext = null })
+      .addCase(registerThunk.rejected,  (s, a) => { s.isLoading = false; s.loadingContext = null; s.error = a.payload as string })
 
     // ── login ──
     builder
-      .addCase(loginThunk.pending,   (s) => { s.isLoading = true; s.error = null })
+      .addCase(loginThunk.pending,   (s) => { s.isLoading = true; s.loadingContext = 'login'; s.error = null })
       .addCase(loginThunk.fulfilled, (s, a) => {
         s.isLoading   = false
+        s.loadingContext = null
         s.accessToken = a.payload.accessToken
         s.user        = toAuthUser(a.payload.user)
       })
-      .addCase(loginThunk.rejected, (s, a) => { s.isLoading = false; s.error = a.payload as string })
+      .addCase(loginThunk.rejected, (s, a) => { s.isLoading = false; s.loadingContext = null; s.error = a.payload as string })
 
     // ── logout ──
     builder
-      .addCase(logoutThunk.fulfilled, (s) => { s.user = null; s.accessToken = null })
+      .addCase(logoutThunk.pending, (s) => { s.isLoading = true; s.loadingContext = 'logout' })
+      .addCase(logoutThunk.fulfilled, (s) => {
+        s.isLoading = false
+        s.loadingContext = null
+        s.user = null
+        s.accessToken = null
+      })
+      .addCase(logoutThunk.rejected, (s) => {
+        s.isLoading = false
+        s.loadingContext = null
+      })
 
     // ── hydrate ──
     builder
-      .addCase(hydrateAuthThunk.pending,   (s) => { s.isLoading = true })
+      .addCase(hydrateAuthThunk.pending,   (s) => { s.isLoading = true; s.loadingContext = 'hydrate' })
       .addCase(hydrateAuthThunk.fulfilled, (s, a) => {
         s.isLoading  = false
+        s.loadingContext = null
         s.hydrated   = true
         if (a.payload) {
           s.accessToken = a.payload.accessToken
           s.user        = toAuthUser(a.payload.user)
         }
       })
-      .addCase(hydrateAuthThunk.rejected, (s) => { s.isLoading = false; s.hydrated = true })
+      .addCase(hydrateAuthThunk.rejected, (s) => { s.isLoading = false; s.loadingContext = null; s.hydrated = true })
 
     // ── refresh ──
     builder
@@ -255,9 +269,9 @@ const authSlice = createSlice({
 
     // ── forgot password ──
     builder
-      .addCase(forgotPasswordThunk.pending,   (s) => { s.isLoading = true; s.error = null })
-      .addCase(forgotPasswordThunk.fulfilled, (s) => { s.isLoading = false })
-      .addCase(forgotPasswordThunk.rejected,  (s, a) => { s.isLoading = false; s.error = a.payload as string })
+      .addCase(forgotPasswordThunk.pending,   (s) => { s.isLoading = true; s.loadingContext = 'forgotPassword'; s.error = null })
+      .addCase(forgotPasswordThunk.fulfilled, (s) => { s.isLoading = false; s.loadingContext = null })
+      .addCase(forgotPasswordThunk.rejected,  (s, a) => { s.isLoading = false; s.loadingContext = null; s.error = a.payload as string })
   },
 })
 
@@ -268,5 +282,6 @@ export default authSlice.reducer
 export const selectUser         = (s: any) => s.auth.user
 export const selectIsAuth       = (s: any) => !!s.auth.user
 export const selectAuthLoading  = (s: any) => s.auth.isLoading
+export const selectAuthLoadingContext = (s: any) => s.auth.loadingContext
 export const selectAuthError    = (s: any) => s.auth.error
 export const selectAuthHydrated = (s: any) => s.auth.hydrated

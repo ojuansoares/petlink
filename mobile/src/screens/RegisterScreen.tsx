@@ -35,6 +35,8 @@ export default function RegisterScreen({ navigation }: Readonly<Props>) {
   const [location, setLocation] = React.useState('')
   const [password, setPassword] = React.useState('')
   const [confirmPassword, setConfirmPassword] = React.useState('')
+  const [showPassword, setShowPassword] = React.useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = React.useState(false)
   const [showSuccessOverlay, setShowSuccessOverlay] = React.useState(false)
 
   const successMessage = 'Cadastro criado. Confira seu email e confirme a conta antes de fazer login.'
@@ -148,23 +150,51 @@ export default function RegisterScreen({ navigation }: Readonly<Props>) {
             />
 
             <Input
-            autoCapitalize="none"
-            autoCorrect={false}
-            secureTextEntry
-            placeholder="Senha"
-            value={password}
-            onChangeText={setPassword}
+              autoCapitalize="none"
+              autoCorrect={false}
+              secureTextEntry={!showPassword}
+              placeholder="Senha"
+              value={password}
+              onChangeText={setPassword}
               leftIcon={<Ionicons name="lock-closed-outline" size={18} color={colors.mutedForeground} />}
+              rightIcon={(
+                <Pressable
+                  onPress={() => setShowPassword((value) => !value)}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                >
+                  <Ionicons
+                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={18}
+                    color={colors.mutedForeground}
+                  />
+                </Pressable>
+              )}
             />
 
             <Input
-            autoCapitalize="none"
-            autoCorrect={false}
-            secureTextEntry
-            placeholder="Confirmar senha"
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
+              autoCapitalize="none"
+              autoCorrect={false}
+              secureTextEntry={!showConfirmPassword}
+              placeholder="Confirmar senha"
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
               leftIcon={<Ionicons name="shield-checkmark-outline" size={18} color={colors.mutedForeground} />}
+              rightIcon={(
+                <Pressable
+                  onPress={() => setShowConfirmPassword((value) => !value)}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={showConfirmPassword ? 'Ocultar confirmacao de senha' : 'Mostrar confirmacao de senha'}
+                >
+                  <Ionicons
+                    name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={18}
+                    color={colors.mutedForeground}
+                  />
+                </Pressable>
+              )}
             />
 
           {password.length > 0 && passwordValidationMessage ? (

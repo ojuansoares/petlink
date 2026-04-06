@@ -3,13 +3,13 @@ import { StyleSheet, View } from 'react-native'
 import { useTheme } from '../hooks/useTheme'
 import { Heading, Text } from '../components/ui/Typography'
 
-export default function HomeScreen() {
+export default function FeedScreen() {
   const { colors } = useTheme()
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}> 
-      <Heading size="2xl" weight="800">Home</Heading>
-      <Text color="mutedForeground">Aba inicial em construcao.</Text>
+      <Heading size="2xl" weight="800">Feed</Heading>
+      <Text color="mutedForeground">Aba de feed em construcao.</Text>
     </View>
   )
 }

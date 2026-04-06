@@ -3,6 +3,7 @@ import { TypedUseSelectorHook, useDispatch, useSelector } from 'react-redux'
 import { setApiAuthHandlers } from '../api/axios'
 
 import authReducer, { logout, setTokens } from './slices/authSlice'
+import profileReducer    from './slices/profileSlice'
 import petsReducer       from './slices/petsSlice'
 import postsReducer      from './slices/postsSlice'
 import locationsReducer  from './slices/locationsSlices'
@@ -13,6 +14,7 @@ import uiReducer         from './slices/uiSlice'
 export const store = configureStore({
   reducer: {
     auth:          authReducer,
+    profile:       profileReducer,
     pets:          petsReducer,
     posts:         postsReducer,
     locations:     locationsReducer,

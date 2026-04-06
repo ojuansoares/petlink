@@ -6,7 +6,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./src/assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./src/assets/splash-icon.png",
       "resizeMode": "contain",
@@ -19,7 +19,6 @@
     "android": {
       "package": "com.petlink.app",
       "softwareKeyboardLayoutMode": "pan",
-      "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./src/assets/android-icon-foreground.png",
