@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react'
-import { Appearance, View, Text, ActivityIndicator, StyleSheet, LogBox, Image } from 'react-native'
+import { Appearance, View, Text, ActivityIndicator, StyleSheet, LogBox, Image, Dimensions } from 'react-native'
 import { StatusBar } from 'expo-status-bar'
 import { Provider } from 'react-redux'
 import * as Linking from 'expo-linking'
@@ -26,6 +26,8 @@ import OnboardingScreen, { OnboardingStep } from './src/screens/OnboardingScreen
 LogBox.ignoreLogs([
   'InteractionManager has been deprecated',
 ])
+
+const SPLASH_LOGO_SIZE = Math.round(Dimensions.get('window').width * 0.86)
 
 const ONBOARDING_SEEN_KEY = 'petlink.onboarding.seen'
 
@@ -263,8 +265,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   splashLogo: {
-    width: 132,
-    height: 132,
+    width: SPLASH_LOGO_SIZE,
+    height: SPLASH_LOGO_SIZE,
   },
   splashLoader: {
     marginTop: 18,
