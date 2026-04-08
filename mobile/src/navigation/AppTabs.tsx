@@ -2,11 +2,11 @@ import React from 'react'
 import { useNavigation } from '@react-navigation/native'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { Ionicons } from '@expo/vector-icons'
-import { BlurView } from 'expo-blur'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Platform, Pressable, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Avatar } from '../components/ui/Avatar'
+import { Heading, Text } from '../components/ui/Typography'
 import { useTheme } from '../hooks/useTheme'
 import HomeScreen from '../screens/HomeScreen'
 import PetsScreen from '../screens/PetsScreen'
@@ -15,7 +15,6 @@ import ProfileScreen from '../screens/ProfileScreen'
 import { useAppDispatch, useAppSelector } from '../store'
 import { selectUser } from '../store/slices/authSlice'
 import { fetchMyProfileThunk, selectProfile } from '../store/slices/profileSlice'
-import { toggleTheme } from '../store/slices/uiSlice'
 
 type AppTabsParamList = {
   Home: undefined
@@ -26,24 +25,25 @@ type AppTabsParamList = {
 
 const Tab = createBottomTabNavigator<AppTabsParamList>()
 
-function ThemeToggleButton() {
-  const dispatch = useAppDispatch()
-  const { isDark, colors } = useTheme()
+function UserRegionHeader() {
+  const { colors, withAlpha } = useTheme()
+  const profile = useAppSelector(selectProfile)
+  
+  const location = profile?.location || 'BR'
 
   return (
-    <Pressable
-      onPress={() => dispatch(toggleTheme())}
-      hitSlop={8}
-      style={styles.headerIconButton}
-      accessibilityRole="button"
-      accessibilityLabel="Alternar tema"
-    >
-      <Ionicons
-        name={isDark ? 'sunny-outline' : 'moon-outline'}
-        size={22}
-        color={colors.foreground}
-      />
-    </Pressable>
+    <View style={[
+      styles.regionBadge,
+      { 
+        backgroundColor: withAlpha(colors.primary, 0.08),
+        borderColor: withAlpha(colors.primary, 0.15),
+      }
+    ]}>
+      <Ionicons name="location-sharp" size={14} color={colors.primary} />
+      <Text weight="700" size="xs" style={{ color: colors.primary, marginLeft: 4 }}>
+        {location}
+      </Text>
+    </View>
   )
 }
 
@@ -84,21 +84,6 @@ function HeaderActions() {
   )
 }
 
-function TabBarGlassBackground() {
-  const { isDark } = useTheme()
-
-  return (
-    <View style={styles.fullFill}>
-      {Platform.OS === 'ios' ? (
-        <BlurView
-          tint={isDark ? 'dark' : 'light'}
-          intensity={95}
-          style={styles.fullFill}
-        />
-      ) : null}
-    </View>
-  )
-}
 
 function HomeTabIcon({ color, focused }: Readonly<{ color: string; focused: boolean }>) {
   return <Ionicons name={focused ? 'home' : 'home-outline'} size={26} color={color} />
@@ -128,9 +113,6 @@ export default function AppTabs() {
   // Máscara vertical — altura generosa para a transição ser bem suave
   const maskHeight = tabBarHeight + bottomOffset + 48
 
-  // Android: fundo sólido na navbar já que não tem BlurView
-  const androidTabBarBackground = withAlpha(colors.card, isDark ? 0.9 : 0.95)
-
   // Máscara vertical: começa transparente, fecha devagar e suavemente
   const outerMaskTop    = withAlpha(colors.background, 0)
   const outerMaskMid1   = withAlpha(colors.background, isDark ? 0.15 : 0.18)
@@ -152,14 +134,14 @@ export default function AppTabs() {
           headerShown: true,
           headerTitle: '',
           headerStyle: {
-            backgroundColor: colors.background,
+            backgroundColor: colors.headerBackground,
             borderBottomWidth: 1,
             borderBottomColor: withAlpha(colors.border, 0.75),
           },
           headerShadowVisible: false,
           headerLeftContainerStyle: { paddingLeft: 12 },
           headerRightContainerStyle: { paddingRight: 12 },
-          headerLeft: ThemeToggleButton,
+          headerLeft: UserRegionHeader,
           headerRight: HeaderActions,
           tabBarShowLabel: false,
           tabBarHideOnKeyboard: true,
@@ -190,10 +172,7 @@ export default function AppTabs() {
               height: tabBarHeight,
               paddingTop: 0,
               paddingBottom: 0,
-              // iOS: transparente para o BlurView aparecer
-              // Android: sólido semitransparente
-              backgroundColor:
-                Platform.OS === 'ios' ? 'transparent' : androidTabBarBackground,
+              backgroundColor: colors.tabBarBackground,
               borderWidth: 1,
               borderTopWidth: 1,
               borderColor: withAlpha(colors.border, 0.5),
@@ -211,7 +190,6 @@ export default function AppTabs() {
               }),
             },
           ],
-          tabBarBackground: TabBarGlassBackground,
         }}
       >
         <Tab.Screen name="Home"    component={HomeScreen}    options={{ tabBarIcon: HomeTabIcon }} />
@@ -280,6 +258,14 @@ const styles = StyleSheet.create({
   },
   headerAvatarButton: {
     marginRight: 10,
+  },
+  regionBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
   },
   tabBar: {
     position: 'absolute',

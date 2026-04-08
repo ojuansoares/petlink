@@ -7,6 +7,7 @@ import { Heading, Text } from '../components/ui/Typography'
 import { useTheme } from '../hooks/useTheme'
 import { useAppDispatch } from '../store'
 import { logout, logoutThunk } from '../store/slices/authSlice'
+import { showToast } from '../store/slices/uiSlice'
 
 interface MenuItem {
   label: string
@@ -70,6 +71,23 @@ export default function SettingsMenuScreen({ navigation }: Readonly<{ navigation
           <Ionicons name="chevron-forward" size={20} color={colors.mutedForeground} style={styles.chevron} />
         </Pressable>
 
+        <Pressable
+          onPress={() => navigation.navigate('SettingsNotifications')}
+          style={({ pressed }) => [
+            styles.item,
+            {
+              borderColor: withAlpha(colors.border, 0.8),
+              backgroundColor: pressed ? withAlpha(colors.primary, 0.1) : colors.card,
+            },
+          ]}
+        >
+          <View style={[styles.iconWrap, { backgroundColor: withAlpha(colors.primary, 0.14) }]}>
+            <Ionicons name="notifications-outline" size={20} color={colors.primary} />
+          </View>
+          <Text weight="700" size="lg">Notificações</Text>
+          <Ionicons name="chevron-forward" size={20} color={colors.mutedForeground} style={styles.chevron} />
+        </Pressable>
+
         <View style={styles.items}>
           {MENU_ITEMS.map((item) => (
             <Pressable
@@ -93,7 +111,7 @@ export default function SettingsMenuScreen({ navigation }: Readonly<{ navigation
         </View>
       </View>
 
-      <Button label="Logout" variant="outline" onPress={() => setShowLogoutConfirm(true)} />
+      <Button label="Logout" variant="primary" onPress={() => setShowLogoutConfirm(true)} />
 
       <LogoutConfirmModal
         visible={showLogoutConfirm}

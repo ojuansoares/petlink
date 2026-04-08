@@ -1,6 +1,7 @@
-import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
+import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit'
 import axios from 'axios'
 import { api } from '../../api/axios'
+import { readActivePetId, writeActivePetId } from '../../utils/petStorage'
 
 export interface Pet {
   id: string
@@ -32,17 +33,21 @@ export interface CreatePetPayload {
 
 interface PetsState {
   list: Pet[]
+  activePetId: string | null
   isLoading: boolean
   isCreating: boolean
   isUpdating: boolean
+  isDeleting: boolean
   error: string | null
 }
 
 const initialState: PetsState = {
   list: [],
+  activePetId: null,
   isLoading: false,
   isCreating: false,
   isUpdating: false,
+  isDeleting: false,
   error: null,
 }
 
@@ -110,12 +115,23 @@ export const deletePetThunk = createAsyncThunk(
   }
 )
 
+export const hydrateActivePetThunk = createAsyncThunk(
+  'pets/hydrateActiveId',
+  async () => {
+    return await readActivePetId()
+  }
+)
+
 const petsSlice = createSlice({
   name: 'pets',
   initialState,
   reducers: {
     clearPetError: (state) => {
       state.error = null
+    },
+    setActivePetId: (state, action: PayloadAction<string | null>) => {
+      state.activePetId = action.payload
+      writeActivePetId(action.payload)
     },
   },
   extraReducers: (builder) => {
@@ -164,17 +180,36 @@ const petsSlice = createSlice({
         s.error = a.payload as string
       })
 
-    builder.addCase(deletePetThunk.fulfilled, (s, a) => {
-      s.list = s.list.filter((pet) => pet.id !== a.payload)
-    })
+    builder
+      .addCase(deletePetThunk.pending, (s) => {
+        s.isDeleting = true
+        s.error = null
+      })
+      .addCase(deletePetThunk.fulfilled, (s, a) => {
+        s.isDeleting = false
+        s.list = s.list.filter((pet) => pet.id !== a.payload)
+      })
+      .addCase(deletePetThunk.rejected, (s, a) => {
+        s.isDeleting = false
+        s.error = a.payload as string
+      })
+
+    builder
+      .addCase(hydrateActivePetThunk.fulfilled, (s, a) => {
+        if (a.payload) {
+          s.activePetId = a.payload
+        }
+      })
   },
 })
 
-export const { clearPetError } = petsSlice.actions
+export const { clearPetError, setActivePetId } = petsSlice.actions
 export default petsSlice.reducer
 
 export const selectPetsList = (s: any): Pet[] => s.pets.list
 export const selectPetsLoading = (s: any): boolean => s.pets.isLoading
 export const selectPetsCreating = (s: any): boolean => s.pets.isCreating
 export const selectPetsUpdating = (s: any): boolean => s.pets.isUpdating
+export const selectPetsDeleting = (s: any): boolean => s.pets.isDeleting
 export const selectPetsError = (s: any): string | null => s.pets.error
+export const selectActivePetId = (s: any): string | null => s.pets.activePetId

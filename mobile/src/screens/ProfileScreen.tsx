@@ -1,7 +1,7 @@
 import React from 'react'
 import { useNavigation } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native'
+import { ActivityIndicator, Image, Modal, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native'
 import { api } from '../api/axios'
 import { Avatar } from '../components/ui/Avatar'
 import { Button } from '../components/ui/Button'
@@ -60,6 +60,7 @@ export default function ProfileScreen() {
   const [isUploadingAvatar, setIsUploadingAvatar] = React.useState(false)
   const [isEditMode, setIsEditMode] = React.useState(false)
   const [notificationsEnabled, setNotificationsEnabled] = React.useState(true)
+  const [isImageExpanded, setIsImageExpanded] = React.useState(false)
 
   React.useEffect(() => {
     dispatch(fetchMyProfileThunk())
@@ -191,8 +192,8 @@ export default function ProfileScreen() {
         <View style={styles.avatarBlock}>
           <View style={styles.avatarShell}>
             <Pressable
-              onPress={isEditMode ? handlePickAvatarFromGallery : undefined}
-              disabled={!isEditMode || isUploadingAvatar}
+              onPress={isEditMode ? handlePickAvatarFromGallery : () => setIsImageExpanded(true)}
+              disabled={isUploadingAvatar}
               style={styles.avatarPressable}
             >
               <Avatar
@@ -267,6 +268,7 @@ export default function ProfileScreen() {
         {isEditMode ? (
           <>
             <Input
+              label="Seu nome"
               placeholder="Nome"
               value={name}
               onChangeText={setName}
@@ -274,6 +276,7 @@ export default function ProfileScreen() {
             />
 
             <OptionSelect
+              label="Localização"
               placeholder="Estado"
               value={location}
               onChange={setLocation}
@@ -282,7 +285,8 @@ export default function ProfileScreen() {
             />
 
             <Input
-              placeholder="Bio"
+              label="Bio / Descrição"
+              placeholder="Fale um pouco sobre você"
               value={bio}
               onChangeText={setBio}
               leftIcon={<Ionicons name="document-text-outline" size={18} color={colors.mutedForeground} />}
@@ -349,7 +353,7 @@ export default function ProfileScreen() {
 
           <Button
             label="Logout"
-            variant="outline"
+            variant="primary"
             onPress={() => setShowLogoutConfirm(true)}
           />
         </View>
@@ -364,6 +368,23 @@ export default function ProfileScreen() {
         onCancel={() => setShowLogoutConfirm(false)}
         onConfirm={confirmLogout}
       />
+
+      <Modal visible={isImageExpanded} animationType="fade" transparent onRequestClose={() => setIsImageExpanded(false)}>
+        <View style={styles.fullscreenBackdrop}>
+           <Pressable onPress={() => setIsImageExpanded(false)} style={styles.closeExpanded}>
+              <Ionicons name="close" size={32} color="#fff" />
+           </Pressable>
+           {avatarUrl ? (
+             <Image 
+               source={{ uri: avatarUrl }} 
+               style={styles.fullImage} 
+               resizeMode="contain" 
+             />
+           ) : (
+             <Avatar size={200} name={name} />
+           )}
+        </View>
+      </Modal>
     </ScrollView>
   )
 }
@@ -465,5 +486,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+  },
+  fullscreenBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.95)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  closeExpanded: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    zIndex: 20,
+  },
+  fullImage: {
+    width: '100%',
+    height: '80%',
   },
 })

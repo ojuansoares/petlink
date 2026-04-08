@@ -23,7 +23,8 @@ import {
   selectAuthLoading,
   selectAuthLoadingContext,
 } from './src/store/slices/authSlice'
-import { selectIsDark, systemThemeChanged } from './src/store/slices/uiSlice'
+import { selectIsDark, systemThemeChanged, selectToasts, dismissToast, showToast } from './src/store/slices/uiSlice'
+import { hydrateActivePetThunk } from './src/store/slices/PetsSlice'
 import { supabase } from './src/config/supabase'
 import RootNavigator from './src/navigation/RootNavigator'
 import { tokens, withAlpha } from './src/theme'
@@ -100,8 +101,7 @@ function extractParamsFromUrl(url: string): Record<string, string> {
 
 function handleDeepLink(
   url: string,
-  dispatch: ReturnType<typeof useAppDispatch>,
-  onMessage?: (message: string) => void
+  dispatch: ReturnType<typeof useAppDispatch>
 ) {
   if (!url) return
 
@@ -131,7 +131,7 @@ function handleDeepLink(
       }
 
       if (isEmailConfirmation) {
-        onMessage?.('Email confirmado com sucesso! Agora voce ja pode usar o app.')
+        dispatch(showToast({ type: 'success', message: 'Email confirmado com sucesso! Agora voce ja pode usar o app.' }))
       }
 
       dispatch(hydrateAuthThunk())
@@ -146,7 +146,7 @@ function AppContent() {
   const authLoading = useAppSelector(selectAuthLoading)
   const authLoadingContext = useAppSelector(selectAuthLoadingContext)
   const isDark = useAppSelector(selectIsDark)
-  const [toastMessage, setToastMessage] = React.useState<string | null>(null)
+  const toasts = useAppSelector(selectToasts)
   const [showLaunchSplash, setShowLaunchSplash] = React.useState(true)
   const [hasSeenOnboarding, setHasSeenOnboarding] = React.useState<boolean | null>(null)
   const [onboardingStep, setOnboardingStep] = React.useState(0)
@@ -160,9 +160,10 @@ function AppContent() {
     Nunito_700Bold,
   })
 
-  // Lê o Keychain e restaura a sessão ao abrir o app
+  // Lê o Keychain e restaura a sessão e o pet ativo ao abrir o app
   useEffect(() => {
     dispatch(hydrateAuthThunk())
+    dispatch(hydrateActivePetThunk())
   }, [dispatch])
 
   // Escuta mudança de tema do sistema (RF23 — modo escuro automático)
@@ -176,7 +177,7 @@ function AppContent() {
   // Captura deep links quando o app ja esta aberto
   useEffect(() => {
     const sub = Linking.addEventListener('url', ({ url }) => {
-      handleDeepLink(url, dispatch, setToastMessage)
+      handleDeepLink(url, dispatch)
     })
 
     return () => sub.remove()
@@ -186,17 +187,21 @@ function AppContent() {
   useEffect(() => {
     Linking.getInitialURL().then((url) => {
       if (url) {
-        handleDeepLink(url, dispatch, setToastMessage)
+        handleDeepLink(url, dispatch)
       }
     })
   }, [dispatch])
 
   useEffect(() => {
-    if (!toastMessage) return
+    if (toasts.length === 0) return
 
-    const timer = setTimeout(() => setToastMessage(null), 3500)
+    const activeToast = toasts[0]
+    const timer = setTimeout(() => {
+      dispatch(dismissToast(activeToast.id))
+    }, 3500)
+
     return () => clearTimeout(timer)
-  }, [toastMessage])
+  }, [toasts, dispatch])
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -260,23 +265,35 @@ function AppContent() {
         <RootNavigator />
       )}
 
-      {toastMessage ? (
+      {toasts.length > 0 ? (
         <View style={styles.toastContainer} pointerEvents="none">
-          <View
-            style={[
-              styles.toastBox,
-              {
-                backgroundColor: palette.primary,
-                borderColor: withAlpha(palette.border, 0.9),
-              },
-            ]}
-          >
-            <ActivityIndicator size="small" color={palette.primaryForeground} style={styles.toastSpinner} />
-            <View style={styles.toastTextWrapper}>
-              <Text style={[styles.toastTitle, { color: palette.primaryForeground }]}>Confirmacao concluida</Text>
-              <Text style={[styles.toastMessage, { color: palette.primaryForeground }]}>{toastMessage}</Text>
-            </View>
-          </View>
+          {toasts.map((toast, index) => {
+            if (index > 0) return null
+            const isError = toast.type === 'error'
+            const bgColor = isError ? palette.destructive : palette.primary
+            const fgColor = isError ? palette.destructiveForeground : palette.primaryForeground
+            
+            return (
+              <View
+                key={toast.id}
+                style={[
+                  styles.toastBox,
+                  {
+                    backgroundColor: bgColor,
+                    borderColor: withAlpha(palette.border, 0.9),
+                  },
+                ]}
+              >
+                {!isError && <ActivityIndicator size="small" color={fgColor} style={styles.toastSpinner} />}
+                <View style={styles.toastTextWrapper}>
+                  <Text style={[styles.toastTitle, { color: fgColor }]}>
+                    {isError ? 'Aviso' : 'Sucesso'}
+                  </Text>
+                  <Text style={[styles.toastMessage, { color: fgColor }]}>{toast.message}</Text>
+                </View>
+              </View>
+            )
+          })}
         </View>
       ) : null}
 

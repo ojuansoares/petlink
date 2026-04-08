@@ -10,12 +10,14 @@ import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-na
 import { useTheme } from '../../hooks/useTheme'
 
 interface InputProps extends TextInputProps {
+  label?: string
   leftIcon?: ReactNode
   rightIcon?: ReactNode
   containerStyle?: ViewStyle
 }
 
 export function Input({
+  label,
   leftIcon,
   rightIcon,
   containerStyle,
@@ -42,36 +44,44 @@ export function Input({
 
   return (
     <View style={[styles.wrapper, containerStyle]}>
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          StyleSheet.absoluteFill,
-          styles.glow,
-          { backgroundColor: withAlpha(colors.primary, 0.12) },
-          animatedGlowStyle,
-        ]}
-      />
-
-      <View style={[styles.field, fieldStyle]}>
-        {leftIcon ? <View style={styles.icon}>{leftIcon}</View> : null}
-
-        <TextInput
-          {...props}
-          style={[styles.input, { color: colors.foreground }]}
-          placeholderTextColor={colors.mutedForeground}
-          onFocus={(e) => {
-            setFocused(true)
-            glow.value = 1
-            onFocus?.(e)
-          }}
-          onBlur={(e) => {
-            setFocused(false)
-            glow.value = 0
-            onBlur?.(e)
-          }}
+      {label ? (
+        <Animated.Text style={[styles.label, { color: focused ? colors.primary : colors.mutedForeground }]}>
+          {label}
+        </Animated.Text>
+      ) : null}
+      
+      <View style={styles.containerRelative}>
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            StyleSheet.absoluteFill,
+            styles.glow,
+            { backgroundColor: withAlpha(colors.primary, 0.12) },
+            animatedGlowStyle,
+          ]}
         />
 
-        {rightIcon ? <View style={styles.icon}>{rightIcon}</View> : null}
+        <View style={[styles.field, fieldStyle]}>
+          {leftIcon ? <View style={styles.icon}>{leftIcon}</View> : null}
+
+          <TextInput
+            {...props}
+            style={[styles.input, { color: colors.foreground }]}
+            placeholderTextColor={colors.mutedForeground}
+            onFocus={(e) => {
+              setFocused(true)
+              glow.value = 1
+              onFocus?.(e)
+            }}
+            onBlur={(e) => {
+              setFocused(false)
+              glow.value = 0
+              onBlur?.(e)
+            }}
+          />
+
+          {rightIcon ? <View style={styles.icon}>{rightIcon}</View> : null}
+        </View>
       </View>
     </View>
   )
@@ -79,6 +89,15 @@ export function Input({
 
 const styles = StyleSheet.create({
   wrapper: {
+    width: '100%',
+    gap: 6,
+  },
+  label: {
+    fontSize: 13,
+    fontWeight: '700',
+    marginLeft: 12,
+  },
+  containerRelative: {
     width: '100%',
     minHeight: 48,
   },

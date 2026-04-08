@@ -11,7 +11,10 @@ export const tokens = {
     mutedForeground: '#78786C',
     border: '#DED8CF',
     destructive: '#A85448',
+    destructiveForeground: '#F3F4F1',
     card: '#FEFEFA',
+    headerBackground: '#E6E9DD',
+    tabBarBackground: '#EDF0E6',
   },
   dark: {
     background: '#1C1C16',
@@ -25,7 +28,10 @@ export const tokens = {
     mutedForeground: '#9A9A8E',
     border: '#3A3830',
     destructive: '#C06358',
+    destructiveForeground: '#F3F4F1',
     card: '#222219',
+    headerBackground: '#272A22',
+    tabBarBackground: '#22241D',
   },
 } as const
 

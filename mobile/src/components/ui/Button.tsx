@@ -14,7 +14,7 @@ import Animated, {
 import { useTheme } from '../../hooks/useTheme'
 import { Text } from './Typography'
 
-type Variant = 'primary' | 'outline' | 'ghost'
+type Variant = 'primary' | 'outline' | 'ghost' | 'destructive'
 
 interface ButtonProps extends Omit<PressableProps, 'style'> {
   label: string
@@ -56,17 +56,25 @@ export function Button({
             backgroundColor: 'transparent',
             borderColor: colors.primary,
           }
-        : {
-            backgroundColor: 'transparent',
-            borderColor: 'transparent',
-          }
+        : variant === 'destructive'
+          ? {
+              backgroundColor: isDisabled ? withAlpha(colors.destructive, 0.3) : colors.destructive,
+              borderColor: colors.destructive,
+              ...shadows.soft,
+            }
+          : {
+              backgroundColor: 'transparent',
+              borderColor: 'transparent',
+            }
 
   const labelColor =
     variant === 'primary'
       ? colors.primaryForeground
       : variant === 'outline'
         ? colors.primary
-        : colors.foreground
+        : variant === 'destructive'
+          ? colors.destructiveForeground
+          : colors.foreground
 
   return (
     <AnimatedPressable

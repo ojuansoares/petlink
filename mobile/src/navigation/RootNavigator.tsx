@@ -6,7 +6,7 @@ import { Pressable } from 'react-native'
 import { useAppSelector } from '../store'
 import { selectIsAuth } from '../store/slices/authSlice'
 import { selectIsDark } from '../store/slices/uiSlice'
-import { tokens } from '../theme'
+import { tokens, withAlpha } from '../theme'
 import AuthStack from './AuthStack'
 import AppTabs from './AppTabs'
 import SettingsMenuScreen from '../screens/SettingsMenuScreen'
@@ -15,6 +15,7 @@ type AppStackParamList = {
   Tabs: undefined
   SettingsMenu: undefined
   SettingsTheme: undefined
+  SettingsNotifications: undefined
 }
 
 const AppStack = createStackNavigator<AppStackParamList>()
@@ -35,8 +36,21 @@ function SettingsBackButton({ onPress }: Readonly<{ onPress?: () => void }>) {
 }
 
 function AuthenticatedNavigator() {
+  const isDark = useAppSelector(selectIsDark)
+  const palette = isDark ? tokens.dark : tokens.light
+
   return (
-    <AppStack.Navigator>
+    <AppStack.Navigator
+      screenOptions={{
+        headerStyle: {
+          backgroundColor: palette.headerBackground,
+          borderBottomWidth: 1,
+          borderBottomColor: withAlpha(palette.border, 0.75),
+          shadowOpacity: 0,
+          elevation: 0,
+        },
+      }}
+    >
       <AppStack.Screen
         name="Tabs"
         component={AppTabs}
@@ -46,7 +60,7 @@ function AuthenticatedNavigator() {
         name="SettingsMenu"
         component={SettingsMenuScreen}
         options={{
-          title: 'Configuracoes',
+          title: 'Configurações',
           headerLeft: SettingsBackButton,
         }}
       />
@@ -55,6 +69,14 @@ function AuthenticatedNavigator() {
         component={require('../screens/ThemeSettingsScreen').default}
         options={{
           title: 'Tema',
+          headerLeft: SettingsBackButton,
+        }}
+      />
+      <AppStack.Screen
+        name="SettingsNotifications"
+        component={require('../screens/SettingsNotificationsScreen').default}
+        options={{
+          title: 'Notificações',
           headerLeft: SettingsBackButton,
         }}
       />

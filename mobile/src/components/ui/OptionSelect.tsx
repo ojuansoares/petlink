@@ -16,6 +16,7 @@ interface SelectOption {
 }
 
 interface OptionSelectProps {
+  label?: string
   placeholder: string
   value: string
   options: SelectOption[]
@@ -24,6 +25,7 @@ interface OptionSelectProps {
 }
 
 export function OptionSelect({
+  label,
   placeholder,
   value,
   options,
@@ -36,7 +38,13 @@ export function OptionSelect({
   const selectedLabel = options.find((option) => option.value === value)?.label
 
   return (
-    <>
+    <View style={styles.wrapper}>
+      {label ? (
+        <Text size="xs" weight="700" style={[styles.label, { color: colors.mutedForeground }]}>
+          {label}
+        </Text>
+      ) : null}
+
       <Pressable
         style={[
           styles.field,
@@ -90,11 +98,18 @@ export function OptionSelect({
           </View>
         </View>
       </Modal>
-    </>
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
+  wrapper: {
+    width: '100%',
+    gap: 6,
+  },
+  label: {
+    marginLeft: 12,
+  },
   field: {
     minHeight: 48,
     borderRadius: 999,
