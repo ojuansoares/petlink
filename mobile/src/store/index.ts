@@ -4,7 +4,7 @@ import { setApiAuthHandlers } from '../api/axios'
 
 import authReducer, { logout, setTokens } from './slices/authSlice'
 import profileReducer    from './slices/profileSlice'
-import petsReducer       from './slices/petsSlice'
+import petsReducer       from './slices/PetsSlice'
 import postsReducer      from './slices/postsSlice'
 import locationsReducer  from './slices/locationsSlices'
 import walksReducer      from './slices/walksSlices'

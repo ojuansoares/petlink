@@ -69,6 +69,24 @@ export const updateMyProfileThunk = createAsyncThunk(
   }
 )
 
+export const updateMyAvatarThunk = createAsyncThunk(
+  'profile/updateAvatar',
+  async (payload: { avatar_url: string }, { rejectWithValue }) => {
+    try {
+      const { data } = await api.put('/profile/me', {
+        avatar_url: payload.avatar_url.trim(),
+      })
+      return data.profile as UserProfile
+    } catch (err: any) {
+      if (axios.isAxiosError(err)) {
+        const message = err.response?.data?.error ?? err.response?.data?.message
+        if (message) return rejectWithValue(message)
+      }
+      return rejectWithValue('Erro ao atualizar foto de perfil')
+    }
+  }
+)
+
 const profileSlice = createSlice({
   name: 'profile',
   initialState,
@@ -100,6 +118,20 @@ const profileSlice = createSlice({
       .addCase(updateMyProfileThunk.rejected, (s, a) => {
         s.isUpdating = false
         s.error = (a.payload as string) ?? 'Erro ao atualizar perfil'
+      })
+
+    builder
+      .addCase(updateMyAvatarThunk.pending, (s) => {
+        s.isUpdating = true
+        s.error = null
+      })
+      .addCase(updateMyAvatarThunk.fulfilled, (s, a) => {
+        s.isUpdating = false
+        s.profile = a.payload
+      })
+      .addCase(updateMyAvatarThunk.rejected, (s, a) => {
+        s.isUpdating = false
+        s.error = (a.payload as string) ?? 'Erro ao atualizar foto de perfil'
       })
 
     builder
