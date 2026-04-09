@@ -18,13 +18,18 @@ export async function authMiddleware(
 
   const token = authHeader.split(' ')[1]
 
-  // Supabase valida o JWT e retorna o usuário
-  const { data: { user }, error } = await supabaseAdmin.auth.getUser(token)
+  try {
+    // Supabase valida o JWT e retorna o usuário
+    const { data: { user }, error } = await supabaseAdmin.auth.getUser(token)
 
-  if (error || !user) {
-    return res.status(401).json({ error: 'Token inválido ou expirado' })
+    if (error || !user) {
+      return res.status(401).json({ error: 'Token inválido ou expirado' })
+    }
+
+    req.user = { id: user.id, email: user.email! }
+    next()
+  } catch (err: any) {
+    console.error('[AuthMiddleware] Erro ao validar token:', err.message)
+    return res.status(500).json({ error: 'Erro interno ao validar autenticação' })
   }
-
-  req.user = { id: user.id, email: user.email! }
-  next()
 }

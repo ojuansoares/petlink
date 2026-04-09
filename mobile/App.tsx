@@ -5,15 +5,13 @@ import { Provider } from 'react-redux'
 import * as Linking from 'expo-linking'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
-import {
-  Fraunces_600SemiBold,
-  Fraunces_800ExtraBold,
-  useFonts as useFrauncesFonts,
-} from '@expo-google-fonts/fraunces'
+// Fraunces removida para um visual mais clean e "fofo" (sans-serif rounded)
 import {
   Nunito_400Regular,
   Nunito_600SemiBold,
   Nunito_700Bold,
+  Nunito_800ExtraBold,
+  Nunito_900Black,
   useFonts as useNunitoFonts,
 } from '@expo-google-fonts/nunito'
 import { store, useAppDispatch, useAppSelector } from './src/store'
@@ -150,15 +148,16 @@ function AppContent() {
   const [showLaunchSplash, setShowLaunchSplash] = React.useState(true)
   const [hasSeenOnboarding, setHasSeenOnboarding] = React.useState<boolean | null>(null)
   const [onboardingStep, setOnboardingStep] = React.useState(0)
-  const [frauncesLoaded] = useFrauncesFonts({
-    Fraunces_600SemiBold,
-    Fraunces_800ExtraBold,
-  })
   const [nunitoLoaded] = useNunitoFonts({
     Nunito_400Regular,
     Nunito_600SemiBold,
     Nunito_700Bold,
+    Nunito_800ExtraBold,
+    Nunito_900Black,
   })
+
+  // Consideramos carregado se o Nunito estiver pronto
+  const fontsLoaded = nunitoLoaded
 
   // Lê o Keychain e restaura a sessão e o pet ativo ao abrir o app
   useEffect(() => {
@@ -222,7 +221,7 @@ function AppContent() {
   }, [])
 
   // Enquanto lê o Keychain, mostra loading (evita flash de tela de login)
-  if (showLaunchSplash || !hydrated || !frauncesLoaded || !nunitoLoaded || hasSeenOnboarding === null) {
+  if (showLaunchSplash || !hydrated || !fontsLoaded || hasSeenOnboarding === null) {
     const splashPalette = isDark ? tokens.dark : tokens.light
 
     return (

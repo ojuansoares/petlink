@@ -111,8 +111,6 @@ export default function LoginScreen({ navigation }: Readonly<Props>) {
                 <Text size="sm" weight="700" color="secondary">Registre-se</Text>
               </Pressable>
             </View>
-
-            <Text size="xs" color="mutedForeground">API: {API_BASE_URL}</Text>
           </Card>
         </ScrollView>
       </KeyboardAvoidingView>

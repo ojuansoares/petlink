@@ -19,11 +19,12 @@ export const typeScale = {
 export type TypeScaleKey = keyof typeof typeScale
 
 export const fontFamilies = {
-  heading600: 'Fraunces_600SemiBold',
-  heading800: 'Fraunces_800ExtraBold',
+  heading600: 'Nunito_700Bold', // Mais encorpado e arredondado
+  heading800: 'Nunito_900Black', // Máximo impacto, mas ainda "fofo"
   body400: 'Nunito_400Regular',
   body600: 'Nunito_600SemiBold',
   body700: 'Nunito_700Bold',
+  body800: 'Nunito_800ExtraBold',
 } as const
 
 export const lineHeights: Record<TypeScaleKey, number> = {

@@ -11,13 +11,13 @@ type ColorKey = keyof ReturnType<typeof useTheme>['colors']
 
 interface HeadingProps extends RNTextProps {
   size?: TypeScaleKey
-  weight?: '600' | '800'
+  weight?: '600' | '700' | '800' | '900'
   color?: ColorKey
 }
 
 interface BodyTextProps extends RNTextProps {
   size?: TypeScaleKey
-  weight?: '400' | '600' | '700'
+  weight?: '400' | '600' | '700' | '800' | '900'
   color?: ColorKey
 }
 
@@ -35,7 +35,7 @@ export function Heading({
     color: colors[color],
     fontSize: typeScale[size],
     lineHeight: lineHeights[size],
-    fontFamily: weight === '800' ? fontFamilies.heading800 : fontFamilies.heading600,
+    fontFamily: weight === '900' ? fontFamilies.heading800 : (weight === '800' ? fontFamilies.body800 : fontFamilies.heading600),
   }
 
   return (
@@ -56,11 +56,15 @@ export function Text({
   const { colors } = useTheme()
 
   const fontFamily =
-    weight === '700'
-      ? fontFamilies.body700
-      : weight === '600'
-        ? fontFamilies.body600
-        : fontFamilies.body400
+    weight === '900'
+      ? fontFamilies.heading800
+      : weight === '800'
+        ? fontFamilies.body800
+        : weight === '700'
+          ? fontFamilies.body700
+          : weight === '600'
+            ? fontFamilies.body600
+            : fontFamilies.body400
 
   const textStyle: TextStyle = {
     color: colors[color],
