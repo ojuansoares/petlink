@@ -45,10 +45,10 @@ export const authRepository = {
     return data
   },
 
-  async upsertProfile(id: string, name: string, location?: string) {
+  async upsertProfile(id: string, name: string, location?: string, birthDate?: string) {
     const { data, error } = await supabaseAdmin
       .from('profiles')
-      .upsert({ id, name, location }, { onConflict: 'id' })
+      .upsert({ id, name, location, ...(birthDate ? { birth_date: birthDate } : {}) }, { onConflict: 'id' })
       .select()
       .single()
 

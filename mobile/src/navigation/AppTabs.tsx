@@ -3,7 +3,7 @@ import { useNavigation } from '@react-navigation/native'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { Ionicons } from '@expo/vector-icons'
 import { LinearGradient } from 'expo-linear-gradient'
-import { Platform, Pressable, StyleSheet, View } from 'react-native'
+import { Platform, Pressable, StyleSheet, View, Animated } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Avatar } from '../components/ui/Avatar'
 import { Heading, Text } from '../components/ui/Typography'
@@ -26,24 +26,31 @@ type AppTabsParamList = {
 const Tab = createBottomTabNavigator<AppTabsParamList>()
 
 function UserRegionHeader() {
+  const navigation = useNavigation<any>()
   const { colors, withAlpha } = useTheme()
   const profile = useAppSelector(selectProfile)
   
   const location = profile?.location || 'BR'
 
   return (
-    <View style={[
-      styles.regionBadge,
-      { 
-        backgroundColor: withAlpha(colors.primary, 0.08),
-        borderColor: withAlpha(colors.primary, 0.15),
-      }
-    ]}>
+    <Pressable 
+      onPress={() => navigation.navigate('Profile')}
+      accessibilityRole="button"
+      accessibilityLabel="Ir para o perfil e mudar localização"
+      style={({ pressed }) => [
+        styles.regionBadge,
+        { 
+          backgroundColor: withAlpha(colors.primary, 0.08),
+          borderColor: withAlpha(colors.primary, 0.15),
+          opacity: pressed ? 0.7 : 1,
+        }
+      ]}
+    >
       <Ionicons name="location-sharp" size={14} color={colors.primary} />
       <Text weight="700" size="xs" style={{ color: colors.primary, marginLeft: 4 }}>
         {location}
       </Text>
-    </View>
+    </Pressable>
   )
 }
 
@@ -85,20 +92,131 @@ function HeaderActions() {
 }
 
 
-function HomeTabIcon({ color, focused }: Readonly<{ color: string; focused: boolean }>) {
-  return <Ionicons name={focused ? 'home' : 'home-outline'} size={26} color={color} />
+const ICONS: Record<string, { active: any, inactive: any, label: string }> = {
+  Home: { active: 'home', inactive: 'home-outline', label: 'Início' },
+  Pets: { active: 'paw', inactive: 'paw-outline', label: 'Pets' },
+  Feed: { active: 'newspaper', inactive: 'newspaper-outline', label: 'Feed' },
+  Profile: { active: 'person', inactive: 'person-outline', label: 'Perfil' },
 }
 
-function PetsTabIcon({ color, focused }: Readonly<{ color: string; focused: boolean }>) {
-  return <Ionicons name={focused ? 'paw' : 'paw-outline'} size={26} color={color} />
+function TabBarItem({ route, isFocused, onPress }: any) {
+  const { colors } = useTheme()
+  const anim = React.useRef(new Animated.Value(isFocused ? 1 : 0)).current
+
+  React.useEffect(() => {
+    Animated.spring(anim, {
+      toValue: isFocused ? 1 : 0,
+      useNativeDriver: false,
+      friction: 10,
+      tension: 50,
+      restDisplacementThreshold: 0.01,
+      restSpeedThreshold: 0.01,
+    }).start()
+  }, [isFocused])
+
+  const config = ICONS[route.name] || ICONS.Home
+
+  const backgroundColor = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['transparent', colors.primary]
+  })
+
+  const maxWidth = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 100]
+  })
+
+  const opacity = anim.interpolate({
+    inputRange: [0, 0.4, 1],
+    outputRange: [0, 0, 1]
+  })
+
+  return (
+    <Pressable onPress={onPress} style={styles.tabItemWrapper}>
+      <Animated.View style={[styles.tabItem, { backgroundColor }]}>
+        <View style={styles.iconWrapper}>
+          <Animated.View style={{ position: 'absolute', opacity: anim.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }) }}>
+            <Ionicons name={config.inactive} size={22} color={colors.mutedForeground} />
+          </Animated.View>
+          <Animated.View style={{ position: 'absolute', opacity: anim }}>
+            <Ionicons name={config.active} size={22} color="#FFFFFF" />
+          </Animated.View>
+        </View>
+        <Animated.View style={{ maxWidth, overflow: 'hidden' }}>
+          <Animated.Text style={[styles.tabItemLabel, { opacity }]} numberOfLines={1}>
+            {config.label}
+          </Animated.Text>
+        </Animated.View>
+      </Animated.View>
+    </Pressable>
+  )
 }
 
-function FeedTabIcon({ color, focused }: Readonly<{ color: string; focused: boolean }>) {
-  return <Ionicons name={focused ? 'newspaper' : 'newspaper-outline'} size={26} color={color} />
-}
+function CustomTabBar({ state, descriptors, navigation, insets }: any) {
+  const { colors, isDark, withAlpha } = useTheme()
+  const tabBarHeight = 66
+  const floatingGap  = 22
+  const bottomOffset = insets.bottom + 14
 
-function ProfileTabIcon({ color, focused }: Readonly<{ color: string; focused: boolean }>) {
-  return <Ionicons name={focused ? 'person-circle' : 'person-circle-outline'} size={28} color={color} />
+  const glassBackground = withAlpha(colors.tabBarBackground, isDark ? 0.88 : 0.92)
+  const glassBorder     = withAlpha(colors.border, isDark ? 0.35 : 0.45)
+
+  return (
+    <View style={[
+      styles.tabBar,
+      {
+        left: 0,
+        right: 0,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 12,
+        marginHorizontal: floatingGap,
+        bottom: bottomOffset,
+        height: tabBarHeight,
+        backgroundColor: glassBackground,
+        borderWidth: 1,
+        borderColor: glassBorder,
+        zIndex: 4,
+        ...Platform.select({
+          ios: {
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 6 },
+            shadowOpacity: 0.08,
+            shadowRadius: 14,
+          },
+          android: {
+            elevation: 0,
+          },
+        }),
+      }
+    ]}>
+      {state.routes.map((route: any, index: number) => {
+        const isFocused = state.index === index
+
+        const onPress = () => {
+          const event = navigation.emit({
+            type: 'tabPress',
+            target: route.key,
+            canPreventDefault: true,
+          })
+
+          if (!isFocused && !event.defaultPrevented) {
+            navigation.navigate(route.name)
+          }
+        }
+
+        return (
+          <TabBarItem 
+            key={route.key}
+            route={route}
+            isFocused={isFocused}
+            onPress={onPress}
+          />
+        )
+      })}
+    </View>
+  )
 }
 
 export default function AppTabs() {
@@ -106,9 +224,9 @@ export default function AppTabs() {
   const { isDark, colors, withAlpha } = useTheme()
   const insets = useSafeAreaInsets()
 
-  const tabBarHeight   = 66
-  const floatingGap   = 22
-  const bottomOffset  = insets.bottom + 14
+  const tabBarHeight = 66
+  const floatingGap  = 22
+  const bottomOffset = insets.bottom + 14
 
   // Máscara vertical — altura generosa para a transição ser bem suave
   const maskHeight = tabBarHeight + bottomOffset + 48
@@ -130,6 +248,7 @@ export default function AppTabs() {
     <View style={styles.root}>
       <Tab.Navigator
         safeAreaInsets={{ bottom: 0 }}
+        tabBar={(props) => <CustomTabBar {...props} insets={insets} />}
         screenOptions={{
           headerShown: true,
           headerTitle: '',
@@ -143,59 +262,14 @@ export default function AppTabs() {
           headerRightContainerStyle: { paddingRight: 12 },
           headerLeft: UserRegionHeader,
           headerRight: HeaderActions,
-          tabBarShowLabel: false,
           tabBarHideOnKeyboard: true,
           sceneStyle: { backgroundColor: colors.background },
-          tabBarActiveTintColor: colors.primary,
-          tabBarInactiveTintColor: colors.mutedForeground,
-          tabBarItemStyle: {
-            height: '100%',
-            justifyContent: 'center',
-            alignItems: 'center',
-            paddingTop: 0,
-            paddingBottom: 0,
-          },
-          tabBarIconStyle: {
-            height: '100%',
-            width: '100%',
-            alignSelf: 'center',
-            justifyContent: 'center',
-            alignItems: 'center',
-            marginTop: 0,
-            marginBottom: 0,
-          },
-          tabBarStyle: [
-            styles.tabBar,
-            {
-              marginHorizontal: floatingGap,
-              bottom: bottomOffset,
-              height: tabBarHeight,
-              paddingTop: 0,
-              paddingBottom: 0,
-              backgroundColor: colors.tabBarBackground,
-              borderWidth: 1,
-              borderTopWidth: 1,
-              borderColor: withAlpha(colors.border, 0.5),
-              zIndex: 4,
-              ...Platform.select({
-                ios: {
-                  shadowColor: colors.primary,
-                  shadowOffset: { width: 0, height: 8 },
-                  shadowOpacity: 0.12,
-                  shadowRadius: 20,
-                },
-                android: {
-                  elevation: 10,
-                },
-              }),
-            },
-          ],
         }}
       >
-        <Tab.Screen name="Home"    component={HomeScreen}    options={{ tabBarIcon: HomeTabIcon }} />
-        <Tab.Screen name="Pets"    component={PetsScreen}    options={{ tabBarIcon: PetsTabIcon }} />
-        <Tab.Screen name="Feed"    component={FeedScreen}    options={{ tabBarIcon: FeedTabIcon }} />
-        <Tab.Screen name="Profile" component={ProfileScreen} options={{ tabBarIcon: ProfileTabIcon }} />
+        <Tab.Screen name="Home"    component={HomeScreen} />
+        <Tab.Screen name="Pets"    component={PetsScreen} />
+        <Tab.Screen name="Feed"    component={FeedScreen} />
+        <Tab.Screen name="Profile" component={ProfileScreen} />
       </Tab.Navigator>
 
       {/* Máscara vertical — esmaece o conteúdo que passa atrás da navbar */}
@@ -271,14 +345,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     borderTopWidth: 0,
     borderRadius: 30,
-    overflow: 'visible',
-  },
-  fullFill: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
+    overflow: 'hidden',
   },
   behindMask: {
     position: 'absolute',
@@ -289,5 +356,29 @@ const styles = StyleSheet.create({
   sideMask: {
     position: 'absolute',
     zIndex: 3,
+  },
+  tabItemWrapper: {
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 15,
+    paddingHorizontal: 16,
+    borderRadius: 999,
+  },
+  iconWrapper: {
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabItemLabel: {
+    color: '#FFF',
+    fontWeight: '700',
+    fontSize: 13,
+    marginLeft: 6,
   },
 })

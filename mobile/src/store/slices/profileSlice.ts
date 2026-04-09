@@ -11,6 +11,8 @@ export interface UserProfile {
   avatar_url: string | null
   bio: string | null
   updated_at: string | null
+  pets_count: number
+  birth_date: string | null
 }
 
 interface ProfileState {
@@ -46,7 +48,7 @@ export const fetchMyProfileThunk = createAsyncThunk(
 export const updateMyProfileThunk = createAsyncThunk(
   'profile/updateMe',
   async (
-    payload: { name: string; location: string; avatar_url: string; bio: string },
+    payload: { name: string; location: string; avatar_url: string; bio: string; birth_date?: string },
     { rejectWithValue }
   ) => {
     try {
@@ -55,6 +57,7 @@ export const updateMyProfileThunk = createAsyncThunk(
         location: payload.location.trim(),
         avatar_url: payload.avatar_url.trim(),
         bio: payload.bio.trim(),
+        ...(payload.birth_date ? { birth_date: payload.birth_date } : {}),
       }
 
       const { data } = await api.put('/profile/me', body)

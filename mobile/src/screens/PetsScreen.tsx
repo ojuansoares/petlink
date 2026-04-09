@@ -161,6 +161,7 @@ function PetCreationStepContent(props: Readonly<{
   temperament: string
   observations: string
   isUploadingPhoto: boolean
+  colors: any
   onNameChange: (value: string) => void
   onSpeciesChange: (value: string) => void
   onBreedChange: (value: string) => void
@@ -201,7 +202,16 @@ function PetCreationStepContent(props: Readonly<{
           onChangeText={props.onBreedChange}
           leftIcon={<Ionicons name="ribbon-outline" size={18} color={props.colors.mutedForeground} />}
         />
-        <Pressable style={styles.dateField} onPress={props.onOpenBirthDatePicker}>
+        <Pressable 
+          style={[
+            styles.dateField, 
+            { 
+              backgroundColor: props.colors.card, 
+              borderColor: props.colors.border 
+            }
+          ]} 
+          onPress={props.onOpenBirthDatePicker}
+        >
           <Ionicons name="calendar-outline" size={18} color={props.colors.mutedForeground} />
           <Text size="base" color={props.birthDate ? 'foreground' : 'mutedForeground'} style={styles.dateText}>
             {formatIsoToDisplay(props.birthDate) || 'Data de nascimento'}
@@ -512,19 +522,20 @@ export default function PetsScreen() {
       >
         <View style={styles.headerRow}>
           <View style={styles.headerTitleGroup}>
-            <Heading size="3xl" weight="800">Pets</Heading>
-            {pets.length > 1 ? (
-              <Pressable 
-                onPress={() => setIsSelectorVisible(!isSelectorVisible)}
-                style={[styles.selectorToggle, isSelectorVisible && { backgroundColor: withAlpha(colors.primary, 0.1) }]}
-              >
-                <Ionicons 
-                  name={isSelectorVisible ? "chevron-up" : "chevron-down"} 
-                  size={20} 
-                  color={colors.primary} 
-                />
-              </Pressable>
-            ) : null}
+            <Pressable 
+              onPress={() => setIsSelectorVisible(!isSelectorVisible)}
+              style={[
+                styles.selectorToggle, 
+                { backgroundColor: withAlpha(colors.primary, 0.1) }
+              ]}
+            >
+              <Ionicons 
+                name={isSelectorVisible ? "chevron-up" : "chevron-down"} 
+                size={22} 
+                color={colors.primary} 
+              />
+            </Pressable>
+            <Text weight="800" size="xl" style={{ marginLeft: 4, color: colors.foreground }}>Meus Pets</Text>
           </View>
           {pets.length > 0 ? (
             <Button label="Novo pet" variant="outline" onPress={openFlow} style={styles.newPetButton} />
@@ -551,7 +562,14 @@ export default function PetsScreen() {
         {!isLoading && pets.length > 0 && activePet ? (
           <>
             {isSelectorVisible && pets.length > 1 ? (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.selectorScroll} contentContainerStyle={styles.selectorContent}>
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false} 
+                style={styles.selectorScroll} 
+                contentContainerStyle={styles.selectorContent}
+                snapToAlignment="start"
+                decelerationRate="fast"
+              >
                 {pets.map((pet) => (
                   <Pressable
                     key={pet.id}
@@ -597,7 +615,16 @@ export default function PetsScreen() {
                       <Text size="xs" weight="700" style={[styles.label, { color: colors.mutedForeground }]}>
                         Data de Nascimento
                       </Text>
-                      <Pressable style={styles.dateField} onPress={() => setShowBirthDatePicker(true)}>
+                      <Pressable 
+                        style={[
+                          styles.dateField, 
+                          { 
+                            backgroundColor: withAlpha(colors.card, 0.8), 
+                            borderColor: colors.border 
+                          }
+                        ]} 
+                        onPress={() => setShowBirthDatePicker(true)}
+                      >
                         <Ionicons name="calendar-outline" size={18} color={colors.mutedForeground} />
                         <Text size="base" color={birthDate ? 'foreground' : 'mutedForeground'} style={styles.dateText}>
                           {formatIsoToDisplay(birthDate) || 'Data de nascimento'}
@@ -631,8 +658,8 @@ export default function PetsScreen() {
                       },
                     ]}
                   >
-                    <Ionicons name="create-outline" size={15} color={colors.primary} />
-                    <Text size="xs" weight="700">Editar</Text>
+                    <Ionicons name="create-outline" size={18} color={colors.primary} />
+                    <Text weight="700">Editar</Text>
                   </Pressable>
                 </View>
 
@@ -699,7 +726,17 @@ export default function PetsScreen() {
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={[styles.modalBackdrop, { backgroundColor: withAlpha(colors.background, 0.78) }]}
         >
-          <Card variant="organic" style={styles.flowCard}>
+          <Card 
+            variant="organic" 
+            style={[
+              styles.flowCard, 
+              { 
+                backgroundColor: colors.background,
+                borderColor: withAlpha(colors.border, 0.6),
+                borderWidth: 1 
+              }
+            ]}
+          >
             <View style={styles.flowTopRow}>
               <Pressable onPress={closeFlow} style={styles.closeButton}>
                 <Ionicons name="close" size={20} color={colors.foreground} />
@@ -723,7 +760,7 @@ export default function PetsScreen() {
 
             <PetCreationStepContent
               step={step}
-              colors={{ mutedForeground: colors.mutedForeground }}
+              colors={colors}
               name={name}
               species={species}
               breed={breed}
@@ -945,10 +982,6 @@ const styles = StyleSheet.create({
     gap: 12,
     maxHeight: '92%',
     padding: 16,
-    backgroundColor: 'transparent',
-    borderWidth: 0,
-    elevation: 0,
-    shadowOpacity: 0,
   },
   flowTopRow: {
     flexDirection: 'row',
@@ -1040,14 +1073,14 @@ const styles = StyleSheet.create({
   },
   avatarEditFoot: {
     position: 'absolute',
-    bottom: -11,
+    bottom: -14,
     borderWidth: 1,
     borderRadius: 999,
-    minHeight: 28,
-    paddingHorizontal: 10,
+    minHeight: 36,
+    paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
   },
   heroSection: {
     alignItems: 'center',

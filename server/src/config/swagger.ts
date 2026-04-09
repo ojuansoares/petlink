@@ -1,5 +1,5 @@
 import { env } from './env'
- 
+
 export const swaggerSpec = {
   openapi: '3.0.3',
   info: {

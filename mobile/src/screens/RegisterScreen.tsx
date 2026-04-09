@@ -22,6 +22,46 @@ import { AuthStackParamList } from '../navigation/types'
 import { useAppDispatch, useAppSelector } from '../store'
 import { registerThunk, selectAuthError, selectAuthLoading } from '../store/slices/authSlice'
 
+const DateTimePickerComponent = (() => {
+  try {
+    return require('@react-native-community/datetimepicker').default
+  } catch {
+    return null
+  }
+})()
+
+/** Calcula idade a partir de YYYY-MM-DD (formato ISO) */
+function formatDateToIso(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function calcAgeFromISO(isoDate: string): number | null {
+  if (!isoDate) return null
+  const birth = new Date(isoDate)
+  if (isNaN(birth.getTime())) return null
+  const today = new Date()
+  const age = today.getFullYear() - birth.getFullYear()
+  const m = today.getMonth() - birth.getMonth()
+  return m < 0 || (m === 0 && today.getDate() < birth.getDate()) ? age - 1 : age
+}
+
+function formatIsoToDisplay(iso: string) {
+  if (!iso || !iso.includes('-')) return iso
+  return iso.split('-').reverse().join('/')
+}
+
+function parseIsoDate(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null
+  const [year, month, day] = value.split('-').map(Number)
+  if (!year || !month || !day) return null
+  const candidate = new Date(year, month - 1, day)
+  if (Number.isNaN(candidate.getTime())) return null
+  return candidate
+}
+
 type Props = StackScreenProps<AuthStackParamList, 'Register'>
 
 export default function RegisterScreen({ navigation }: Readonly<Props>) {
@@ -35,6 +75,8 @@ export default function RegisterScreen({ navigation }: Readonly<Props>) {
   const [location, setLocation] = React.useState('')
   const [password, setPassword] = React.useState('')
   const [confirmPassword, setConfirmPassword] = React.useState('')
+  const [birthDate, setBirthDate] = React.useState('')
+  const [showBirthDatePicker, setShowBirthDatePicker] = React.useState(false)
   const [showPassword, setShowPassword] = React.useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = React.useState(false)
   const [showSuccessOverlay, setShowSuccessOverlay] = React.useState(false)
@@ -69,10 +111,20 @@ export default function RegisterScreen({ navigation }: Readonly<Props>) {
     passwordValidationMessage = 'As senhas nao conferem.'
   }
 
+  // Validação da data de nascimento
+  const age = birthDate ? calcAgeFromISO(birthDate) : null
+  const birthDateValid = age !== null && age >= 13
+  const birthDateError = birthDate && !birthDateValid
+    ? (age !== null && age < 13)
+      ? `Você precisa ter pelo menos 13 anos (você tem ${age}).`
+      : 'Data inválida.'
+    : null
+
   const canSubmit =
     name.trim().length > 0 &&
     email.trim().length > 0 &&
     location.trim().length > 0 &&
+    birthDateValid &&
     hasStrongPassword &&
     isConfirmFilled &&
     passwordMatches &&
@@ -99,6 +151,7 @@ export default function RegisterScreen({ navigation }: Readonly<Props>) {
         email: email.trim(),
         location,
         password,
+        birthDate: birthDate,
       })
     )
 
@@ -116,7 +169,6 @@ export default function RegisterScreen({ navigation }: Readonly<Props>) {
         <ScrollView
           contentContainerStyle={styles.container}
           keyboardShouldPersistTaps="handled"
-          scrollEnabled={false}
           bounces={false}
           showsVerticalScrollIndicator={false}
         >
@@ -125,19 +177,19 @@ export default function RegisterScreen({ navigation }: Readonly<Props>) {
             <Text size="sm" color="mutedForeground" style={styles.subtitle}>Crie sua conta para comecar a acompanhar seus pets.</Text>
 
             <Input
-            placeholder="Nome"
-            value={name}
-            onChangeText={setName}
+              placeholder="Nome"
+              value={name}
+              onChangeText={setName}
               leftIcon={<Ionicons name="person-outline" size={18} color={colors.mutedForeground} />}
             />
 
             <Input
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="email-address"
-            placeholder="Email"
-            value={email}
-            onChangeText={setEmail}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+              placeholder="Email"
+              value={email}
+              onChangeText={setEmail}
               leftIcon={<Ionicons name="mail-outline" size={18} color={colors.mutedForeground} />}
             />
 
@@ -148,6 +200,38 @@ export default function RegisterScreen({ navigation }: Readonly<Props>) {
               options={BRAZIL_STATES}
               leftIconName="location-outline"
             />
+
+            {/* Data de nascimento com calendário */}
+            <Pressable 
+              style={[
+                styles.dateField, 
+                { 
+                  backgroundColor: withAlpha(colors.card, 0.8), 
+                  borderColor: colors.border 
+                }
+              ]} 
+              onPress={() => setShowBirthDatePicker(true)}
+            >
+              <Ionicons name="calendar-outline" size={18} color={colors.mutedForeground} />
+              <View style={styles.dateFieldContent}>
+                <Text size="xs" color="mutedForeground" style={styles.dateLabel}>Data de nascimento</Text>
+                <Text size="base" color={birthDate ? 'foreground' : 'mutedForeground'}>
+                  {formatIsoToDisplay(birthDate) || 'Selecionar data'}
+                </Text>
+              </View>
+              <Ionicons name="chevron-down" size={18} color={colors.mutedForeground} />
+            </Pressable>
+
+            {/* Feedback de data */}
+            {birthDateError ? (
+              <Text size="xs" style={[styles.hint, { color: colors.destructive }]}>
+                {birthDateError}
+              </Text>
+            ) : birthDateValid ? (
+              <Text size="xs" style={[styles.hint, { color: colors.primary }]}>
+                ✓ {age} anos
+              </Text>
+            ) : null}
 
             <Input
               autoCapitalize="none"
@@ -242,6 +326,23 @@ export default function RegisterScreen({ navigation }: Readonly<Props>) {
           </Card>
         </View>
       </Modal>
+
+      {showBirthDatePicker && DateTimePickerComponent && (
+        <DateTimePickerComponent
+          value={parseIsoDate(birthDate) || new Date(2000, 0, 1)}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          maximumDate={new Date()}
+          onChange={(_: any, date?: Date) => {
+            if (Platform.OS !== 'ios') {
+              setShowBirthDatePicker(false)
+            }
+            if (date) {
+              setBirthDate(formatDateToIso(date))
+            }
+          }}
+        />
+      )}
     </View>
   )
 }
@@ -279,6 +380,21 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     marginBottom: 8,
+  },
+  dateField: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    minHeight: 52,
+    borderRadius: 999,
+    borderWidth: 1,
+    gap: 12,
+  },
+  dateFieldContent: {
+    flex: 1,
+  },
+  dateLabel: {
+    marginBottom: -2,
   },
   buttonSpacing: {
     marginTop: 4,

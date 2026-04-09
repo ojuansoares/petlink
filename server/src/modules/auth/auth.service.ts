@@ -31,11 +31,24 @@ async function ensureOAuthProfile(user: User) {
 }
 
 export const authService = {
-  async register(email: string, password: string, name: string, location?: string, redirectTo?: string) {
+  async register(email: string, password: string, name: string, location?: string, birthDate?: string, redirectTo?: string) {
     const normalizedEmail = email.trim().toLowerCase()
     const alreadyExists = await authRepository.emailExists(normalizedEmail)
     if (alreadyExists) {
       throw new AppError('Email já cadastrado', 409)
+    }
+
+    // Validar idade mínima de 13 anos
+    if (birthDate) {
+      const birth = new Date(birthDate)
+      const today = new Date()
+      const age = today.getFullYear() - birth.getFullYear()
+      const monthDiff = today.getMonth() - birth.getMonth()
+      const dayDiff = today.getDate() - birth.getDate()
+      const realAge = monthDiff < 0 || (monthDiff === 0 && dayDiff < 0) ? age - 1 : age
+      if (realAge < 13) {
+        throw new AppError('Você precisa ter pelo menos 13 anos para se cadastrar', 400)
+      }
     }
 
     const { data, error } = await supabaseAuth.auth.signUp({
@@ -66,7 +79,7 @@ export const authService = {
 
     // O profile base é criado pelo trigger do Supabase (auth.users -> public.profiles).
     // Aqui só sincronizamos dados extras de forma idempotente.
-    const profile = await authRepository.upsertProfile(data.user.id, name, location)
+    const profile = await authRepository.upsertProfile(data.user.id, name, location, birthDate)
 
     return {
       user: data.user,

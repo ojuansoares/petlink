@@ -2,14 +2,27 @@ import { supabaseAdmin } from '../../config/supabase'
 
 export const profileRepository = {
   async findById(id: string) {
-    const { data, error } = await supabaseAdmin
+    const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
       .select('*')
       .eq('id', id)
       .maybeSingle()
 
-    if (error) throw error
-    return data
+    if (profileError) throw profileError
+    if (!profile) return null
+
+    // Contagem de pets
+    const { count, error: countError } = await supabaseAdmin
+      .from('pets')
+      .select('*', { count: 'exact', head: true })
+      .eq('owner_id', id)
+
+    if (countError) throw countError
+
+    return {
+      ...profile,
+      pets_count: count ?? 0
+    }
   },
 
   async updateById(
@@ -19,6 +32,7 @@ export const profileRepository = {
       location: string | null
       avatar_url: string | null
       bio: string | null
+      birth_date: string | null
     }>
   ) {
     const { data, error } = await supabaseAdmin
