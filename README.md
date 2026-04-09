@@ -245,6 +245,6 @@ No painel do Supabase → **Authentication → URL Configuration**:
 
 <div align="center">
 
-Feito por [Juan Soares](https://github.com/ojuansoares) · FATEC · 2025
+Feito por [Juan Soares](https://github.com/ojuansoares) · FATEC · 2026
 
 </div>
