@@ -11,21 +11,21 @@ export function useTheme() {
     soft: Platform.select({
       ios: {
         shadowColor: '#5D7052',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 20,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 10,
       },
-      android: { elevation: 4 },
+      android: { elevation: 2 },
       default: {},
     }),
     float: Platform.select({
       ios: {
         shadowColor: '#C18C5D',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.2,
-        shadowRadius: 40,
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.12,
+        shadowRadius: 20,
       },
-      android: { elevation: 8 },
+      android: { elevation: 5 },
       default: {},
     }),
   } as const

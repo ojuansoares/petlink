@@ -24,7 +24,7 @@ import {
   selectAuthLoadingContext,
 } from './src/store/slices/authSlice'
 import { selectIsDark, systemThemeChanged, selectToasts, dismissToast, showToast } from './src/store/slices/uiSlice'
-import { hydrateActivePetThunk } from './src/store/slices/PetsSlice'
+import { hydrateActivePetThunk } from './src/store/slices/petsSlice'
 import { supabase } from './src/config/supabase'
 import RootNavigator from './src/navigation/RootNavigator'
 import { tokens, withAlpha } from './src/theme'

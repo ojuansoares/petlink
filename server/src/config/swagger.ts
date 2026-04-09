@@ -1,3 +1,5 @@
+import { env } from './env'
+ 
 export const swaggerSpec = {
   openapi: '3.0.3',
   info: {
@@ -6,7 +8,7 @@ export const swaggerSpec = {
     description:
       'BFF REST — autenticação via Supabase Auth; dados estruturados em PostgreSQL (Supabase).',
   },
-  servers: [{ url: 'http://localhost:3000', description: 'Desenvolvimento' }],
+  servers: [{ url: env.API_URL, description: 'Desenvolvimento' }],
   tags: [
     { name: 'Health', description: 'Disponibilidade da API' },
     { name: 'Auth', description: 'Cadastro, login e sessão (Supabase JWT)' },

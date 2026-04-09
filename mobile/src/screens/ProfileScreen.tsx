@@ -46,7 +46,7 @@ function normalizeStateValue(rawValue?: string | null): string {
 export default function ProfileScreen() {
   const navigation = useNavigation<any>()
   const dispatch = useAppDispatch()
-  const { colors, withAlpha } = useTheme()
+  const { colors, withAlpha, mode } = useTheme()
   const profile = useAppSelector(selectProfile)
   const isUpdating = useAppSelector(selectProfileUpdating)
   const profileError = useAppSelector(selectProfileError)
@@ -186,9 +186,11 @@ export default function ProfileScreen() {
       contentContainerStyle={styles.container}
       keyboardShouldPersistTaps="handled"
     >
-      <Heading size="3xl" weight="800">Perfil</Heading>
+      <View style={{ paddingHorizontal: 16 }}>
+        <Heading size="3xl" weight="800">Perfil</Heading>
+      </View>
 
-      <Card variant="organic" style={styles.card}>
+      <Card variant="organic" style={[styles.card, { backgroundColor: colors.background, elevation: 0, shadowOpacity: 0, borderWidth: 0 }]}>
         <View style={styles.avatarBlock}>
           <View style={styles.avatarShell}>
             <Pressable
@@ -234,7 +236,7 @@ export default function ProfileScreen() {
             style={[
               styles.profileHighlight,
               {
-                backgroundColor: withAlpha(colors.card, 0.82),
+                backgroundColor: mode === 'light' ? colors.card : withAlpha(colors.card, 0.82),
                 borderColor: withAlpha(colors.border, 0.8),
               },
             ]}
@@ -316,7 +318,7 @@ export default function ProfileScreen() {
               styles.actionRow,
               {
                 borderColor: withAlpha(colors.border, 0.8),
-                backgroundColor: withAlpha(colors.card, 0.78),
+                backgroundColor: mode === 'light' ? colors.card : withAlpha(colors.card, 0.78),
               },
             ]}
           >
@@ -332,7 +334,7 @@ export default function ProfileScreen() {
               styles.actionRow,
               {
                 borderColor: withAlpha(colors.border, 0.8),
-                backgroundColor: withAlpha(colors.card, 0.78),
+                backgroundColor: mode === 'light' ? colors.card : withAlpha(colors.card, 0.78),
               },
             ]}
           >
@@ -434,7 +436,6 @@ const styles = StyleSheet.create({
   },
   profileHighlight: {
     width: '100%',
-    borderWidth: 1,
     borderRadius: 18,
     paddingHorizontal: 14,
     paddingVertical: 14,
@@ -476,7 +477,6 @@ const styles = StyleSheet.create({
   actionRow: {
     minHeight: 58,
     borderRadius: 16,
-    borderWidth: 1,
     paddingHorizontal: 12,
     flexDirection: 'row',
     alignItems: 'center',

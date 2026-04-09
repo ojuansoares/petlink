@@ -35,7 +35,7 @@ import {
   selectPetsUpdating,
   setActivePetId,
   updatePetThunk,
-} from '../store/slices/PetsSlice'
+} from '../store/slices/petsSlice'
 
 const STEP_TITLES = ['Identidade', 'Detalhes', 'Foto', 'Cuidados']
 
@@ -272,7 +272,7 @@ function PetCreationStepContent(props: Readonly<{
 
 export default function PetsScreen() {
   const dispatch = useAppDispatch()
-  const { colors, withAlpha } = useTheme()
+  const { colors, withAlpha, mode } = useTheme()
 
   const pets = useAppSelector(selectPetsList)
   const activePetId = useAppSelector(selectActivePetId)
@@ -539,7 +539,7 @@ export default function PetsScreen() {
         ) : null}
 
         {showEmptyState ? (
-          <Card variant="organic" style={styles.emptyCard}>
+          <Card variant="organic" style={[styles.emptyCard, { backgroundColor: colors.background, elevation: 0, shadowOpacity: 0, borderWidth: 0 }]}>
             <Heading size="2xl" weight="800">Seu primeiro pet começa aqui</Heading>
             <Text color="mutedForeground" style={styles.centerText}>
               Cadastre seu pet em um fluxo guiado por etapas.
@@ -575,7 +575,7 @@ export default function PetsScreen() {
             ) : null}
 
             {isEditing ? (
-              <Card variant="organic" style={styles.detailCard}>
+              <Card variant="organic" style={[styles.detailCard, { backgroundColor: colors.background, elevation: 0, shadowOpacity: 0, borderWidth: 0 }]}>
                 <View style={[styles.detailHeader, { borderBottomColor: withAlpha(colors.border, 0.5) }]}>
                   <Heading size="xl" weight="800">Editando {activePet.name}</Heading>
                   <Pressable onPress={() => setIsEditing(false)}>
@@ -615,7 +615,7 @@ export default function PetsScreen() {
                 </View>
               </Card>
             ) : (
-              <Card variant="organic" style={styles.detailCard}>
+              <Card variant="organic" style={[styles.detailCard, { backgroundColor: colors.background, elevation: 0, shadowOpacity: 0, borderWidth: 0 }]}>
                 <View style={styles.avatarShell}>
                   <Pressable onPress={() => setIsImageExpanded(true)} style={styles.avatarPressable}>
                     <Avatar size={140} name={activePet.name} source={activePet.photo_url ? { uri: activePet.photo_url } : undefined} />
@@ -646,17 +646,17 @@ export default function PetsScreen() {
                 </View>
 
                 <View style={styles.infoGrid}>
-                   <View style={[styles.infoItem, { backgroundColor: withAlpha(colors.primary, 0.05) }]}>
+                   <View style={[styles.infoItem, { backgroundColor: mode === 'light' ? colors.card : withAlpha(colors.primary, 0.05) }]}>
                       <Ionicons name="calendar-outline" size={20} color={colors.primary} />
                       <Text size="xs" color="mutedForeground">Idade</Text>
                       <Text weight="700">{calculateAge(activePet.birth_date)}</Text>
                    </View>
-                   <View style={[styles.infoItem, { backgroundColor: withAlpha(colors.primary, 0.05) }]}>
+                   <View style={[styles.infoItem, { backgroundColor: mode === 'light' ? colors.card : withAlpha(colors.primary, 0.05) }]}>
                       <Ionicons name="barbell-outline" size={20} color={colors.primary} />
                       <Text size="xs" color="mutedForeground">Peso</Text>
                       <Text weight="700">{activePet.weight_kg ? `${activePet.weight_kg} kg` : '--'}</Text>
                    </View>
-                   <View style={[styles.infoItem, { backgroundColor: withAlpha(colors.primary, 0.05) }]}>
+                   <View style={[styles.infoItem, { backgroundColor: mode === 'light' ? colors.card : withAlpha(colors.primary, 0.05) }]}>
                       <Ionicons name="heart-outline" size={20} color={colors.primary} />
                       <Text size="xs" color="mutedForeground">Raça</Text>
                       <Text weight="700" numberOfLines={1}>{activePet.breed || 'SRD'}</Text>
@@ -945,6 +945,10 @@ const styles = StyleSheet.create({
     gap: 12,
     maxHeight: '92%',
     padding: 16,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    elevation: 0,
+    shadowOpacity: 0,
   },
   flowTopRow: {
     flexDirection: 'row',

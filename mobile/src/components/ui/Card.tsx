@@ -20,10 +20,7 @@ export function Card({
   const variantStyle: ViewStyle =
     variant === 'organic'
       ? {
-          borderTopLeftRadius: 32,
-          borderTopRightRadius: 16,
-          borderBottomLeftRadius: 16,
-          borderBottomRightRadius: 40,
+          borderRadius: 32,
           ...shadows.float,
         }
       : variant === 'elevated'
