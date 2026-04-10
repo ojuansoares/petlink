@@ -8,6 +8,7 @@ export type PetCreateInput = {
   breed?: string | null
   birth_date?: string | null
   weight_kg?: number | null
+  weight_history?: Array<{ weight: number; date: string }> | null
   photo_url?: string | null
   allergies?: string | null
   temperament?: string | null
@@ -50,6 +51,7 @@ export const petsRepository = {
         breed: input.breed ?? null,
         birth_date: input.birth_date ?? null,
         weight_kg: input.weight_kg ?? null,
+        weight_history: input.weight_history ?? [],
         photo_url: input.photo_url ?? null,
         allergies: input.allergies ?? null,
         temperament: input.temperament ?? null,
@@ -94,6 +96,7 @@ export const petsRepository = {
       breed: string | null
       birth_date: string | null
       weight_kg: number | null
+      weight_history: Array<{ weight: number; date: string }> | null
       photo_url: string | null
       allergies: string | null
       temperament: string | null

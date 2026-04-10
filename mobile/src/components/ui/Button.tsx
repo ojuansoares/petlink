@@ -20,6 +20,7 @@ interface ButtonProps extends Omit<PressableProps, 'style'> {
   label: string
   variant?: Variant
   loading?: boolean
+  size?: 'sm' | 'md' | 'lg'
   style?: ViewStyle | ViewStyle[]
 }
 
@@ -28,6 +29,7 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable)
 export function Button({
   label,
   variant = 'primary',
+  size = 'md',
   loading = false,
   disabled,
   onPressIn,
@@ -76,6 +78,15 @@ export function Button({
           ? colors.destructiveForeground
           : colors.foreground
 
+  const sizeStyle: ViewStyle = 
+    size === 'sm' 
+      ? { minHeight: 36, paddingHorizontal: 12 } 
+      : size === 'lg' 
+        ? { minHeight: 56, paddingHorizontal: 24 } 
+        : { minHeight: 48, paddingHorizontal: 18 }
+
+  const labelSize = size === 'sm' ? 'xs' : size === 'lg' ? 'base' : 'sm'
+
   return (
     <AnimatedPressable
       {...props}
@@ -88,12 +99,12 @@ export function Button({
         onPressOut?.(e)
       }}
       disabled={isDisabled}
-      style={[styles.base, variantStyle, isDisabled && styles.disabled, animatedStyle, style]}
+      style={[styles.base, variantStyle, sizeStyle, isDisabled && styles.disabled, animatedStyle, style]}
     >
       {loading ? (
         <ActivityIndicator color={labelColor} />
       ) : (
-        <Text weight="700" style={{ color: labelColor }}>
+        <Text size={labelSize as any} weight="700" style={{ color: labelColor }}>
           {label}
         </Text>
       )}
@@ -103,10 +114,8 @@ export function Button({
 
 const styles = StyleSheet.create({
   base: {
-    minHeight: 48,
     borderRadius: 999,
     borderWidth: 1,
-    paddingHorizontal: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },

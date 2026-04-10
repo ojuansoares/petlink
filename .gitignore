@@ -2,6 +2,9 @@
 
 .env
 
+/.venv/
+**/.venv/
+
 /.vscode/
 **/.vscode/
 
@@ -46,3 +49,4 @@ mobile/.env
 # generated native folders
 /ios
 /android
+.aider*

@@ -1,7 +1,9 @@
 import React from 'react'
+import { useFocusEffect } from '@react-navigation/native'
 import { StackScreenProps } from '@react-navigation/stack'
 import { Ionicons } from '@expo/vector-icons'
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -10,10 +12,26 @@ import {
   View,
 } from 'react-native'
 import { API_BASE_URL } from '../api/axios'
+import {
+  authenticateBiometric,
+  canOfferBiometricLogin,
+  canUseBiometricLogin,
+  hasStoredAuthSession,
+  isBiometricAvailable,
+  isBiometricEnabled,
+  setBiometricEnabled,
+  setBiometricSessionLocked,
+} from '../services/BiometricService'
 import { useTheme } from '../hooks/useTheme'
 import { AuthStackParamList } from '../navigation/types'
 import { useAppDispatch, useAppSelector } from '../store'
-import { loginThunk, selectAuthError, selectAuthLoading } from '../store/slices/authSlice'
+import {
+  hydrateAuthThunk,
+  loginThunk,
+  refreshTokenThunk,
+  selectAuthError,
+  selectAuthLoading,
+} from '../store/slices/authSlice'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Input } from '../components/ui/Input'
@@ -29,15 +47,120 @@ export default function LoginScreen({ navigation }: Readonly<Props>) {
   const [email, setEmail] = React.useState('')
   const [password, setPassword] = React.useState('')
   const [showPassword, setShowPassword] = React.useState(false)
+  const [canUseBiometric, setCanUseBiometric] = React.useState(false)
+  const [showBiometricOption, setShowBiometricOption] = React.useState(false)
+  const [isBiometricLoading, setIsBiometricLoading] = React.useState(false)
 
   const hasMinPassword = password.length >= 8
   const canSubmit = email.trim().length > 0 && hasMinPassword
   const isSubmitDisabled = !canSubmit || isLoading
+  const biometricButtonLabel = isBiometricLoading
+    ? 'Validando...'
+    : canUseBiometric
+      ? 'Entrar com biometria'
+      : 'Ativar biometria'
 
-  const handleLogin = () => {
+  useFocusEffect(
+    React.useCallback(() => {
+      let mounted = true
+
+      const loadBiometricState = async () => {
+        const [canUse, canOffer] = await Promise.all([
+          canUseBiometricLogin(),
+          canOfferBiometricLogin(),
+        ])
+
+        if (mounted) {
+          setCanUseBiometric(canUse)
+          setShowBiometricOption(canOffer)
+        }
+      }
+
+      loadBiometricState()
+
+      return () => {
+        mounted = false
+      }
+    }, [])
+  )
+
+  const handleLogin = async () => {
     if (!canSubmit) return
     console.log(`[LOGIN] tentando login em ${API_BASE_URL}/auth/login`)
-    dispatch(loginThunk({ email: email.trim(), password }))
+
+    try {
+      await dispatch(loginThunk({ email: email.trim(), password })).unwrap()
+      await setBiometricSessionLocked(false)
+
+      const available = await isBiometricAvailable()
+      const enabled = await isBiometricEnabled()
+
+      if (!available || enabled) {
+        if (enabled) {
+          setCanUseBiometric(true)
+        }
+        return
+      }
+
+      Alert.alert(
+        'Ativar biometria?',
+        'Use biometria para entrar mais rapido neste aparelho.',
+        [
+          { text: 'Agora nao', style: 'cancel' },
+          {
+            text: 'Ativar',
+            onPress: () => {
+              setBiometricEnabled(true).then(() => {
+                setCanUseBiometric(true)
+                setShowBiometricOption(true)
+              })
+            },
+          },
+        ]
+      )
+    } catch {
+      // erro ja tratado no estado global de auth
+    }
+  }
+
+  const handleBiometricLogin = async () => {
+    setIsBiometricLoading(true)
+
+    try {
+      if (!canUseBiometric) {
+        const enabled = await isBiometricEnabled()
+        if (!enabled) {
+          const authenticatedForEnable = await authenticateBiometric()
+          if (!authenticatedForEnable) return
+
+          await setBiometricEnabled(true)
+          setCanUseBiometric(true)
+        }
+      }
+
+      const authenticated = await authenticateBiometric()
+      if (!authenticated) return
+      await setBiometricSessionLocked(false)
+
+      const hasSession = await hasStoredAuthSession()
+      if (!hasSession) {
+        Alert.alert(
+          'Sessão não encontrada',
+          'Faça login com email e senha novamente para vincular a biometria neste aparelho.'
+        )
+        return
+      }
+
+      try {
+        await dispatch(refreshTokenThunk()).unwrap()
+      } catch {
+        // fallback para hydrate com token atual
+      }
+
+      await dispatch(hydrateAuthThunk())
+    } finally {
+      setIsBiometricLoading(false)
+    }
   }
 
   return (
@@ -102,6 +225,16 @@ export default function LoginScreen({ navigation }: Readonly<Props>) {
               loading={isLoading}
               style={styles.buttonSpacing}
             />
+
+            {showBiometricOption ? (
+              <Button
+                label={biometricButtonLabel}
+                variant="outline"
+                onPress={handleBiometricLogin}
+                disabled={isLoading || isBiometricLoading}
+                loading={isBiometricLoading}
+              />
+            ) : null}
 
             {authError ? <Text style={{ color: colors.destructive }}>{authError}</Text> : null}
 

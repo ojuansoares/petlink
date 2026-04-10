@@ -3,6 +3,11 @@ import axios from 'axios'
 import { api } from '../../api/axios'
 import { supabase } from '../../config/supabase'
 import { getRedirectUrl } from '../../services/AuthDeepLinkService'
+import {
+  isBiometricEnabled,
+  isBiometricSessionLocked,
+  setBiometricSessionLocked,
+} from '../../services/BiometricService'
 import { clearAuthTokens, readAuthTokens, writeAuthTokens } from '../../utils/authStorage'
 
 // ─── Types ───────────────────────────────────────────────────
@@ -90,10 +95,18 @@ export const loginThunk = createAsyncThunk(
 )
 
 export const logoutThunk = createAsyncThunk('auth/logout', async () => {
+  const biometricEnabled = await isBiometricEnabled()
+
+  if (biometricEnabled) {
+    await setBiometricSessionLocked(true)
+    return
+  }
+
   try {
     await api.post('/auth/logout')
   } finally {
     await clearAuthTokens()
+    await setBiometricSessionLocked(false)
   }
 })
 
@@ -102,6 +115,9 @@ export const hydrateAuthThunk = createAsyncThunk(
   'auth/hydrate',
   async (_, { rejectWithValue }) => {
     try {
+      const locked = await isBiometricSessionLocked()
+      if (locked) return null
+
       const tokens = await readAuthTokens()
       if (!tokens) return null
 
@@ -124,6 +140,8 @@ export const refreshTokenThunk = createAsyncThunk(
   'auth/refresh',
   async (_, { rejectWithValue }) => {
     try {
+      await setBiometricSessionLocked(false)
+
       const tokens = await readAuthTokens()
       if (!tokens?.refreshToken) return rejectWithValue('Sem token')
 

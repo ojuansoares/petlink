@@ -56,7 +56,7 @@ export function OptionSelect({
         onPress={() => setOpen(true)}
       >
         <Ionicons name={leftIconName} size={18} color={colors.mutedForeground} />
-        <Text size="md" style={[styles.fieldText, { color: selectedLabel ? colors.foreground : colors.mutedForeground }]}>
+        <Text size="base" style={[styles.fieldText, { color: selectedLabel ? colors.foreground : colors.mutedForeground }]}> 
           {selectedLabel ?? placeholder}
         </Text>
         <Ionicons name="chevron-down" size={18} color={colors.mutedForeground} />
@@ -67,7 +67,7 @@ export function OptionSelect({
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setOpen(false)} />
 
           <View style={[styles.sheet, { backgroundColor: colors.card, borderColor: colors.border }]}> 
-            <Text size="md" weight="700" style={styles.title}>Selecione o estado</Text>
+            <Text size="base" weight="700" style={styles.title}>Selecione o estado</Text>
 
             <FlatList
               data={options}
@@ -90,7 +90,7 @@ export function OptionSelect({
                       setOpen(false)
                     }}
                   >
-                    <Text size="sm" weight={selected ? '700' : '500'}>{item.label}</Text>
+                    <Text size="sm" weight={selected ? '700' : '400'}>{item.label}</Text>
                   </Pressable>
                 )
               }}

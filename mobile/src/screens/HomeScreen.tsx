@@ -38,12 +38,6 @@ export default function HomeScreen() {
           <Text size="sm" color="mutedForeground">Bem-vindo de volta!</Text>
           <Heading size="3xl" weight="800">Olá, Humano! 👋</Heading>
         </View>
-        <Pressable style={[styles.avatarButton, { borderColor: colors.border }]}>
-          <Image 
-            source={{ uri: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix' }} 
-            style={styles.avatar} 
-          />
-        </Pressable>
       </View>
 
       {/* BANNER CAROUSEL (STATIC) */}
@@ -120,46 +114,19 @@ export default function HomeScreen() {
         <Button label="Feito" size="sm" style={{ backgroundColor: '#F97316', paddingHorizontal: 16 }} />
       </Card>
 
-      {/* PESO E SAÚDE (GRAPH) */}
-      <View style={styles.sectionHeader}>
-        <Heading size="xl" weight="800">Evolução de Peso</Heading>
-        <View style={[styles.infoBadge, { backgroundColor: withAlpha(colors.primary, 0.1) }]}>
-           <Text size="xs" weight="700" color="primary">Meta: {activePet?.weight_kg ? activePet.weight_kg + 2 : '12'}kg</Text>
+      <Card variant="organic" style={[styles.reminderCard, { backgroundColor: mode === 'light' ? '#EFF6FF' : '#13233a', borderColor: '#3b82f633' }]}>
+        <View style={[styles.iconCircle, { backgroundColor: withAlpha('#3B82F6', 0.12) }]}>
+          <Ionicons name="footsteps" size={24} color="#3B82F6" />
         </View>
-      </View>
-
-      <Card variant="organic" style={[styles.graphCard, { backgroundColor: colors.card }]}>
-        <View style={styles.graphHeader}>
-           <View>
-              <Text size="xs" color="mutedForeground">Última pesagem</Text>
-              <Heading size="2xl" weight="900">{activePet?.weight_kg || '0'} kg</Heading>
-           </View>
-           <View style={styles.trendUp}>
-              <Ionicons name="trending-up" size={16} color="#22C55E" />
-              <Text weight="700" style={{ color: '#22C55E' }}> +0.5kg</Text>
-           </View>
+        <View style={styles.reminderInfo}>
+          <Text weight="800" style={{ color: '#3B82F6' }}>Passeio da tarde</Text>
+          <Text size="xs" style={{ color: '#3B82F6', opacity: 0.8 }}>Lembrete para passear com o {activePet?.name || 'seu pet'} às 17:30.</Text>
         </View>
-
-        <View style={styles.chartContainer}>
-           <View style={styles.chartBars}>
-              {[40, 65, 55, 85, 70, 95, 80].map((h, i) => (
-                <View key={i} style={styles.barColumn}>
-                  <View 
-                    style={[
-                      styles.chartBar, 
-                      { 
-                        height: h, 
-                        backgroundColor: i === 5 ? colors.primary : withAlpha(colors.primary, 0.2),
-                        borderRadius: 12,
-                      }
-                    ]} 
-                  />
-                  <Text size="xs" color="mutedForeground" style={{ marginTop: 4 }}>{['S', 'T', 'Q', 'Q', 'S', 'S', 'D'][i]}</Text>
-                </View>
-              ))}
-           </View>
-        </View>
+        <Button label="Iniciar" size="sm" style={{ backgroundColor: '#3B82F6', paddingHorizontal: 16 }} />
       </Card>
+
+
+      <View style={{ height: 100 }} />
 
       <View style={{ height: 100 }} />
     </ScrollView>
@@ -172,25 +139,13 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
-    paddingTop: Platform.OS === 'ios' ? 64 : 56,
+    paddingTop: Platform.OS === 'ios' ? 44 : 36,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 24,
-  },
-  avatarButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    borderWidth: 2,
-    padding: 2,
-  },
-  avatar: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 24,
   },
   bannerRow: {
     gap: 16,
@@ -303,5 +258,16 @@ const styles = StyleSheet.create({
   chartBar: {
     width: 14,
     minHeight: 10,
+  },
+  dragHandle: {
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+    paddingRight: 12,
+  },
+  dragArea: {
+    width: 12,
+    height: 40,
+    backgroundColor: '#ccc',
+    borderRadius: 8,
   },
 })

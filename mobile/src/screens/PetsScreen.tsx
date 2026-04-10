@@ -77,17 +77,28 @@ function formatDateToIso(date: Date) {
 }
 
 function formatIsoToDisplay(iso: string) {
-  if (!iso || !iso.includes('-')) return iso
-  return iso.split('-').reverse().join('/')
+  if (!iso) return iso
+  const date = parseIsoDate(iso)
+  if (!date) return iso
+  const day = String(date.getDate()).padStart(2, '0')
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const year = date.getFullYear()
+  return `${day}/${month}/${year}`
 }
 
 function parseIsoDate(value: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null
-  const [year, month, day] = value.split('-').map(Number)
-  if (!year || !month || !day) return null
-  const candidate = new Date(year, month - 1, day)
-  if (Number.isNaN(candidate.getTime())) return null
-  return candidate
+  if (!value) return null
+  // Se for ISO completo (timestamp exato)
+  if (value.includes('T') || value.includes('Z')) {
+    const candidate = new Date(value)
+    return Number.isNaN(candidate.getTime()) ? null : candidate
+  }
+  // Se for apenas data YYYY-MM-DD (legado)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [year, month, day] = value.split('-').map(Number)
+    return new Date(year, month - 1, day)
+  }
+  return null
 }
 
 function calculateAge(birthDate: string | null): string {
@@ -324,8 +335,9 @@ export default function PetsScreen() {
   const [isEditing, setIsEditing] = React.useState(false)
   const [isSelectorVisible, setIsSelectorVisible] = React.useState(false)
   const [isImageExpanded, setIsImageExpanded] = React.useState(false)
-  const { width } = useWindowDimensions()
+  const { width, height } = useWindowDimensions()
   const contentWidth = width - 32 // Descontando o padding (16 * 2)
+  const tabPagerHeight = Math.max(360, height - (Platform.OS === 'ios' ? 290 : 260))
   const scrollRef = React.useRef<ScrollView>(null)
 
   const [activeTab, setActiveTab] = React.useState<'details' | 'control'>('details')
@@ -340,10 +352,15 @@ export default function PetsScreen() {
   const [birthDate, setBirthDate] = React.useState('')
   const [showBirthDatePicker, setShowBirthDatePicker] = React.useState(false)
   const [weightKg, setWeightKg] = React.useState('')
+  const [weightPointKg, setWeightPointKg] = React.useState('')
   const [photoUrl, setPhotoUrl] = React.useState('')
   const [allergies, setAllergies] = React.useState('')
   const [temperament, setTemperament] = React.useState('')
   const [observations, setObservations] = React.useState('')
+  const [selectedWeightIndex, setSelectedWeightIndex] = React.useState<number | null>(null)
+  const [chartScrollX, setChartScrollX] = React.useState(0)
+  const [isWeightPointModalOpen, setIsWeightPointModalOpen] = React.useState(false)
+  const chartScrollRef = React.useRef<ScrollView>(null)
 
   React.useEffect(() => {
     dispatch(fetchPetsThunk()).unwrap().then((list) => {
@@ -352,6 +369,29 @@ export default function PetsScreen() {
       }
     })
   }, [dispatch, activePetId])
+
+  const [chartNeedsScroll, setChartNeedsScroll] = React.useState(true)
+
+  // Limpa seleção do gráfico ao trocar de pet
+  React.useEffect(() => {
+    setSelectedWeightIndex(null)
+    setChartNeedsScroll(true)
+    setChartScrollX(0)
+  }, [activePetId])
+
+  // Scrolla para o final quando o chart é renderizado
+  const handleChartLayout = () => {
+    if (chartNeedsScroll) {
+      setChartNeedsScroll(false)
+      setTimeout(() => {
+        chartScrollRef.current?.scrollToEnd({ animated: false })
+      }, 50)
+    }
+  }
+
+  const handleChartScroll = (e: any) => {
+    setChartScrollX(e.nativeEvent.contentOffset.x)
+  }
 
   const resetForm = () => {
     setStep(0)
@@ -382,6 +422,12 @@ export default function PetsScreen() {
   const numericWeight = weightKg.trim() ? Number(weightKg) : null
   const weightError =
     numericWeight !== null && (Number.isNaN(numericWeight) || numericWeight <= 0 || numericWeight > 120)
+      ? 'Peso inválido. Use valor entre 0.1kg e 120kg.'
+      : null
+
+  const numericWeightPoint = weightPointKg.trim() ? Number(weightPointKg) : null
+  const weightPointError =
+    numericWeightPoint !== null && (Number.isNaN(numericWeightPoint) || numericWeightPoint <= 0 || numericWeightPoint > 120)
       ? 'Peso inválido. Use valor entre 0.1kg e 120kg.'
       : null
 
@@ -451,6 +497,40 @@ export default function PetsScreen() {
     setIsEditing(true)
   }
 
+  const openWeightPointUpdate = () => {
+    if (!activePet) return
+    setWeightPointKg(activePet.weight_kg ? String(activePet.weight_kg) : '')
+    setIsWeightPointModalOpen(true)
+  }
+
+  const closeWeightPointUpdate = () => {
+    setIsWeightPointModalOpen(false)
+    setWeightPointKg('')
+  }
+
+  const handleWeightPointUpdate = async () => {
+    if (!activePet?.id || !weightPointKg.trim()) return
+    if (weightPointError) return
+
+    const parsedWeight = Number(weightPointKg)
+
+    try {
+      await dispatch(
+        updatePetThunk({
+          id: activePet.id,
+          patch: {
+            weight_kg: parsedWeight,
+          },
+        })
+      ).unwrap()
+
+      dispatch(showToast({ type: 'success', message: 'Peso atualizado com sucesso!' }))
+      closeWeightPointUpdate()
+    } catch (_e) {
+      dispatch(showToast({ type: 'error', message: 'Não foi possível atualizar o peso.' }))
+    }
+  }
+
   const handleTabChange = (tab: 'details' | 'control') => {
     setActiveTab(tab)
     scrollRef.current?.scrollTo({
@@ -468,7 +548,7 @@ export default function PetsScreen() {
   }
 
   const handleUpdatePet = async () => {
-    if (!activePetId || !name.trim() || !species.trim()) return
+    if (!activePet?.id || !name.trim() || !species.trim()) return
     if (weightError) return
 
     const parsedWeight = weightKg.trim() ? Number(weightKg) : null
@@ -476,7 +556,7 @@ export default function PetsScreen() {
     try {
       await dispatch(
         updatePetThunk({
-          id: activePetId,
+          id: activePet.id,
           patch: {
             name: name.trim(),
             species: species.trim(),
@@ -559,34 +639,49 @@ export default function PetsScreen() {
   }
 
   const showEmptyState = !isLoading && pets.length === 0
+  const hasPets = pets.length > 0
+  const hasMultiplePets = pets.length > 1
+  const petsHeaderTitle = hasMultiplePets ? 'Meus Pets' : 'Meu Pet'
+  const weightHistory = activePet?.weight_history || []
+  const showWeightChartNav = weightHistory.length >= 6
+  const hasTabbedPetContent = Boolean(!isLoading && hasPets && activePet && !isEditing)
 
   return (
-    <View style={[styles.screen, { backgroundColor: colors.background }]}>
+    <View style={[styles.screen, { backgroundColor: colors.background }]}>{/*  */}
       <ScrollView
         contentContainerStyle={[styles.container, showEmptyState && styles.containerEmpty]}
         showsVerticalScrollIndicator={false}
+        scrollEnabled={!hasTabbedPetContent}
       >
-        <View style={styles.headerRow}>
-          <View style={styles.headerTitleGroup}>
-            <Pressable
-              onPress={() => setIsSelectorVisible(!isSelectorVisible)}
-              style={[
-                styles.selectorToggle,
-                { backgroundColor: withAlpha(colors.primary, 0.1) }
-              ]}
-            >
-              <Ionicons
-                name={isSelectorVisible ? "chevron-up" : "chevron-down"}
-                size={22}
-                color={colors.primary}
-              />
-            </Pressable>
-            <Text weight="800" size="xl" style={{ marginLeft: 4, color: colors.foreground }}>Meus Pets</Text>
-          </View>
-          {pets.length > 0 ? (
+        {hasPets ? (
+          <View style={styles.headerRow}>
+            <View style={styles.headerTitleGroup}>
+              {hasMultiplePets ? (
+                <Pressable
+                  onPress={() => setIsSelectorVisible(!isSelectorVisible)}
+                  style={[
+                    styles.selectorToggle,
+                    { backgroundColor: withAlpha(colors.primary, 0.1) }
+                  ]}
+                >
+                  <Ionicons
+                    name={isSelectorVisible ? "chevron-up" : "chevron-down"}
+                    size={22}
+                    color={colors.primary}
+                  />
+                </Pressable>
+              ) : null}
+              <Text
+                weight="800"
+                size="xl"
+                style={{ marginLeft: hasMultiplePets ? 4 : 0, color: colors.foreground }}
+              >
+                {petsHeaderTitle}
+              </Text>
+            </View>
             <Button label="Novo pet" variant="outline" onPress={openFlow} style={styles.newPetButton} />
-          ) : null}
-        </View>
+          </View>
+        ) : null}
 
         {isLoading ? (
           <View style={styles.centerBlock}>
@@ -605,9 +700,9 @@ export default function PetsScreen() {
           </Card>
         ) : null}
 
-        {!isLoading && pets.length > 0 && activePet ? (
+        {!isLoading && hasPets && activePet ? (
           <>
-            {isSelectorVisible && pets.length > 1 ? (
+            {isSelectorVisible && hasMultiplePets ? (
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -661,7 +756,6 @@ export default function PetsScreen() {
 
             {isEditing ? (
               <Card variant="organic" style={[styles.detailCard, { backgroundColor: colors.background, elevation: 0, shadowOpacity: 0, borderWidth: 0 }]}>
-                {/* ... conteúdo edicão (manteve igual) ... */}
                 <View style={[styles.detailHeader, { borderBottomColor: withAlpha(colors.border, 0.5) }]}>
                   <Heading size="xl" weight="800">Editando {activePet.name}</Heading>
                   <Pressable onPress={() => setIsEditing(false)}>
@@ -718,9 +812,16 @@ export default function PetsScreen() {
                 onMomentumScrollEnd={onScrollEnd}
                 scrollEventThrottle={16}
                 scrollEnabled={!isEditing}
+                nestedScrollEnabled
+                style={{ height: tabPagerHeight }}
               >
                 {/* ABA DETAILS */}
-                <View style={{ width: contentWidth }}>
+                <ScrollView
+                  style={{ width: contentWidth, height: '100%' }}
+                  contentContainerStyle={styles.tabPageContent}
+                  showsVerticalScrollIndicator={false}
+                  nestedScrollEnabled
+                >
                   <Card variant="organic" style={[styles.detailCard, { backgroundColor: colors.background, elevation: 0, shadowOpacity: 0, borderWidth: 0 }]}>
                     <View style={styles.avatarShell}>
                       <Pressable onPress={() => setIsImageExpanded(true)} style={styles.avatarPressable}>
@@ -769,6 +870,134 @@ export default function PetsScreen() {
                       </View>
                     </View>
 
+                    {/* GRÁFICO DE PESO INTERATIVO */}
+                    <View style={styles.weightChartSection}>
+                      <View style={styles.weightChartHeader}>
+                        <Heading size="sm" weight="800">Evolução de Peso</Heading>
+                        {selectedWeightIndex !== null ? (
+                          <View style={[styles.weightTooltip, styles.weightTooltipRight, { backgroundColor: colors.primary }]}>
+                            {(() => {
+                              const item = weightHistory[selectedWeightIndex]
+                              if (!item) return null
+                              return (
+                                <Text size="xs" weight="800" style={{ color: '#fff' }}>
+                                  {item.weight} kg • {formatIsoToDisplay(item.date)}
+                                </Text>
+                              )
+                            })()}
+                          </View>
+                        ) : null}
+                      </View>
+                    
+                      <ScrollView
+                        ref={chartScrollRef}
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.chartScrollContent}
+                        style={styles.chartContainer}
+                        onScroll={handleChartScroll}
+                        scrollEventThrottle={16}
+                      >
+                        <View style={styles.chartBars} onLayout={handleChartLayout}>
+                          {(() => {
+                            const count = weightHistory.length
+                    
+                            if (count === 0) {
+                              return (
+                                <View style={styles.emptyChartState}>
+                                  <Text color="mutedForeground" size="sm">Nenhum registro de peso.</Text>
+                                </View>
+                              )
+                            }
+                    
+                            const weights = weightHistory.map((h: any) => h.weight)
+                            const maxWeight = Math.max(...weights)
+                            const minHeight = 4
+                            const maxHeight = 80
+                    
+                            return weightHistory.map((item: any, i: number) => {
+                              const barHeight = maxWeight > 0
+                                ? (item.weight / maxWeight) * maxHeight
+                                : minHeight
+                    
+                              const dateObj = parseIsoDate(item.date)
+                              if (!dateObj) return null
+                    
+                              const day   = String(dateObj.getDate()).padStart(2, '0')
+                              const month = String(dateObj.getMonth() + 1).padStart(2, '0')
+                              const dateLabel = `${day}/${month}`
+                              const isSelected = selectedWeightIndex === i
+                    
+                              return (
+                                <Pressable
+                                  key={`weight-${i}`}
+                                  style={styles.barColumn}
+                                  onPress={() => setSelectedWeightIndex(isSelected ? null : i)}
+                                >
+                                  <View style={styles.barSpacer}>
+                                    <View
+                                      style={[
+                                        styles.chartBar,
+                                        {
+                                          height: Math.max(barHeight, minHeight),
+                                          backgroundColor: isSelected
+                                            ? colors.primary
+                                            : withAlpha(colors.primary, 0.3),
+                                          borderRadius: 6,
+                                        },
+                                      ]}
+                                    />
+                                  </View>
+                                  <Text
+                                    size="xs"
+                                    weight={isSelected ? '800' : '600'}
+                                    color={isSelected ? 'primary' : 'mutedForeground'}
+                                    style={styles.barLabel}
+                                  >
+                                    {dateLabel}
+                                  </Text>
+                                </Pressable>
+                              )
+                            })
+                          })()}
+                        </View>
+                      </ScrollView>
+
+                      {showWeightChartNav ? (
+                        <View style={styles.chartNavButtonsBottom}>
+                          <Pressable
+                            onPress={() => {
+                              const next = Math.max(0, chartScrollX - 250)
+                              chartScrollRef.current?.scrollTo({ x: next, animated: true })
+                            }}
+                            style={[styles.chartNavButton, { backgroundColor: colors.muted }]}
+                          >
+                            <Ionicons name="chevron-back" size={18} color={colors.foreground} />
+                          </Pressable>
+
+                          <Pressable
+                            onPress={() => {
+                              const next = chartScrollX + 250
+                              chartScrollRef.current?.scrollTo({ x: next, animated: true })
+                            }}
+                            style={[styles.chartNavButton, { backgroundColor: colors.muted }]}
+                          >
+                            <Ionicons name="chevron-forward" size={18} color={colors.foreground} />
+                          </Pressable>
+                        </View>
+                      ) : null}
+
+                      <View style={styles.weightChartActionsRow}>
+                        <Button
+                          label="Adicionar peso"
+                          variant="outline"
+                          size="sm"
+                          onPress={openWeightPointUpdate}
+                          style={styles.weightAddButton}
+                        />
+                      </View>
+                    </View>
+
                     <View style={styles.extraSection}>
                        <Heading size="sm" weight="800">Mais sobre {activePet.name}</Heading>
 
@@ -793,10 +1022,15 @@ export default function PetsScreen() {
                       )}
                     </View>
                   </Card>
-                </View>
+                </ScrollView>
 
                 {/* ABA CONTROL */}
-                <View style={{ width: contentWidth }}>
+                <ScrollView
+                  style={{ width: contentWidth, height: '100%' }}
+                  contentContainerStyle={styles.tabPageContent}
+                  showsVerticalScrollIndicator={false}
+                  nestedScrollEnabled
+                >
                   <View style={styles.controlGrid}>
                     <ControlCard
                       title="Vacinas"
@@ -849,7 +1083,7 @@ export default function PetsScreen() {
                       </Text>
                     </View>
                   </View>
-                </View>
+                </ScrollView>
               </ScrollView>
             )}
           </>
@@ -973,6 +1207,45 @@ export default function PetsScreen() {
                 disabled={isDeleting}
                 variant="destructive"
                 style={styles.deleteModalButton}
+              />
+            </View>
+          </Card>
+        </View>
+      </Modal>
+
+      <Modal visible={isWeightPointModalOpen} animationType="fade" transparent onRequestClose={closeWeightPointUpdate}>
+        <View style={[styles.modalBackdrop, { backgroundColor: withAlpha(colors.background, 0.78) }]}> 
+          <Card variant="organic" style={[styles.weightPointCard, { backgroundColor: colors.background }]}> 
+            <Heading size="lg" weight="800">Point de update</Heading>
+            <Text color="mutedForeground">Atualize apenas o peso do pet.</Text>
+
+            <Input
+              label="Peso (kg)"
+              placeholder="Ex: 8.50"
+              value={weightPointKg}
+              onChangeText={(value) => setWeightPointKg(sanitizeWeightInput(value))}
+              keyboardType="numeric"
+            />
+
+            {weightPointError ? (
+              <Text size="xs" style={{ color: colors.destructive }}>{weightPointError}</Text>
+            ) : null}
+
+            <View style={styles.weightPointActions}>
+              <Button
+                label="Cancelar"
+                variant="outline"
+                size="sm"
+                onPress={closeWeightPointUpdate}
+                style={styles.weightPointActionButton}
+              />
+              <Button
+                label="Salvar peso"
+                size="sm"
+                onPress={handleWeightPointUpdate}
+                loading={isUpdating}
+                disabled={!weightPointKg.trim() || Boolean(weightPointError)}
+                style={styles.weightPointActionButton}
               />
             </View>
           </Card>
@@ -1304,6 +1577,10 @@ const styles = StyleSheet.create({
   flowActionButton: {
     flex: 1,
   },
+  tabPageContent: {
+    flexGrow: 1,
+    paddingBottom: 100,
+  },
   selectorScroll: {
     marginHorizontal: -16,
     paddingHorizontal: 16,
@@ -1436,5 +1713,131 @@ const styles = StyleSheet.create({
   fullImage: {
     width: '100%',
     height: '80%',
+  },
+  // ESTILOS DO GRÁFICO DE PESO
+  weightChartSection: {
+    padding: 16,
+    paddingTop: 0,
+    gap: 12,
+  },
+  weightChartHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 24,
+    gap: 8,
+  },
+  chartNavButtons: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  chartNavButtonsBottom: {
+    flexDirection: 'row',
+    gap: 6,
+    alignSelf: 'center',
+    justifyContent: 'center',
+  },
+  chartNavButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  weightTooltip: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  weightTooltipRight: {
+    marginLeft: 12,
+    maxWidth: '62%',
+    alignItems: 'flex-end',
+  },
+  chartWrapper: {
+    position: 'relative',
+  },
+  chartContainer: {
+    height: 120,
+    marginBottom: 0,
+  },
+  weightChartActionsRow: {
+    marginTop: 8,
+    width: '100%',
+  },
+  weightAddButton: {
+    width: '100%',
+  },
+  chartScrollContent: {
+    paddingHorizontal: 16,
+    alignItems: 'flex-end',
+  },
+  emptyChartState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 100,
+  },
+  chartBars: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'flex-start',
+    height: 100,
+    paddingBottom: 8,
+  },
+  barSpacer: {
+    height: 80,
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    width: '100%',
+  },
+  barColumn: {
+    alignItems: 'center',
+    gap: 4,
+    width: 45,        // era 50 — reduziu para as barras não encostarem
+    marginHorizontal: 2, // espaço entre barras
+  },
+  chartBar: {
+    width: 28,        // barra mais estreita que a coluna — cria a folga visual
+  },
+  chartDragHandle: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  dragHandleBar: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(128,128,128,0.5)',
+  },
+  emptyBar: {
+    width: '100%',
+    height: 4,
+    borderRadius: 2,
+  },
+  barLabel: {
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  weightPointCard: {
+    width: '100%',
+    maxWidth: 420,
+    borderRadius: 20,
+    padding: 16,
+    gap: 12,
+  },
+  weightPointActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 8,
+    marginTop: 4,
+  },
+  weightPointActionButton: {
+    minWidth: 120,
   },
 })

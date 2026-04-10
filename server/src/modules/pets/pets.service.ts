@@ -13,6 +13,11 @@ export const petsService = {
       throw new AppError('Peso inválido', 400)
     }
 
+    // Inicializa o histórico se o peso for informado
+    const weight_history = payload.weight_kg 
+      ? [{ weight: payload.weight_kg, date: new Date().toISOString() }]
+      : []
+
     const existing = await petsRepository.findByOwnerAndName(ownerId, name)
     if (existing) {
       throw new AppError('Você já tem um pet com esse nome', 409)
@@ -22,6 +27,7 @@ export const petsService = {
       ...payload,
       name,
       species,
+      weight_history
     })
   },
 
@@ -49,6 +55,7 @@ export const petsService = {
       temperament: string | null
       observations: string | null
       is_active: boolean
+      weight_history: any[]
     }>
   ) {
     const current = await petsRepository.findByIdAndOwner(ownerId, petId)
@@ -70,6 +77,16 @@ export const petsService = {
 
     if (patch.weight_kg !== undefined && patch.weight_kg !== null && Number.isNaN(patch.weight_kg)) {
       throw new AppError('Peso inválido', 400)
+    }
+
+    // Lógica de histórico de peso
+    if (patch.weight_kg !== undefined && patch.weight_kg !== current.weight_kg) {
+      const history = Array.isArray(current.weight_history) ? [...current.weight_history] : []
+      history.push({
+        weight: patch.weight_kg as number,
+        date: new Date().toISOString()
+      })
+      patch.weight_history = history
     }
 
     const shouldDeleteOldPhoto =
