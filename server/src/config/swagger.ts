@@ -228,6 +228,18 @@ export const swaggerSpec = {
           '400': { description: 'Dados inválidos' },
         },
       },
+      delete: {
+        tags: ['Profile'],
+        summary: 'Excluir conta do tutor e dados relacionados',
+        description:
+          'Remove pets e registros vinculados, perfil e usuário no Supabase Auth para o usuário autenticado.',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          '204': { description: 'Conta removida com sucesso' },
+          '401': { description: 'Não autenticado' },
+          '500': { description: 'Falha ao excluir conta' },
+        },
+      },
     },
 
     '/pets': {

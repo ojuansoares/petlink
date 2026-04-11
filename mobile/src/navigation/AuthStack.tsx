@@ -1,5 +1,7 @@
 import React from 'react'
 import { createStackNavigator } from '@react-navigation/stack'
+import { TransitionPresets } from '@react-navigation/stack'
+import AuthWelcomeScreen from '../screens/AuthWelcomeScreen'
 import LoginScreen from '../screens/LoginScreen'
 import RegisterScreen from '../screens/RegisterScreen'
 import { AuthStackParamList } from './types'
@@ -8,7 +10,18 @@ const Stack = createStackNavigator<AuthStackParamList>()
 
 export default function AuthStack() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator
+      initialRouteName="AuthWelcome"
+      screenOptions={{
+        headerShown: false,
+        gestureEnabled: true,
+        ...TransitionPresets.ModalSlideFromBottomIOS,
+      }}
+    >
+      <Stack.Screen
+        name="AuthWelcome"
+        component={AuthWelcomeScreen}
+      />
       <Stack.Screen
         name="Login"
         component={LoginScreen}

@@ -40,7 +40,6 @@ function extractCloudinaryPublicId(url: string) {
     if (!parsed.hostname.includes('res.cloudinary.com')) return null
     if (!parsed.pathname.includes(`/${env.CLOUDINARY_CLOUD_NAME}/`)) return null
 
-    // Ex.: /<cloud>/image/upload/v123/folder/file.jpg
     const match = parsed.pathname.match(/\/(?:image|video|raw)\/upload\/(?:v\d+\/)?(.+)$/)
     if (!match?.[1]) return null
 
@@ -67,7 +66,6 @@ export const uploadsService = {
     if (!file?.buffer?.length) throw new AppError('Arquivo obrigatório', 400)
     if (!file.mimetype?.startsWith('image/')) throw new AppError('Tipo de arquivo inválido (somente imagem)', 400)
 
-    // Limite simples pra evitar abuso (ajuste depois conforme necessidade)
     const maxBytes = 8 * 1024 * 1024
     if (file.size > maxBytes) throw new AppError('Imagem muito grande (máx 8MB)', 413)
 

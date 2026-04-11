@@ -4,6 +4,7 @@
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
+    "start:go": "expo start --go",
     "start:clean": "npm run kill:8081 && expo start -c",
     "kill:8081": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"Get-NetTCPConnection -LocalPort 8081 -State Listen -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }\"",
     "android": "expo start --android",
@@ -13,24 +14,27 @@
   "dependencies": {
     "@expo-google-fonts/fraunces": "^0.4.1",
     "@expo-google-fonts/nunito": "^0.4.2",
+    "@nozbe/watermelondb": "^0.28.0",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/datetimepicker": "^8.2.0",
+    "@react-native-community/netinfo": "11.5.2",
     "@react-navigation/bottom-tabs": "^7.15.8",
     "@react-navigation/native": "^7.2.1",
     "@react-navigation/stack": "^7.8.8",
     "@reduxjs/toolkit": "^2.11.2",
     "@supabase/supabase-js": "^2.100.1",
     "axios": "^1.13.6",
-    "expo": "~55.0.12",
-    "expo-blur": "~55.0.13",
+    "expo": "~55.0.14",
+    "expo-blur": "~55.0.14",
     "expo-font": "~55.0.6",
-    "expo-image-picker": "~55.0.17",
-    "expo-linear-gradient": "~55.0.12",
-    "expo-linking": "~55.0.11",
+    "expo-image-picker": "~55.0.18",
+    "expo-linear-gradient": "~55.0.13",
+    "expo-linking": "~55.0.12",
     "expo-local-authentication": "^55.0.13",
-    "expo-secure-store": "~55.0.12",
+    "expo-secure-store": "~55.0.13",
     "expo-status-bar": "~55.0.5",
-    "expo-web-browser": "~55.0.13",
+    "expo-system-ui": "~55.0.15",
+    "expo-web-browser": "~55.0.14",
     "nativewind": "^4.2.3",
     "react": "19.2.0",
     "react-dom": "19.2.0",
@@ -56,7 +60,8 @@
     "doctor": {
       "reactNativeDirectoryCheck": {
         "exclude": [
-          "react-native-biometrics"
+          "react-native-biometrics",
+          "@nozbe/watermelondb"
         ],
         "listUnknownPackages": false
       }

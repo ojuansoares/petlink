@@ -104,6 +104,7 @@ export default function ProfileScreen() {
   const isLoading = useAppSelector(selectProfileLoading)
 
   const [name, setName] = React.useState('')
+  const [email, setEmail] = React.useState('')
   const [location, setLocation] = React.useState('')
   const [avatarUrl, setAvatarUrl] = React.useState('')
   const [bio, setBio] = React.useState('')
@@ -123,6 +124,7 @@ export default function ProfileScreen() {
     if (!profile) return
 
     setName(profile.name ?? '')
+    setEmail(profile.email ?? '')
     setLocation(normalizeStateValue(profile.location))
     setAvatarUrl(profile.avatar_url ?? '')
     setBio(profile.bio ?? '')
@@ -131,6 +133,7 @@ export default function ProfileScreen() {
 
   const resetFormFromProfile = React.useCallback(() => {
     setName(profile?.name ?? '')
+    setEmail(profile?.email ?? '')
     setLocation(normalizeStateValue(profile?.location))
     setAvatarUrl(profile?.avatar_url ?? '')
     setBio(profile?.bio ?? '')
@@ -336,6 +339,14 @@ export default function ProfileScreen() {
               value={name}
               onChangeText={setName}
               leftIcon={<Ionicons name="person-outline" size={18} color={colors.mutedForeground} />}
+            />
+
+            <Input
+              label="Email"
+              value={email}
+              editable={false}
+              leftIcon={<Ionicons name="mail-outline" size={18} color={colors.mutedForeground} />}
+              containerStyle={styles.readonlyField}
             />
 
             <OptionSelect
@@ -583,6 +594,9 @@ const styles = StyleSheet.create({
   },
   editActionButton: {
     flex: 1,
+  },
+  readonlyField: {
+    opacity: 1,
   },
   actionsList: {
     marginTop: 4,

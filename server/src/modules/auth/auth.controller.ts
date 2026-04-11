@@ -66,7 +66,6 @@ export const authController = {
   },
 
   async me(req: AuthRequest, res: Response) {
-    // req.user vem do authMiddleware
     return res.status(200).json({ user: req.user })
   },
 

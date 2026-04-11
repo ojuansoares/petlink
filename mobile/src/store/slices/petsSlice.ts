@@ -1,6 +1,8 @@
 import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit'
 import axios from 'axios'
 import { api } from '../../api/axios'
+import { PetsRepository, type OfflinePet } from '../../data/repositories/PetsRepository'
+import { syncPetsFromApi } from '../../data/sync/syncPets'
 import { readActivePetId, writeActivePetId } from '../../utils/petStorage'
 
 export interface Pet {
@@ -55,10 +57,24 @@ const initialState: PetsState = {
 
 export const fetchPetsThunk = createAsyncThunk(
   'pets/fetchAll',
-  async (_, { rejectWithValue }) => {
+  async (_, { dispatch, rejectWithValue }) => {
     try {
-      const { data } = await api.get('/pets')
-      return (data?.pets ?? []) as Pet[]
+      const localPets = await PetsRepository.getAllWithWeightHistory()
+
+      if (localPets.length > 0) {
+        void syncPetsFromApi()
+          .then((freshPets) => {
+            dispatch(replacePetsFromSync(freshPets as Pet[]))
+          })
+          .catch(() => {
+            // Sem rede: mantemos a leitura local sem interromper UX
+          })
+
+        return localPets as Pet[]
+      }
+
+      const freshPets = await syncPetsFromApi()
+      return freshPets as Pet[]
     } catch (err: any) {
       if (axios.isAxiosError(err)) {
         const message = err.response?.data?.error ?? err.response?.data?.message
@@ -74,7 +90,9 @@ export const createPetThunk = createAsyncThunk(
   async (payload: CreatePetPayload, { rejectWithValue }) => {
     try {
       const { data } = await api.post('/pets', payload)
-      return data.pet as Pet
+      const createdPet = data.pet as OfflinePet
+      await PetsRepository.upsertFromRemote(createdPet)
+      return createdPet as Pet
     } catch (err: any) {
       if (axios.isAxiosError(err)) {
         const message = err.response?.data?.error ?? err.response?.data?.message
@@ -90,7 +108,9 @@ export const updatePetThunk = createAsyncThunk(
   async (payload: { id: string; patch: Partial<CreatePetPayload> }, { rejectWithValue }) => {
     try {
       const { data } = await api.put(`/pets/${payload.id}`, payload.patch)
-      return data.pet as Pet
+      const updatedPet = data.pet as OfflinePet
+      await PetsRepository.upsertFromRemote(updatedPet)
+      return updatedPet as Pet
     } catch (err: any) {
       if (axios.isAxiosError(err)) {
         const message = err.response?.data?.error ?? err.response?.data?.message
@@ -106,6 +126,7 @@ export const deletePetThunk = createAsyncThunk(
   async (petId: string, { rejectWithValue }) => {
     try {
       await api.delete(`/pets/${petId}`)
+      await PetsRepository.removeById(petId)
       return petId
     } catch (err: any) {
       if (axios.isAxiosError(err)) {
@@ -134,6 +155,10 @@ const petsSlice = createSlice({
     setActivePetId: (state, action: PayloadAction<string | null>) => {
       state.activePetId = action.payload
       writeActivePetId(action.payload)
+    },
+    replacePetsFromSync: (state, action: PayloadAction<Pet[]>) => {
+      state.list = action.payload
+      state.error = null
     },
   },
   extraReducers: (builder) => {
@@ -205,7 +230,7 @@ const petsSlice = createSlice({
   },
 })
 
-export const { clearPetError, setActivePetId } = petsSlice.actions
+export const { clearPetError, setActivePetId, replacePetsFromSync } = petsSlice.actions
 export default petsSlice.reducer
 
 export const selectPetsList = (s: any): Pet[] => s.pets.list

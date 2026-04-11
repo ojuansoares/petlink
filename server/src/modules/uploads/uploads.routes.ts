@@ -5,7 +5,6 @@ import { uploadsController } from './uploads.controller'
 
 const router = Router()
 
-// Armazena em memória para enviar ao Cloudinary via stream
 const upload = multer({
   storage: multer.memoryStorage(),
 })

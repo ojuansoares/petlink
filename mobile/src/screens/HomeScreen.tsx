@@ -49,7 +49,7 @@ export default function HomeScreen() {
         contentContainerStyle={styles.bannerRow}
       >
         <ImageBackground
-          source={require('../assets/banner_happy_dog.png')}
+          source={require('../assets/banner_happy_dog.jpg')}
           style={[styles.banner, { backgroundColor: colors.primary }]}
           imageStyle={styles.bannerImage}
         >

@@ -104,7 +104,7 @@ export function Button({
       {loading ? (
         <ActivityIndicator color={labelColor} />
       ) : (
-        <Text size={labelSize as any} weight="700" style={{ color: labelColor }}>
+        <Text size={labelSize as any} weight="700" style={{ color: labelColor, textAlign: 'center' }}>
           {label}
         </Text>
       )}

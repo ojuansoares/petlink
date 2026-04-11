@@ -114,6 +114,26 @@ reviews    → avaliações de locais
 checkins   → check-ins em locais
 ```
 
+### Arquitetura do banco
+
+```mermaid
+erDiagram
+  profiles ||--o{ pets : "owns"
+  profiles ||--o{ walks : "logs"
+  profiles ||--o{ notifications : "receives"
+  profiles ||--o{ follows : "follows"
+  pets ||--o{ vaccines : "has"
+  pets ||--o{ weight_records : "tracks"
+  pets ||--o{ consultations : "has"
+  pets ||--o{ medication_reminders : "has"
+  pets ||--o{ walks : "in"
+  pets ||--o{ calendar_events : "for"
+  consultations ||--o{ consultation_attachments : "has"
+  groups ||--o{ group_members : "has"
+  groups ||--o{ group_posts : "contains"
+```
+
+
 ---
 
 ## Stack técnica
@@ -135,6 +155,92 @@ checkins   → check-ins em locais
 - **Cloudinary** — armazenamento de imagens
 - **Firebase Cloud Messaging** — push notifications remotas
 - **Zod** — validação de variáveis de ambiente
+
+---
+
+## Entregas e Requisitos
+
+### 🎯 Sprint 1: Onboarding, Perfil e Pets
+
+#### Requisitos Funcionais (RF)
+
+| Código | Requisito |
+|---|---|
+| RF30 | Onboarding interativo com telas iniciais e guia para o primeiro cadastro. |
+| RF01 | Cadastro de tutor com perfil (nome, e-mail, senha e localização) no PostgreSQL (Supabase). |
+| RF03 | Login com biometria após o primeiro login bem-sucedido. |
+| RF02 | Cadastro do primeiro pet com nome, espécie, raça, data de nascimento, peso, foto e observações. |
+| RF27 | Suporte a múltiplos pets por tutor desde o início. |
+| RF04 | Dashboard base do pet selecionado com alternância entre pets. |
+| RF29 | Modo offline para visualização básica dos dados do pet via WatermelonDB. |
+
+#### Requisitos Não Funcionais (RNF)
+
+| Código | Requisito |
+|---|---|
+| RNF01 e RNF02 | Setup React Native + TypeScript, API Node.js/Express (Auth e Pets) e PostgreSQL (Supabase). |
+| JWT/Refresh | Backend com accessToken e refreshToken; frontend com Redux Persist + SecureStore para renovação automática. |
+| RNF06 | Persistência local com WatermelonDB para suportar modo offline. |
+| RNF04 | Upload de imagens via Cloudinary, armazenando apenas URL no banco. |
+| RNF01 | Estado global com authSlice e petSlice no Redux Toolkit. |
+| RNF10 | Versionamento no GitHub e EAS Build para APK de teste com suporte às libs nativas. |
+
+
+### 🎨 Sprint 2: Saúde, Gráficos e Rede Social
+
+#### Requisitos Funcionais (RF)
+
+| Código | Requisito |
+|---|---|
+| RF05 | Cadastro de vacinas e vermífugos. |
+| RF08 | Registro de consultas veterinárias. |
+| RF17 | Lembretes de medicação com notificações. |
+| RF06 | Calendário de saúde integrado aos eventos. |
+| RF07 | Histórico de peso com visualização em gráficos. |
+| RF11 | Feed social com postagens dos tutores seguidos. |
+| RF12 | Postagem de fotos do pet com legenda e local. |
+| RF13 | Sistema de seguir/deixar de seguir (N:N). |
+| RF18 | Galeria de fotos do pet. |
+| RF23 | Modo escuro automático com sensor de luz. |
+| RF25 | Grupos de raça ou região. |
+
+#### Requisitos Não Funcionais (RNF)
+
+| Código | Requisito |
+|---|---|
+| RNF01 | Novos slices Redux para posts e saúde. |
+| RNF02 | MongoDB Atlas para feed, posts e comentários. |
+| RNF04 | Upload de imagens via API para Cloudinary (armazenando URL). |
+| RNF07 | Otimização do feed com FlatList, paginação e cache de imagens. |
+
+
+### 📍 Sprint 3: GPS, Sensores e Finalização
+
+#### Requisitos Funcionais (RF)
+
+| Código | Requisito |
+|---|---|
+| RF14 | Monitoramento de passeios com GPS em background. |
+| RF15 | Estatísticas de passeios (distância, tempo médio e rotas frequentes). |
+| RF22 | Notificações de eventos próximos com geofencing. |
+| RF16 | Contagem de passos com acelerômetro. |
+| RF09 | Mapa de locais pet-friendly. |
+| RF20 | Busca de locais por categoria, avaliação e distância. |
+| RF21 | Avaliação de locais com estrelas e dicas. |
+| RF10 | Check-in em locais com compartilhamento no feed. |
+| RF19 | Geração e compartilhamento de carteirinha de vacinação em PDF. |
+| RF24 | Exportação do histórico de saúde em JSON/CSV. |
+| RF26 | Alertas de temperatura com API de clima. |
+| RF28 | Backup em nuvem no Google Drive. |
+
+#### Requisitos Não Funcionais (RNF)
+
+| Código | Requisito |
+|---|---|
+| RNF03 | Geolocalização e monitoramento em background com bibliotecas especializadas. |
+| RNF09 | Testes unitários (Jest) para regras críticas. |
+| RNF10 | CI/CD com GitHub Actions e monitoramento de erros com Sentry. |
+
 
 ---
 

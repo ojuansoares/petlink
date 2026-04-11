@@ -1,10 +1,11 @@
 import React, { useEffect } from 'react'
-import { Appearance, View, Text, ActivityIndicator, StyleSheet, LogBox, Image, Dimensions } from 'react-native'
+import { Appearance, View, Text, ActivityIndicator, StyleSheet, LogBox, Image, Dimensions, Animated, Easing } from 'react-native'
 import { StatusBar } from 'expo-status-bar'
 import { Provider } from 'react-redux'
 import * as Linking from 'expo-linking'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { SafeAreaProvider } from 'react-native-safe-area-context'
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context'
+import NetInfo from '@react-native-community/netinfo'
 // Fraunces removida para um visual mais clean e "fofo" (sans-serif rounded)
 import {
   Nunito_400Regular,
@@ -140,14 +141,20 @@ function handleDeepLink(
 // para poder usar os hooks do Redux
 function AppContent() {
   const dispatch = useAppDispatch()
+  const insets = useSafeAreaInsets()
   const hydrated = useAppSelector(selectAuthHydrated)
   const authLoading = useAppSelector(selectAuthLoading)
   const authLoadingContext = useAppSelector(selectAuthLoadingContext)
   const isDark = useAppSelector(selectIsDark)
   const toasts = useAppSelector(selectToasts)
   const [showLaunchSplash, setShowLaunchSplash] = React.useState(true)
+  const [connectionStatus, setConnectionStatus] = React.useState<'online' | 'offline'>('online')
+  const [showConnectionBanner, setShowConnectionBanner] = React.useState(false)
   const [hasSeenOnboarding, setHasSeenOnboarding] = React.useState<boolean | null>(null)
   const [onboardingStep, setOnboardingStep] = React.useState(0)
+  const connectionBannerAnim = React.useRef(new Animated.Value(-56)).current
+  const connectionHideTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastConnectionRef = React.useRef<boolean | null>(null)
   const [nunitoLoaded] = useNunitoFonts({
     Nunito_400Regular,
     Nunito_600SemiBold,
@@ -220,15 +227,80 @@ function AppContent() {
       })
   }, [])
 
+  const showConnectivityBanner = React.useCallback((status: 'online' | 'offline') => {
+    setConnectionStatus(status)
+    setShowConnectionBanner(true)
+
+    if (connectionHideTimerRef.current) {
+      clearTimeout(connectionHideTimerRef.current)
+      connectionHideTimerRef.current = null
+    }
+
+    Animated.timing(connectionBannerAnim, {
+      toValue: 0,
+      duration: 260,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start()
+
+    connectionHideTimerRef.current = setTimeout(() => {
+      Animated.timing(connectionBannerAnim, {
+        toValue: -56,
+        duration: 220,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }).start(({ finished }) => {
+        if (finished) {
+          setShowConnectionBanner(false)
+        }
+      })
+    }, 3000)
+  }, [connectionBannerAnim])
+
+  useEffect(() => {
+    const handleConnectivity = (state: { isConnected: boolean | null; isInternetReachable: boolean | null }) => {
+      const isOnline = state.isConnected !== false && state.isInternetReachable !== false
+
+      if (lastConnectionRef.current === null) {
+        lastConnectionRef.current = isOnline
+        showConnectivityBanner(isOnline ? 'online' : 'offline')
+        return
+      }
+
+      if (lastConnectionRef.current !== isOnline) {
+        lastConnectionRef.current = isOnline
+        showConnectivityBanner(isOnline ? 'online' : 'offline')
+      }
+    }
+
+    const unsubscribe = NetInfo.addEventListener(handleConnectivity)
+
+    NetInfo.fetch()
+      .then(handleConnectivity)
+      .catch(() => {
+        // ignore fetch error; listener remains active
+      })
+
+    return unsubscribe
+  }, [showConnectivityBanner])
+
+  useEffect(() => {
+    return () => {
+      if (connectionHideTimerRef.current) {
+        clearTimeout(connectionHideTimerRef.current)
+      }
+    }
+  }, [])
+
   // Enquanto lê o Keychain, mostra loading (evita flash de tela de login)
   if (showLaunchSplash || !hydrated || !fontsLoaded || hasSeenOnboarding === null) {
-    const splashPalette = isDark ? tokens.dark : tokens.light
+    const splashBackground = '#5D7052'
 
     return (
-      <View style={[styles.splash, { backgroundColor: splashPalette.background }]}>
+      <View style={[styles.splash, { backgroundColor: splashBackground }]}>
         <Image source={require('./src/assets/icon.png')} style={styles.splashLogo} resizeMode="contain" />
-        <ActivityIndicator size="small" color={splashPalette.primary} style={styles.splashLoader} />
-        <StatusBar style={isDark ? 'light' : 'dark'} />
+        <ActivityIndicator size="small" color="#F3F4F1" style={styles.splashLoader} />
+        <StatusBar style="light" />
       </View>
     )
   }
@@ -248,10 +320,30 @@ function AppContent() {
   const isOnboardingActive = hasSeenOnboarding === false
 
   const loadingMessage = getAuthLoadingMessage(authLoadingContext)
+  const isOnlineBanner = connectionStatus === 'online'
+  const connectionBackground = isOnlineBanner ? palette.primary : palette.destructive
+  const connectionForeground = isOnlineBanner ? palette.primaryForeground : palette.destructiveForeground
+  const connectionMessage = isOnlineBanner ? 'Conexao online' : 'Sem internet'
 
   return (
     <>
       <StatusBar style={isDark ? 'light' : 'dark'} />
+      {showConnectionBanner ? (
+        <Animated.View
+          style={[
+            styles.connectionBanner,
+            {
+              top: insets.top + 4,
+              backgroundColor: connectionBackground,
+              borderColor: withAlpha(palette.border, 0.9),
+              transform: [{ translateY: connectionBannerAnim }],
+            },
+          ]}
+          pointerEvents="none"
+        >
+          <Text style={[styles.connectionBannerText, { color: connectionForeground }]}>{connectionMessage}</Text>
+        </Animated.View>
+      ) : null}
       {isOnboardingActive ? (
         <OnboardingScreen
           palette={palette}
@@ -331,6 +423,22 @@ const styles = StyleSheet.create({
     left: 16,
     right: 16,
     alignItems: 'center',
+  },
+  connectionBanner: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    zIndex: 20,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+  },
+  connectionBannerText: {
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.2,
   },
   toastBox: {
     width: '100%',

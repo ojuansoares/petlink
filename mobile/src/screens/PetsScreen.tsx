@@ -679,7 +679,7 @@ export default function PetsScreen() {
                 {petsHeaderTitle}
               </Text>
             </View>
-            <Button label="Novo pet" variant="outline" onPress={openFlow} style={styles.newPetButton} />
+            <Button label="Novo pet" variant="primary" onPress={openFlow} style={styles.newPetButton} />
           </View>
         ) : null}
 
@@ -990,7 +990,7 @@ export default function PetsScreen() {
                       <View style={styles.weightChartActionsRow}>
                         <Button
                           label="Adicionar peso"
-                          variant="outline"
+                          variant="primary"
                           size="sm"
                           onPress={openWeightPointUpdate}
                           style={styles.weightAddButton}

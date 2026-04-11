@@ -8,6 +8,8 @@ node_modules/
 dist/
 web-build/
 expo-env.d.ts
+.gradle-user-home/
+.tmp/
 
 # Native
 .kotlin/
@@ -40,3 +42,7 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# eas
+.eas.json
+.easignore

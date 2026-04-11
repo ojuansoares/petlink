@@ -38,7 +38,6 @@ export const authService = {
       throw new AppError('Email já cadastrado', 409)
     }
 
-    // Validar idade mínima de 13 anos
     if (birthDate) {
       const birth = new Date(birthDate)
       const today = new Date()
@@ -71,14 +70,10 @@ export const authService = {
     }
     if (!data.user) throw new AppError('Falha ao criar usuario', 400)
 
-    // Quando "Confirm email" está habilitado, o Supabase pode mascarar usuário já existente
-    // retornando sucesso sem sessão e com identities vazias (anti-enumeration).
     if (!data.session && (!data.user.identities || data.user.identities.length === 0)) {
       throw new AppError('Email já cadastrado', 409)
     }
 
-    // O profile base é criado pelo trigger do Supabase (auth.users -> public.profiles).
-    // Aqui só sincronizamos dados extras de forma idempotente.
     const profile = await authRepository.upsertProfile(data.user.id, name, location, birthDate)
 
     return {

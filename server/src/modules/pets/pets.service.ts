@@ -13,7 +13,6 @@ export const petsService = {
       throw new AppError('Peso inválido', 400)
     }
 
-    // Inicializa o histórico se o peso for informado
     const weight_history = payload.weight_kg 
       ? [{ weight: payload.weight_kg, date: new Date().toISOString() }]
       : []
@@ -23,12 +22,22 @@ export const petsService = {
       throw new AppError('Você já tem um pet com esse nome', 409)
     }
 
-    return petsRepository.create(ownerId, {
+    const created = await petsRepository.create(ownerId, {
       ...payload,
       name,
       species,
       weight_history
     })
+
+    if (payload.weight_kg !== undefined && payload.weight_kg !== null) {
+      const today = new Date().toISOString().slice(0, 10)
+      const hasTodayRecord = await petsRepository.hasWeightRecordForDate(created.id, payload.weight_kg, today)
+      if (!hasTodayRecord) {
+        await petsRepository.createWeightRecord(created.id, payload.weight_kg, null, today)
+      }
+    }
+
+    return created
   },
 
   async listForOwner(ownerId: string) {
@@ -79,8 +88,12 @@ export const petsService = {
       throw new AppError('Peso inválido', 400)
     }
 
-    // Lógica de histórico de peso
-    if (patch.weight_kg !== undefined && patch.weight_kg !== current.weight_kg) {
+    const shouldTrackWeightChange =
+      patch.weight_kg !== undefined &&
+      patch.weight_kg !== null &&
+      patch.weight_kg !== current.weight_kg
+
+    if (shouldTrackWeightChange) {
       const history = Array.isArray(current.weight_history) ? [...current.weight_history] : []
       history.push({
         weight: patch.weight_kg as number,
@@ -101,8 +114,15 @@ export const petsService = {
     if (shouldDeleteOldPhoto) {
       try {
         await uploadsService.deleteImageByUrl(current.photo_url)
-      } catch {
-        // Não bloqueia update do pet se limpeza do asset falhar.
+      } catch {}
+    }
+
+    if (shouldTrackWeightChange) {
+      const today = new Date().toISOString().slice(0, 10)
+      const weightValue = patch.weight_kg as number
+      const hasTodayRecord = await petsRepository.hasWeightRecordForDate(petId, weightValue, today)
+      if (!hasTodayRecord) {
+        await petsRepository.createWeightRecord(petId, weightValue, null, today)
       }
     }
 
@@ -121,9 +141,7 @@ export const petsService = {
     if (current.photo_url) {
       try {
         await uploadsService.deleteImageByUrl(current.photo_url)
-      } catch {
-        // Não bloqueia deleção do pet se limpeza do asset falhar.
-      }
+      } catch {}
     }
   },
 }

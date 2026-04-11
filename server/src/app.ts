@@ -33,7 +33,6 @@ app.use('/profile', profileRoutes)
 app.use('/pets', petsRoutes)
 app.use('/uploads', uploadsRoutes)
 
-// Erro handler global (previne crash no servidor se algum erro de fetch ocorrer)
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error('[ERRO GLOBAL SEVIDOR]:', err)
   res.status(err.statusCode ?? 500).json({ 

@@ -28,6 +28,7 @@ export function Input({
   const { colors, shadows, withAlpha } = useTheme()
   const [focused, setFocused] = useState(false)
   const glow = useSharedValue(0)
+  const isReadonly = props.editable === false
 
   const animatedGlowStyle = useAnimatedStyle(() => ({
     opacity: withTiming(glow.value, { duration: 300 }),
@@ -35,11 +36,11 @@ export function Input({
 
   const fieldStyle = useMemo(
     () => ({
-      backgroundColor: withAlpha(colors.card, 0.8),
-      borderColor: focused ? colors.primary : colors.border,
-      ...(focused ? shadows.soft : {}),
+      backgroundColor: isReadonly ? withAlpha(colors.muted, 0.6) : withAlpha(colors.card, 0.8),
+      borderColor: isReadonly ? withAlpha(colors.mutedForeground, 0.35) : (focused ? colors.primary : colors.border),
+      ...(focused && !isReadonly ? shadows.soft : {}),
     }),
-    [colors.border, colors.card, colors.primary, focused, shadows.soft, withAlpha],
+    [colors.border, colors.card, colors.muted, colors.mutedForeground, colors.primary, focused, isReadonly, shadows.soft, withAlpha],
   )
 
   return (
@@ -66,7 +67,7 @@ export function Input({
 
           <TextInput
             {...props}
-            style={[styles.input, { color: colors.foreground }]}
+            style={[styles.input, { color: isReadonly ? colors.mutedForeground : colors.foreground }]}
             placeholderTextColor={colors.mutedForeground}
             onFocus={(e) => {
               setFocused(true)

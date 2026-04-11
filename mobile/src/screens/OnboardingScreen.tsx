@@ -25,15 +25,17 @@ export default function OnboardingScreen({
 }: Readonly<OnboardingScreenProps>) {
   const currentStep = steps[currentIndex]
   const isLastStep = currentIndex === steps.length - 1
+  const brandBackground = '#5D7052'
+  const white = '#F3F4F1'
 
   return (
-    <View style={[styles.screen, { backgroundColor: palette.background }]}> 
+    <View style={[styles.screen, { backgroundColor: brandBackground }]}> 
       <View style={styles.content}> 
-        <Text size="xs" color="mutedForeground" style={styles.stepLabel}>
+        <Text size="xs" style={[styles.stepLabel, { color: withAlpha(white, 0.86) }]}>
           Passo {currentIndex + 1} de {steps.length}
         </Text>
-        <Text size="3xl" weight="700" style={styles.title}>{currentStep.title}</Text>
-        <Text size="base" color="mutedForeground" style={styles.description}>{currentStep.description}</Text>
+        <Text size="3xl" weight="700" style={[styles.title, { color: white }]}>{currentStep.title}</Text>
+        <Text size="base" style={[styles.description, { color: withAlpha(white, 0.9) }]}>{currentStep.description}</Text>
       </View>
 
       <View style={styles.dotsRow}>
@@ -43,7 +45,7 @@ export default function OnboardingScreen({
             style={[
               styles.dot,
               {
-                backgroundColor: index === currentIndex ? palette.primary : withAlpha(palette.border, 0.9),
+                backgroundColor: index === currentIndex ? white : withAlpha(white, 0.35),
                 width: index === currentIndex ? 20 : 8,
               },
             ]}
@@ -54,11 +56,11 @@ export default function OnboardingScreen({
       <Pressable
         style={[
           styles.button,
-          { backgroundColor: palette.primary },
+          { backgroundColor: withAlpha(white, 0.16), borderColor: withAlpha(white, 0.45), borderWidth: 1 },
         ]}
         onPress={isLastStep ? onComplete : onNext}
       >
-        <Text size="base" weight="700" style={{ color: palette.primaryForeground }}>
+        <Text size="base" weight="700" style={{ color: white }}>
           {isLastStep ? 'Concluido' : 'Next'}
         </Text>
       </Pressable>

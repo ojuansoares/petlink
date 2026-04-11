@@ -11,7 +11,6 @@ export const profileRepository = {
     if (profileError) throw profileError
     if (!profile) return null
 
-    // Contagem de pets
     const { count, error: countError } = await supabaseAdmin
       .from('pets')
       .select('*', { count: 'exact', head: true })
@@ -44,6 +43,15 @@ export const profileRepository = {
 
     if (error) throw error
     return data
+  },
+
+  async deleteById(id: string) {
+    const { error } = await supabaseAdmin
+      .from('profiles')
+      .delete()
+      .eq('id', id)
+
+    if (error) throw error
   },
 }
 

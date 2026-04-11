@@ -1,7 +1,8 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit'
 import axios from 'axios'
+import * as SecureStore from 'expo-secure-store'
 import { api } from '../../api/axios'
-import { supabase } from '../../config/supabase'
+import { isSupabaseConfigured, supabase } from '../../config/supabase'
 import { getRedirectUrl } from '../../services/AuthDeepLinkService'
 import {
   isBiometricEnabled,
@@ -9,6 +10,35 @@ import {
   setBiometricSessionLocked,
 } from '../../services/BiometricService'
 import { clearAuthTokens, readAuthTokens, writeAuthTokens } from '../../utils/authStorage'
+import { ProfileOfflineRepository } from '../../data/repositories/ProfileOfflineRepository'
+
+const CACHED_USER_KEY = 'petlink_cached_user'
+
+async function writeCachedUser(user: unknown): Promise<void> {
+  try {
+    await SecureStore.setItemAsync(CACHED_USER_KEY, JSON.stringify(user))
+  } catch {
+    // ignore cache failures
+  }
+}
+
+async function readCachedUser(): Promise<any | null> {
+  try {
+    const raw = await SecureStore.getItemAsync(CACHED_USER_KEY)
+    if (!raw) return null
+    return JSON.parse(raw)
+  } catch {
+    return null
+  }
+}
+
+async function clearCachedUser(): Promise<void> {
+  try {
+    await SecureStore.deleteItemAsync(CACHED_USER_KEY)
+  } catch {
+    // ignore
+  }
+}
 
 // ─── Types ───────────────────────────────────────────────────
 export interface AuthUser {
@@ -71,6 +101,7 @@ export const loginThunk = createAsyncThunk(
         accessToken: data.accessToken,
         refreshToken: data.refreshToken,
       })
+      await writeCachedUser(data.user)
 
       return data
     } catch (err: any) {
@@ -106,6 +137,8 @@ export const logoutThunk = createAsyncThunk('auth/logout', async () => {
     await api.post('/auth/logout')
   } finally {
     await clearAuthTokens()
+    await clearCachedUser()
+    await ProfileOfflineRepository.clearCache()
     await setBiometricSessionLocked(false)
   }
 })
@@ -123,14 +156,32 @@ export const hydrateAuthThunk = createAsyncThunk(
 
       const { accessToken } = tokens
 
-      // Busca dados atuais do usuário
-      const { data } = await api.get('/auth/me', {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      })
+      try {
+        // Valida sessão online quando houver conectividade.
+        const { data } = await api.get('/auth/me', {
+          headers: { Authorization: `Bearer ${accessToken}` },
+          timeout: 5000,
+        })
 
-      return { accessToken, user: data.user }
+        await writeCachedUser(data.user)
+        return { accessToken, user: data.user }
+      } catch (networkErr: any) {
+        const status = networkErr?.response?.status
+
+        if (status === 401 || status === 403) {
+          await clearAuthTokens()
+          await clearCachedUser()
+          return rejectWithValue(null)
+        }
+
+        const cachedUser = await readCachedUser()
+        if (cachedUser) {
+          return { accessToken, user: cachedUser }
+        }
+
+        return rejectWithValue(null)
+      }
     } catch {
-      await clearAuthTokens()
       return rejectWithValue(null)
     }
   }
@@ -152,10 +203,17 @@ export const refreshTokenThunk = createAsyncThunk(
         accessToken: data.accessToken,
         refreshToken: data.refreshToken,
       })
+      await writeCachedUser(data.user)
 
       return data
-    } catch {
-      await clearAuthTokens()
+    } catch (err: any) {
+      const status = err?.response?.status
+      if (status === 401 || status === 403) {
+        await clearAuthTokens()
+        await clearCachedUser()
+        await ProfileOfflineRepository.clearCache()
+      }
+
       return rejectWithValue('Refresh inválido')
     }
   }
@@ -165,6 +223,10 @@ export const forgotPasswordThunk = createAsyncThunk(
   'auth/forgotPassword',
   async (email: string, { rejectWithValue }) => {
     try {
+      if (!isSupabaseConfigured) {
+        return rejectWithValue('Configuracao ausente no APK: EXPO_PUBLIC_SUPABASE_URL/EXPO_PUBLIC_SUPABASE_ANON_KEY')
+      }
+
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: getRedirectUrl(),
       })

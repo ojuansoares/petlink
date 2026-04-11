@@ -19,7 +19,6 @@ export async function authMiddleware(
   const token = authHeader.split(' ')[1]
 
   try {
-    // Supabase valida o JWT e retorna o usuário
     const { data: { user }, error } = await supabaseAdmin.auth.getUser(token)
 
     if (error || !user) {

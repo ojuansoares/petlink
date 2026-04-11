@@ -16,6 +16,7 @@ type AppStackParamList = {
   SettingsMenu: undefined
   SettingsTheme: undefined
   SettingsNotifications: undefined
+  SettingsDangerZone: undefined
 }
 
 const AppStack = createStackNavigator<AppStackParamList>()
@@ -77,6 +78,14 @@ function AuthenticatedNavigator() {
         component={require('../screens/SettingsNotificationsScreen').default}
         options={{
           title: 'Notificações',
+          headerLeft: SettingsBackButton,
+        }}
+      />
+      <AppStack.Screen
+        name="SettingsDangerZone"
+        component={require('../screens/SettingsDangerZoneScreen').default}
+        options={{
+          title: 'Zona sensível',
           headerLeft: SettingsBackButton,
         }}
       />

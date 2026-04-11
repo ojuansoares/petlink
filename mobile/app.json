@@ -17,15 +17,15 @@
       "bundleIdentifier": "com.petlink.app"
     },
     "android": {
-      "package": "com.petlink.app",
       "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#5D7052",
         "foregroundImage": "./src/assets/android-icon-foreground.png",
         "backgroundImage": "./src/assets/android-icon-background.png",
         "monochromeImage": "./src/assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.petlink.app"
     },
     "web": {
       "favicon": "./src/assets/favicon.png"
@@ -33,6 +33,11 @@
     "plugins": [
       "expo-secure-store",
       "expo-font"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "19d464d5-36cd-4f6a-817a-a27a4f09f8d2"
+      }
+    }
   }
 }

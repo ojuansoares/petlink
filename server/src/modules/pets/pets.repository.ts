@@ -116,8 +116,33 @@ export const petsRepository = {
     return data
   },
 
+  async hasWeightRecordForDate(petId: string, weightKg: number, recordedAt: string) {
+    const { data, error } = await supabaseAdmin
+      .from('weight_records')
+      .select('id')
+      .eq('pet_id', petId)
+      .eq('recorded_at', recordedAt)
+      .eq('weight_kg', weightKg)
+      .limit(1)
+
+    if (error) throw error
+    return (data?.length ?? 0) > 0
+  },
+
+  async createWeightRecord(petId: string, weightKg: number, notes?: string | null, recordedAt?: string) {
+    const { error } = await supabaseAdmin
+      .from('weight_records')
+      .insert({
+        pet_id: petId,
+        weight_kg: weightKg,
+        recorded_at: recordedAt,
+        notes: notes ?? null,
+      })
+
+    if (error) throw error
+  },
+
   async deleteCascadeByIdAndOwner(ownerId: string, petId: string) {
-    // Garante ownership antes de apagar qualquer coisa
     const { data: pet, error: findError } = await supabaseAdmin
       .from('pets')
       .select('id, owner_id')
@@ -128,7 +153,6 @@ export const petsRepository = {
     if (findError) throw findError
     if (!pet) return false
 
-    // Consultas ligadas ao pet
     const { data: consultations, error: consultationsError } = await supabaseAdmin
       .from('consultations')
       .select('id')

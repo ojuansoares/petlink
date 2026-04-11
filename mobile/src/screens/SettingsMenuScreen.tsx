@@ -1,13 +1,12 @@
 import React from 'react'
 import { Ionicons } from '@expo/vector-icons'
-import { Pressable, StyleSheet, View } from 'react-native'
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native'
 import { Button } from '../components/ui/Button'
 import { LogoutConfirmModal } from '../components/ui/LogoutConfirmModal'
 import { Heading, Text } from '../components/ui/Typography'
 import { useTheme } from '../hooks/useTheme'
 import { useAppDispatch } from '../store'
 import { logout, logoutThunk } from '../store/slices/authSlice'
-import { showToast } from '../store/slices/uiSlice'
 
 interface MenuItem {
   label: string
@@ -50,9 +49,13 @@ export default function SettingsMenuScreen({ navigation }: Readonly<{ navigation
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}> 
-      <View style={styles.content}>
-        <Heading size="2xl" weight="800">Explorar</Heading>
-        <Text color="mutedForeground">Acesse rapidamente as principais areas do app.</Text>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.content}>
+          <Heading size="2xl" weight="800">Explorar</Heading>
+          <Text color="mutedForeground">Acesse rapidamente as principais areas do app.</Text>
 
         <Pressable
           onPress={goToThemeSettings}
@@ -109,9 +112,27 @@ export default function SettingsMenuScreen({ navigation }: Readonly<{ navigation
             </Pressable>
           ))}
         </View>
-      </View>
 
-      <Button label="Logout" variant="primary" onPress={() => setShowLogoutConfirm(true)} />
+        <Pressable
+          onPress={() => navigation.navigate('SettingsDangerZone')}
+          style={({ pressed }) => [
+            styles.item,
+            {
+              borderColor: withAlpha(colors.destructive, 0.5),
+              backgroundColor: pressed ? withAlpha(colors.destructive, 0.14) : withAlpha(colors.destructive, 0.08),
+            },
+          ]}
+        >
+          <View style={[styles.iconWrap, { backgroundColor: withAlpha(colors.destructive, 0.18) }]}>
+            <Ionicons name="warning-outline" size={20} color={colors.destructive} />
+          </View>
+          <Text weight="700" size="lg" style={{ color: colors.destructive }}>Zona sensível</Text>
+          <Ionicons name="chevron-forward" size={20} color={colors.mutedForeground} style={styles.chevron} />
+        </Pressable>
+
+        <Button label="Logout" variant="primary" onPress={() => setShowLogoutConfirm(true)} />
+        </View>
+      </ScrollView>
 
       <LogoutConfirmModal
         visible={showLogoutConfirm}
@@ -126,7 +147,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 16,
-    justifyContent: 'space-between',
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 16,
   },
   content: {
     gap: 10,

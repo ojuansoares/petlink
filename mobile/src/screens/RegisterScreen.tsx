@@ -3,6 +3,8 @@ import { StackScreenProps } from '@react-navigation/stack'
 import { Ionicons } from '@expo/vector-icons'
 import {
   ActivityIndicator,
+  Animated,
+  Easing,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -22,14 +24,7 @@ import { AuthStackParamList } from '../navigation/types'
 import { useAppDispatch, useAppSelector } from '../store'
 import { registerThunk, selectAuthError, selectAuthLoading } from '../store/slices/authSlice'
 
-
-/** Calcula idade a partir de YYYY-MM-DD (formato ISO) */
-function formatDateToIso(date: Date) {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
+type Props = StackScreenProps<AuthStackParamList, 'Register'>
 
 function calcAgeFromISO(isoDate: string): number | null {
   if (!isoDate) return null
@@ -39,11 +34,6 @@ function calcAgeFromISO(isoDate: string): number | null {
   const age = today.getFullYear() - birth.getFullYear()
   const m = today.getMonth() - birth.getMonth()
   return m < 0 || (m === 0 && today.getDate() < birth.getDate()) ? age - 1 : age
-}
-
-function formatIsoToDisplay(iso: string) {
-  if (!iso || !iso.includes('-')) return iso
-  return iso.split('-').reverse().join('/')
 }
 
 function parseDisplayDate(value: string) {
@@ -60,11 +50,9 @@ function dateToIso(value: string) {
   return `${year}-${month}-${day}`
 }
 
-type Props = StackScreenProps<AuthStackParamList, 'Register'>
-
 export default function RegisterScreen({ navigation }: Readonly<Props>) {
   const dispatch = useAppDispatch()
-  const { colors, withAlpha } = useTheme()
+  const { colors } = useTheme()
   const isLoading = useAppSelector(selectAuthLoading)
   const authError = useAppSelector(selectAuthError)
 
@@ -73,10 +61,15 @@ export default function RegisterScreen({ navigation }: Readonly<Props>) {
   const [location, setLocation] = React.useState('')
   const [password, setPassword] = React.useState('')
   const [confirmPassword, setConfirmPassword] = React.useState('')
-  const [birthDate, setBirthDate] = React.useState('') // Formato DD/MM/AAAA
+  const [birthDate, setBirthDate] = React.useState('')
   const [showPassword, setShowPassword] = React.useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = React.useState(false)
   const [showSuccessOverlay, setShowSuccessOverlay] = React.useState(false)
+
+  const logoOpacity = React.useRef(new Animated.Value(0)).current
+  const logoTranslateY = React.useRef(new Animated.Value(-20)).current
+  const panelTranslateY = React.useRef(new Animated.Value(48)).current
+  const panelOpacity = React.useRef(new Animated.Value(0)).current
 
   const successMessage = 'Cadastro criado. Confira seu email e confirme a conta antes de fazer login.'
 
@@ -86,13 +79,13 @@ export default function RegisterScreen({ navigation }: Readonly<Props>) {
   const hasSpecialChar = /[^A-Za-z0-9]/.test(password)
 
   let missingPasswordRule: string | null = null
-  if (hasMinLength === false) {
+  if (!hasMinLength) {
     missingPasswordRule = 'Falta: pelo menos 8 caracteres.'
-  } else if (hasUppercase === false) {
+  } else if (!hasUppercase) {
     missingPasswordRule = 'Falta: 1 letra maiuscula.'
-  } else if (hasNumber === false) {
+  } else if (!hasNumber) {
     missingPasswordRule = 'Falta: 1 numero.'
-  } else if (hasSpecialChar === false) {
+  } else if (!hasSpecialChar) {
     missingPasswordRule = 'Falta: 1 caractere especial.'
   }
 
@@ -108,14 +101,13 @@ export default function RegisterScreen({ navigation }: Readonly<Props>) {
     passwordValidationMessage = 'As senhas nao conferem.'
   }
 
-  // Validação da data de nascimento
   const birthDateObj = parseDisplayDate(birthDate)
   const age = birthDateObj ? calcAgeFromISO(birthDateObj.toISOString().split('T')[0]) : null
   const birthDateValid = birthDateObj !== null && age !== null && age >= 13
   const birthDateError = birthDate.length === 10 && !birthDateValid
     ? (age !== null && age < 13)
-      ? `Você precisa ter pelo menos 13 anos (você tem ${age}).`
-      : 'Data inválida.'
+      ? `Voce precisa ter pelo menos 13 anos (voce tem ${age}).`
+      : 'Data invalida.'
     : null
 
   const canSubmit =
@@ -128,6 +120,35 @@ export default function RegisterScreen({ navigation }: Readonly<Props>) {
     passwordMatches &&
     !isLoading &&
     !showSuccessOverlay
+
+  React.useEffect(() => {
+    Animated.parallel([
+      Animated.timing(logoOpacity, {
+        toValue: 1,
+        duration: 360,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(logoTranslateY, {
+        toValue: 0,
+        duration: 400,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(panelTranslateY, {
+        toValue: 0,
+        duration: 390,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(panelOpacity, {
+        toValue: 1,
+        duration: 340,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start()
+  }, [logoOpacity, logoTranslateY, panelOpacity, panelTranslateY])
 
   React.useEffect(() => {
     if (!showSuccessOverlay) return
@@ -159,166 +180,184 @@ export default function RegisterScreen({ navigation }: Readonly<Props>) {
   }
 
   const handleBirthDateChange = (text: string) => {
-    // Remove não-números
     const clean = text.replace(/\D/g, '')
     let formatted = clean
-    
+
     if (clean.length > 2) {
       formatted = `${clean.slice(0, 2)}/${clean.slice(2)}`
     }
     if (clean.length > 4) {
       formatted = `${clean.slice(0, 2)}/${clean.slice(2, 4)}/${clean.slice(4, 8)}`
     }
-    
+
     if (formatted.length <= 10) {
       setBirthDate(formatted)
     }
   }
 
   return (
-    <View style={[styles.screen, { backgroundColor: colors.background }]}> 
+    <View style={styles.screen}>
+      <View style={styles.brandArea}>
+        <Animated.Image
+          source={require('../assets/icon.png')}
+          resizeMode="contain"
+          style={[
+            styles.logo,
+            {
+              opacity: logoOpacity,
+              transform: [{ translateY: logoTranslateY }],
+            },
+          ]}
+        />
+      </View>
+
       <KeyboardAvoidingView
         style={styles.keyboardContainer}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <ScrollView
-          contentContainerStyle={styles.container}
-          keyboardShouldPersistTaps="handled"
-          bounces={false}
-          showsVerticalScrollIndicator={false}
+        <Animated.View
+          style={[
+            styles.bottomSheet,
+            {
+              opacity: panelOpacity,
+              transform: [{ translateY: panelTranslateY }],
+            },
+          ]}
         >
-          <Card variant="organic" style={styles.card}>
-            <Heading size="3xl" weight="800">Registro</Heading>
-            <Text size="sm" color="mutedForeground" style={styles.subtitle}>Crie sua conta para comecar a acompanhar seus pets.</Text>
-
-            <Input
-              placeholder="Nome"
-              value={name}
-              onChangeText={setName}
-              leftIcon={<Ionicons name="person-outline" size={18} color={colors.mutedForeground} />}
-            />
-
-            <Input
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="email-address"
-              placeholder="Email"
-              value={email}
-              onChangeText={setEmail}
-              leftIcon={<Ionicons name="mail-outline" size={18} color={colors.mutedForeground} />}
-            />
-
-            <OptionSelect
-              placeholder="Estado"
-              value={location}
-              onChange={setLocation}
-              options={BRAZIL_STATES}
-              leftIconName="location-outline"
-            />
-
-            {/* Data de nascimento por escrito com máscara */}
-            <Input
-              placeholder="Data de nascimento"
-              value={birthDate}
-              onChangeText={handleBirthDateChange}
-              keyboardType="numeric"
-              maxLength={10}
-              leftIcon={<Ionicons name="calendar-outline" size={18} color={colors.mutedForeground} />}
-            />
-
-            {/* Feedback de erro de data */}
-            {birthDateError ? (
-              <Text size="xs" style={[styles.hint, { color: colors.destructive }]}>
-                {birthDateError}
-              </Text>
-            ) : null}
-
-            <Input
-              autoCapitalize="none"
-              autoCorrect={false}
-              secureTextEntry={!showPassword}
-              placeholder="Senha"
-              value={password}
-              onChangeText={setPassword}
-              leftIcon={<Ionicons name="lock-closed-outline" size={18} color={colors.mutedForeground} />}
-              rightIcon={(
-                <Pressable
-                  onPress={() => setShowPassword((value) => !value)}
-                  hitSlop={8}
-                  accessibilityRole="button"
-                  accessibilityLabel={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
-                >
-                  <Ionicons
-                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                    size={18}
-                    color={colors.mutedForeground}
-                  />
-                </Pressable>
-              )}
-            />
-
-            <Input
-              autoCapitalize="none"
-              autoCorrect={false}
-              secureTextEntry={!showConfirmPassword}
-              placeholder="Confirmar senha"
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              leftIcon={<Ionicons name="shield-checkmark-outline" size={18} color={colors.mutedForeground} />}
-              rightIcon={(
-                <Pressable
-                  onPress={() => setShowConfirmPassword((value) => !value)}
-                  hitSlop={8}
-                  accessibilityRole="button"
-                  accessibilityLabel={showConfirmPassword ? 'Ocultar confirmacao de senha' : 'Mostrar confirmacao de senha'}
-                >
-                  <Ionicons
-                    name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
-                    size={18}
-                    color={colors.mutedForeground}
-                  />
-                </Pressable>
-              )}
-            />
-
-          {password.length > 0 && passwordValidationMessage ? (
-              <Text size="xs" color="mutedForeground" style={styles.hint}>{passwordValidationMessage}</Text>
-          ) : null}
-
-            <Button
-              label={isLoading ? 'Registrando...' : 'Registrar'}
-              onPress={handleRegister}
-              disabled={!canSubmit}
-              loading={isLoading}
-              style={styles.buttonSpacing}
-            />
-
-            {authError ? <Text style={{ color: colors.destructive }}>{authError}</Text> : null}
-
-            <View style={styles.loginRow}>
-              <Text size="sm" color="mutedForeground">Ja tem uma conta? </Text>
-              <Pressable onPress={() => navigation.navigate('Login')}>
-                <Text size="sm" weight="700" color="secondary">Faca log-in</Text>
+          <ScrollView
+            contentContainerStyle={styles.container}
+            keyboardShouldPersistTaps="handled"
+            bounces={false}
+            showsVerticalScrollIndicator={false}
+          >
+            <Card variant="organic" style={styles.card}>
+              <Pressable
+                style={styles.inlineBackButton}
+                onPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Login'))}
+              >
+                <Ionicons name="arrow-back" size={16} color={colors.foreground} />
+                <Text size="sm" weight="700">Voltar</Text>
               </Pressable>
-            </View>
-          </Card>
-        </ScrollView>
-      </KeyboardAvoidingView>
 
-      <Pressable
-        style={[
-          styles.backTopButton,
-          { backgroundColor: withAlpha(colors.card, 0.85), borderColor: colors.border },
-        ]}
-        onPress={() => navigation.navigate('Login')}
-      >
-        <Ionicons name="arrow-back" size={16} color={colors.foreground} />
-        <Text size="sm" weight="700">Voltar</Text>
-      </Pressable>
+              <Heading size="3xl" weight="800" style={styles.title}>Registro</Heading>
+              <Text size="sm" color="mutedForeground" style={styles.subtitle}>Crie sua conta para comecar a acompanhar seus pets.</Text>
+
+              <Input
+                placeholder="Nome"
+                value={name}
+                onChangeText={setName}
+                leftIcon={<Ionicons name="person-outline" size={18} color={colors.mutedForeground} />}
+              />
+
+              <Input
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="email-address"
+                placeholder="Email"
+                value={email}
+                onChangeText={setEmail}
+                leftIcon={<Ionicons name="mail-outline" size={18} color={colors.mutedForeground} />}
+              />
+
+              <OptionSelect
+                placeholder="Estado"
+                value={location}
+                onChange={setLocation}
+                options={BRAZIL_STATES}
+                leftIconName="location-outline"
+              />
+
+              <Input
+                placeholder="Data de nascimento"
+                value={birthDate}
+                onChangeText={handleBirthDateChange}
+                keyboardType="numeric"
+                maxLength={10}
+                leftIcon={<Ionicons name="calendar-outline" size={18} color={colors.mutedForeground} />}
+              />
+
+              {birthDateError ? (
+                <Text size="xs" style={[styles.hint, { color: colors.destructive }]}>
+                  {birthDateError}
+                </Text>
+              ) : null}
+
+              <Input
+                autoCapitalize="none"
+                autoCorrect={false}
+                secureTextEntry={!showPassword}
+                placeholder="Senha"
+                value={password}
+                onChangeText={setPassword}
+                leftIcon={<Ionicons name="lock-closed-outline" size={18} color={colors.mutedForeground} />}
+                rightIcon={(
+                  <Pressable
+                    onPress={() => setShowPassword((value) => !value)}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                  >
+                    <Ionicons
+                      name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                      size={18}
+                      color={colors.mutedForeground}
+                    />
+                  </Pressable>
+                )}
+              />
+
+              <Input
+                autoCapitalize="none"
+                autoCorrect={false}
+                secureTextEntry={!showConfirmPassword}
+                placeholder="Confirmar senha"
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                leftIcon={<Ionicons name="shield-checkmark-outline" size={18} color={colors.mutedForeground} />}
+                rightIcon={(
+                  <Pressable
+                    onPress={() => setShowConfirmPassword((value) => !value)}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel={showConfirmPassword ? 'Ocultar confirmacao de senha' : 'Mostrar confirmacao de senha'}
+                  >
+                    <Ionicons
+                      name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
+                      size={18}
+                      color={colors.mutedForeground}
+                    />
+                  </Pressable>
+                )}
+              />
+
+              {password.length > 0 && passwordValidationMessage ? (
+                <Text size="xs" color="mutedForeground" style={styles.hint}>{passwordValidationMessage}</Text>
+              ) : null}
+
+              <Button
+                label={isLoading ? 'Registrando...' : 'Registrar'}
+                onPress={handleRegister}
+                disabled={!canSubmit}
+                loading={isLoading}
+                style={styles.buttonSpacing}
+              />
+
+              {authError ? <Text style={{ color: colors.destructive }}>{authError}</Text> : null}
+
+              <View style={styles.loginRow}>
+                <Text size="sm" color="mutedForeground">Ja tem uma conta? </Text>
+                <Pressable onPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Login'))}>
+                  <Text size="sm" weight="700" color="secondary">Faca log-in</Text>
+                </Pressable>
+              </View>
+            </Card>
+          </ScrollView>
+        </Animated.View>
+      </KeyboardAvoidingView>
 
       <Modal visible={showSuccessOverlay} transparent animationType="fade" statusBarTranslucent>
         <View style={styles.overlayBackdrop}>
-          <Card variant="organic" style={[styles.overlayCard, { backgroundColor: colors.card }]}> 
+          <Card variant="organic" style={[styles.overlayCard, { backgroundColor: colors.card }]}>
             <ActivityIndicator color={colors.primary} />
             <Heading size="xl" weight="800">Cadastro realizado</Heading>
             <Text size="sm" style={styles.overlayMessage}>{successMessage}</Text>
@@ -326,7 +365,6 @@ export default function RegisterScreen({ navigation }: Readonly<Props>) {
           </Card>
         </View>
       </Modal>
-
     </View>
   )
 }
@@ -334,51 +372,55 @@ export default function RegisterScreen({ navigation }: Readonly<Props>) {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
+    backgroundColor: '#5D7052',
+  },
+  brandArea: {
+    flex: 0.62,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingTop: 8,
+  },
+  logo: {
+    width: 188,
+    height: 188,
   },
   keyboardContainer: {
+    flex: 1.38,
+  },
+  bottomSheet: {
     flex: 1,
+    backgroundColor: '#F3F4F1',
+    borderTopLeftRadius: 34,
+    borderTopRightRadius: 34,
   },
   container: {
     flexGrow: 1,
-    padding: 16,
+    paddingHorizontal: 18,
+    paddingTop: 24,
     paddingBottom: 24,
-    justifyContent: 'center',
+    justifyContent: 'flex-end',
   },
   card: {
     width: '100%',
     gap: 12,
+    backgroundColor: 'transparent',
+    borderColor: 'transparent',
+    shadowOpacity: 0,
+    elevation: 0,
   },
-  backTopButton: {
-    position: 'absolute',
-    top: 56,
-    left: 16,
-    zIndex: 20,
-    elevation: 20,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: 999,
-    borderWidth: 1,
+  title: {
+    color: '#5D7052',
+  },
+  inlineBackButton: {
+    alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    paddingVertical: 4,
   },
   subtitle: {
     marginBottom: 8,
-  },
-  dateField: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    minHeight: 52,
-    borderRadius: 999,
-    borderWidth: 1,
-    gap: 12,
-  },
-  dateFieldContent: {
-    flex: 1,
-  },
-  dateLabel: {
-    marginBottom: -2,
   },
   buttonSpacing: {
     marginTop: 4,

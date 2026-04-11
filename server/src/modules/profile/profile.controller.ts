@@ -30,5 +30,18 @@ export const profileController = {
       return res.status(statusCode).json({ error: err.message ?? 'Erro' })
     }
   },
+
+  async deleteMe(req: Request, res: Response) {
+    try {
+      const authReq = req as AuthRequest
+      if (!authReq.user) return res.status(401).json({ error: 'Não autenticado' })
+
+      await profileService.deleteMe(authReq.user.id)
+      return res.status(204).send()
+    } catch (err: any) {
+      const statusCode = err instanceof AppError ? err.statusCode : err.statusCode ?? 500
+      return res.status(statusCode).json({ error: err.message ?? 'Erro' })
+    }
+  },
 }
 

@@ -1,19 +1,10 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import axios from 'axios'
 import { api } from '../../api/axios'
+import { ProfileOfflineRepository, type OfflineUserProfile } from '../../data/repositories/ProfileOfflineRepository'
 import { logout, logoutThunk } from './authSlice'
 
-export interface UserProfile {
-  id: string
-  name: string
-  location: string | null
-  created_at: string
-  avatar_url: string | null
-  bio: string | null
-  updated_at: string | null
-  pets_count: number
-  birth_date: string | null
-}
+export interface UserProfile extends OfflineUserProfile {}
 
 interface ProfileState {
   profile: UserProfile | null
@@ -34,12 +25,29 @@ export const fetchMyProfileThunk = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const { data } = await api.get('/profile/me')
-      return data.profile as UserProfile
+      const profile = data.profile as UserProfile
+      await ProfileOfflineRepository.replaceFromRemote(profile)
+      return profile
     } catch (err: any) {
       if (axios.isAxiosError(err)) {
+        const status = err.response?.status
+
+        if (status === 401 || status === 403) {
+          await ProfileOfflineRepository.clearCache()
+          const message = err.response?.data?.error ?? err.response?.data?.message
+          return rejectWithValue(message ?? 'Nao autenticado')
+        }
+
+        const cached = await ProfileOfflineRepository.getCachedProfile()
+        if (cached) return cached
+
         const message = err.response?.data?.error ?? err.response?.data?.message
         if (message) return rejectWithValue(message)
       }
+
+      const cached = await ProfileOfflineRepository.getCachedProfile()
+      if (cached) return cached
+
       return rejectWithValue('Erro ao carregar perfil')
     }
   }
@@ -61,7 +69,9 @@ export const updateMyProfileThunk = createAsyncThunk(
       }
 
       const { data } = await api.put('/profile/me', body)
-      return data.profile as UserProfile
+      const profile = data.profile as UserProfile
+      await ProfileOfflineRepository.replaceFromRemote(profile)
+      return profile
     } catch (err: any) {
       if (axios.isAxiosError(err)) {
         const message = err.response?.data?.error ?? err.response?.data?.message
@@ -79,7 +89,9 @@ export const updateMyAvatarThunk = createAsyncThunk(
       const { data } = await api.put('/profile/me', {
         avatar_url: payload.avatar_url.trim(),
       })
-      return data.profile as UserProfile
+      const profile = data.profile as UserProfile
+      await ProfileOfflineRepository.replaceFromRemote(profile)
+      return profile
     } catch (err: any) {
       if (axios.isAxiosError(err)) {
         const message = err.response?.data?.error ?? err.response?.data?.message
