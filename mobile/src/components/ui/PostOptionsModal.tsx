@@ -1,7 +1,6 @@
 import React, { useState } from 'react'
-import { Modal, Pressable, StyleSheet, View, Share, ActivityIndicator, Alert } from 'react-native'
+import { Modal, Pressable, StyleSheet, View, Share, ActivityIndicator } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import * as FileSystem from 'expo-file-system'
 import * as MediaLibrary from 'expo-media-library'
 import { useTheme } from '../../hooks/useTheme'
 import { useNetworkCheck } from '../../hooks/useNetworkCheck'
@@ -59,22 +58,9 @@ export function PostOptionsModal({ post, visible, onClose, isOwnPost }: Readonly
         return
       }
 
-      const filename = `petlink_${post.id}_${Date.now()}.jpg`
-      const directory = FileSystem.documentDirectory + 'downloads/'
+      dispatch(showToast({ type: 'info', message: 'Salvando imagem...' }))
       
-      const dirInfo = await FileSystem.getInfoAsync(directory)
-      if (!dirInfo.exists) {
-        await FileSystem.makeDirectoryAsync(directory, { intermediates: true })
-      }
-      
-      const fileUri = directory + filename
-      const downloadResult = await FileSystem.downloadAsync(post.image_url, fileUri)
-      
-      if (downloadResult.status !== 200) {
-        throw new Error('Download falhou')
-      }
-
-      const asset = await MediaLibrary.createAssetAsync(downloadResult.uri)
+      const asset = await MediaLibrary.createAssetAsync(post.image_url)
       dispatch(showToast({ type: 'success', message: 'Imagem salva na galeria!' }))
       onClose()
     } catch (error: any) {

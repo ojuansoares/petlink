@@ -1277,7 +1277,7 @@ export default function PetsScreen() {
               <Button label="Salvar Alterações" onPress={handleUpdatePet} loading={isUpdating} />
             </View>
             <View style={{ marginTop: 12 }}>
-              <Button label="Excluir Pet" variant="destructive" onPress={() => openPetModal(activePet)} />
+              <Button label="Excluir Pet" variant="destructive" onPress={() => activePet && openPetModal(activePet)} />
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -1870,12 +1870,6 @@ const styles = StyleSheet.create({
   },
   weightPointActionButton: {
     minWidth: 120,
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    padding: 16,
   },
   editModalCard: {
     width: '100%',

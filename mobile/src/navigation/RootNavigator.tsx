@@ -30,6 +30,21 @@ function SettingsBackButton({ onPress }: Readonly<{ onPress?: () => void }>) {
   )
 }
 
+function PublicProfileBackButton({ onPress }: Readonly<{ onPress?: () => void }>) {
+  const isDark = useAppSelector(selectIsDark)
+  const palette = isDark ? tokens.dark : tokens.light
+
+  return (
+    <Pressable
+      onPress={onPress}
+      hitSlop={8}
+      style={{ marginLeft: 12, width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}
+    >
+      <Ionicons name="chevron-back" size={24} color={palette.foreground} />
+    </Pressable>
+  )
+}
+
 function AuthenticatedNavigator() {
   const isDark = useAppSelector(selectIsDark)
   const palette = isDark ? tokens.dark : tokens.light
@@ -88,11 +103,7 @@ function AuthenticatedNavigator() {
         component={PublicProfileScreen}
         options={{
           title: 'Perfil',
-          headerLeft: (props) => (
-            <Pressable onPress={props.onBack} style={{ paddingLeft: 16 }}>
-              <Ionicons name="chevron-back" size={24} color={tokens.light.primary} />
-            </Pressable>
-          ),
+          headerLeft: PublicProfileBackButton,
         }}
       />
     </AppStack.Navigator>
