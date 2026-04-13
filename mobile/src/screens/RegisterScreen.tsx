@@ -22,6 +22,7 @@ import { BRAZIL_STATES } from '../constants/brazilStates'
 import { useTheme } from '../hooks/useTheme'
 import { AuthStackParamList } from '../navigation/types'
 import { useAppDispatch, useAppSelector } from '../store'
+import { showToast } from '../store/slices/uiSlice'
 import { registerThunk, selectAuthError, selectAuthLoading } from '../store/slices/authSlice'
 
 type Props = StackScreenProps<AuthStackParamList, 'Register'>
@@ -55,6 +56,12 @@ export default function RegisterScreen({ navigation }: Readonly<Props>) {
   const { colors } = useTheme()
   const isLoading = useAppSelector(selectAuthLoading)
   const authError = useAppSelector(selectAuthError)
+
+  React.useEffect(() => {
+    if (authError) {
+      dispatch(showToast({ type: 'error', message: authError }))
+    }
+  }, [authError])
 
   const [name, setName] = React.useState('')
   const [email, setEmail] = React.useState('')
@@ -341,8 +348,6 @@ export default function RegisterScreen({ navigation }: Readonly<Props>) {
                 loading={isLoading}
                 style={styles.buttonSpacing}
               />
-
-              {authError ? <Text style={{ color: colors.destructive }}>{authError}</Text> : null}
 
               <View style={styles.loginRow}>
                 <Text size="sm" color="mutedForeground">Ja tem uma conta? </Text>

@@ -18,9 +18,48 @@ export const profileRepository = {
 
     if (countError) throw countError
 
+    const { count: postsCount, error: postsCountError } = await supabaseAdmin
+      .from('posts')
+      .select('*', { count: 'exact', head: true })
+      .eq('author_id', id)
+
+    if (postsCountError) throw postsCountError
+
     return {
       ...profile,
-      pets_count: count ?? 0
+      pets_count: count ?? 0,
+      posts_count: postsCount ?? 0
+    }
+  },
+
+  async findPublicById(id: string) {
+    const { data: profile, error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .select('id, name, avatar_url, bio, location, created_at')
+      .eq('id', id)
+      .maybeSingle()
+
+    if (profileError) throw profileError
+    if (!profile) return null
+
+    const { count: petsCount, error: petsCountError } = await supabaseAdmin
+      .from('pets')
+      .select('*', { count: 'exact', head: true })
+      .eq('owner_id', id)
+
+    if (petsCountError) throw petsCountError
+
+    const { count: postsCount, error: postsCountError } = await supabaseAdmin
+      .from('posts')
+      .select('*', { count: 'exact', head: true })
+      .eq('author_id', id)
+
+    if (postsCountError) throw postsCountError
+
+    return {
+      ...profile,
+      pets_count: petsCount ?? 0,
+      posts_count: postsCount ?? 0
     }
   },
 

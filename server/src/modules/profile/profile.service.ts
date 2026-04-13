@@ -21,6 +21,12 @@ export const profileService = {
     return attachEmail(userId, profile)
   },
 
+  async getPublicProfile(userId: string) {
+    const profile = await profileRepository.findPublicById(userId)
+    if (!profile) throw new AppError('Perfil não encontrado', 404)
+    return profile
+  },
+
   async updateMe(userId: string, patch: { name?: string; location?: string | null; avatar_url?: string | null; bio?: string | null; birth_date?: string | null }) {
     if (patch.name !== undefined && patch.name.trim().length === 0) {
       throw new AppError('Nome inválido', 400)

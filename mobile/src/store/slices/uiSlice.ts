@@ -11,11 +11,12 @@ interface Toast {
 }
 
 interface UIState {
-  themeMode:     ThemeMode
-  resolvedTheme: 'light' | 'dark'
+  themeMode:        ThemeMode
+  resolvedTheme:  'light' | 'dark'
   toasts:        Toast[]
   isOnline:      boolean
   isSyncing:     boolean
+  showCreatePost: boolean
 }
 
 // Normaliza o retorno do Appearance (pode vir 'unspecified' ou null)
@@ -25,12 +26,12 @@ function resolveSystemTheme(): 'light' | 'dark' {
 
 // ─── Slice ───────────────────────────────────────────────────
 const initialState: UIState = {
-  // Mantemos claro por padrao para previsibilidade no fluxo de desenvolvimento.
-  themeMode:     'light',
-  resolvedTheme: 'light',
+  themeMode:        'light',
+  resolvedTheme:  'light',
   toasts:        [],
-  isOnline:      true,
-  isSyncing:     false,
+  isOnline:     true,
+  isSyncing:    false,
+  showCreatePost: false,
 }
 
 const uiSlice = createSlice({
@@ -78,6 +79,10 @@ const uiSlice = createSlice({
     setSyncing: (state, action: PayloadAction<boolean>) => {
       state.isSyncing = action.payload
     },
+
+    setShowCreatePost: (state, action: PayloadAction<boolean>) => {
+      state.showCreatePost = action.payload
+    },
   },
 })
 
@@ -89,6 +94,7 @@ export const {
   dismissToast,
   setOnline,
   setSyncing,
+  setShowCreatePost,
 } = uiSlice.actions
 
 export default uiSlice.reducer
@@ -100,3 +106,4 @@ export const selectToasts        = (s: any): Toast[]            => s.ui.toasts
 export const selectIsOnline      = (s: any): boolean            => s.ui.isOnline
 export const selectIsSyncing     = (s: any): boolean            => s.ui.isSyncing
 export const selectIsDark        = (s: any): boolean            => s.ui.resolvedTheme === 'dark'
+export const selectShowCreatePost = (s: any): boolean            => s.ui.showCreatePost

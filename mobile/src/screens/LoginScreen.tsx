@@ -28,6 +28,7 @@ import {
 import { useTheme } from '../hooks/useTheme'
 import { AuthStackParamList } from '../navigation/types'
 import { useAppDispatch, useAppSelector } from '../store'
+import { showToast } from '../store/slices/uiSlice'
 import {
   hydrateAuthThunk,
   loginThunk,
@@ -47,6 +48,13 @@ export default function LoginScreen({ navigation }: Readonly<Props>) {
   const { colors } = useTheme()
   const isLoading = useAppSelector(selectAuthLoading)
   const authError = useAppSelector(selectAuthError)
+
+  React.useEffect(() => {
+    if (authError) {
+      dispatch(showToast({ type: 'error', message: authError }))
+    }
+  }, [authError])
+
   const [email, setEmail] = React.useState('')
   const [password, setPassword] = React.useState('')
   const [showPassword, setShowPassword] = React.useState(false)
@@ -298,8 +306,6 @@ export default function LoginScreen({ navigation }: Readonly<Props>) {
                   loading={isBiometricLoading}
                 />
               ) : null}
-
-              {authError ? <Text style={{ color: colors.destructive }}>{authError}</Text> : null}
 
               <View style={styles.registerRow}>
                 <Text size="sm" color="mutedForeground">Nao tem uma conta? </Text>

@@ -10,14 +10,8 @@ import { tokens, withAlpha } from '../theme'
 import AuthStack from './AuthStack'
 import AppTabs from './AppTabs'
 import SettingsMenuScreen from '../screens/SettingsMenuScreen'
-
-type AppStackParamList = {
-  Tabs: undefined
-  SettingsMenu: undefined
-  SettingsTheme: undefined
-  SettingsNotifications: undefined
-  SettingsDangerZone: undefined
-}
+import PublicProfileScreen from '../screens/PublicProfileScreen'
+import { AppStackParamList } from './types'
 
 const AppStack = createStackNavigator<AppStackParamList>()
 
@@ -87,6 +81,18 @@ function AuthenticatedNavigator() {
         options={{
           title: 'Zona sensível',
           headerLeft: SettingsBackButton,
+        }}
+      />
+      <AppStack.Screen
+        name="PublicProfile"
+        component={PublicProfileScreen}
+        options={{
+          title: 'Perfil',
+          headerLeft: (props) => (
+            <Pressable onPress={props.onBack} style={{ paddingLeft: 16 }}>
+              <Ionicons name="chevron-back" size={24} color={tokens.light.primary} />
+            </Pressable>
+          ),
         }}
       />
     </AppStack.Navigator>

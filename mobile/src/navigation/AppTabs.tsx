@@ -15,6 +15,7 @@ import ProfileScreen from '../screens/ProfileScreen'
 import { useAppDispatch, useAppSelector } from '../store'
 import { selectUser } from '../store/slices/authSlice'
 import { fetchMyProfileThunk, selectProfile } from '../store/slices/profileSlice'
+import { setShowCreatePost, selectShowCreatePost } from '../store/slices/uiSlice'
 
 type AppTabsParamList = {
   Home: undefined
@@ -56,6 +57,7 @@ function UserRegionHeader() {
 
 function HeaderActions() {
   const navigation = useNavigation<any>()
+  const dispatch = useAppDispatch()
   const { colors } = useTheme()
   const user = useAppSelector(selectUser)
   const profile = useAppSelector(selectProfile)
@@ -63,19 +65,35 @@ function HeaderActions() {
   const avatarName = profile?.name ?? user?.name ?? 'Usuario'
   const avatarSource = profile?.avatar_url ? { uri: profile.avatar_url } : undefined
 
+  const navigateToProfile = () => {
+    navigation.getParent()?.navigate('Tabs', { screen: 'Profile' })
+  }
+
+  const handleCreatePost = () => {
+    dispatch(setShowCreatePost(true))
+    navigation.getParent()?.navigate('Tabs', { screen: 'Profile' })
+  }
+
   return (
     <>
       <Pressable
-        onPress={() => {
-          navigation.getParent()?.navigate('Tabs', { screen: 'Profile' })
-          navigation.navigate('Profile')
-        }}
+        onPress={navigateToProfile}
         hitSlop={8}
         style={styles.headerAvatarButton}
         accessibilityRole="button"
         accessibilityLabel="Abrir perfil"
       >
         <Avatar name={avatarName} source={avatarSource} size={34} />
+      </Pressable>
+
+      <Pressable
+        onPress={handleCreatePost}
+        hitSlop={8}
+        style={styles.headerIconButton}
+        accessibilityRole="button"
+        accessibilityLabel="Criar post"
+      >
+        <Ionicons name="add-circle-outline" size={26} color={colors.primary} />
       </Pressable>
 
       <Pressable
@@ -161,7 +179,7 @@ function CustomTabBar({ state, descriptors, navigation, insets }: any) {
   const glassBackground = withAlpha(colors.tabBarBackground, isDark ? 0.88 : 0.92)
   const glassBorder     = withAlpha(colors.border, isDark ? 0.35 : 0.45)
 
-  return (
+return (
     <View style={[
       styles.tabBar,
       {
@@ -178,17 +196,6 @@ function CustomTabBar({ state, descriptors, navigation, insets }: any) {
         borderWidth: 1,
         borderColor: glassBorder,
         zIndex: 4,
-        ...Platform.select({
-          ios: {
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 6 },
-            shadowOpacity: 0.08,
-            shadowRadius: 14,
-          },
-          android: {
-            elevation: 0,
-          },
-        }),
       }
     ]}>
       {state.routes.map((route: any, index: number) => {
@@ -260,8 +267,8 @@ export default function AppTabs() {
           headerShadowVisible: false,
           headerLeftContainerStyle: { paddingLeft: 12 },
           headerRightContainerStyle: { paddingRight: 12 },
-          headerLeft: UserRegionHeader,
-          headerRight: HeaderActions,
+          headerLeft: () => <UserRegionHeader />,
+          headerRight: () => <HeaderActions />,
           tabBarHideOnKeyboard: true,
           sceneStyle: { backgroundColor: colors.background },
         }}
@@ -280,40 +287,6 @@ export default function AppTabs() {
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 1 }}
         style={[styles.behindMask, { bottom: 0, height: maskHeight }]}
-      />
-
-      {/* Máscara lateral esquerda — toque suave nas bordas da navbar */}
-      <LinearGradient
-        pointerEvents="none"
-        colors={[sideFade, withAlpha(colors.background, 0)]}
-        start={{ x: 0, y: 0.5 }}
-        end={{ x: 1, y: 0.5 }}
-        style={[
-          styles.sideMask,
-          {
-            left: 0,
-            width: floatingGap + 8,
-            bottom: bottomOffset,
-            height: tabBarHeight,
-          },
-        ]}
-      />
-
-      {/* Máscara lateral direita */}
-      <LinearGradient
-        pointerEvents="none"
-        colors={[withAlpha(colors.background, 0), sideFade]}
-        start={{ x: 0, y: 0.5 }}
-        end={{ x: 1, y: 0.5 }}
-        style={[
-          styles.sideMask,
-          {
-            right: 0,
-            width: floatingGap + 8,
-            bottom: bottomOffset,
-            height: tabBarHeight,
-          },
-        ]}
       />
     </View>
   )

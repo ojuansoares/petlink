@@ -32,7 +32,15 @@
     },
     "plugins": [
       "expo-secure-store",
-      "expo-font"
+      "expo-font",
+      "expo-image",
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow PetLink to access your photos to save images.",
+          "savePhotosPermission": "Allow PetLink to save images to your photo library."
+        }
+      ]
     ],
     "extra": {
       "eas": {

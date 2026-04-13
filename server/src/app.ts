@@ -4,6 +4,7 @@ import authRoutes from './modules/auth/auth.routes'
 import profileRoutes from './modules/profile/profile.routes'
 import petsRoutes from './modules/pets/pets.routes'
 import uploadsRoutes from './modules/uploads/uploads.routes'
+import postsRoutes from './modules/posts/posts.routes'
 import { swaggerSpec } from './config/swagger'
 
 const app = express()
@@ -32,6 +33,7 @@ app.use('/auth', authRoutes)
 app.use('/profile', profileRoutes)
 app.use('/pets', petsRoutes)
 app.use('/uploads', uploadsRoutes)
+app.use('/posts', postsRoutes)
 
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error('[ERRO GLOBAL SEVIDOR]:', err)

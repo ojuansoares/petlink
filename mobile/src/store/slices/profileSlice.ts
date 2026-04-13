@@ -4,10 +4,15 @@ import { api } from '../../api/axios'
 import { ProfileOfflineRepository, type OfflineUserProfile } from '../../data/repositories/ProfileOfflineRepository'
 import { logout, logoutThunk } from './authSlice'
 
-export interface UserProfile extends OfflineUserProfile {}
+export interface UserProfile extends OfflineUserProfile {
+  posts_count?: number
+  pets_count?: number
+  followers_count?: number
+}
 
 interface ProfileState {
   profile: UserProfile | null
+  publicProfile: (UserProfile & { posts_count: number; pets_count: number }) | null
   isLoading: boolean
   isUpdating: boolean
   error: string | null
@@ -15,6 +20,7 @@ interface ProfileState {
 
 const initialState: ProfileState = {
   profile: null,
+  publicProfile: null,
   isLoading: false,
   isUpdating: false,
   error: null,
@@ -102,6 +108,22 @@ export const updateMyAvatarThunk = createAsyncThunk(
   }
 )
 
+export const fetchPublicProfileThunk = createAsyncThunk(
+  'profile/fetchPublic',
+  async (userId: string, { rejectWithValue }) => {
+    try {
+      const { data } = await api.get(`/profile/${userId}`)
+      return data.profile as UserProfile & { posts_count: number; pets_count: number }
+    } catch (err: any) {
+      if (axios.isAxiosError(err)) {
+        const message = err.response?.data?.error ?? err.response?.data?.message
+        if (message) return rejectWithValue(message)
+      }
+      return rejectWithValue('Erro ao carregar perfil público')
+    }
+  }
+)
+
 const profileSlice = createSlice({
   name: 'profile',
   initialState,
@@ -128,7 +150,13 @@ const profileSlice = createSlice({
       })
       .addCase(updateMyProfileThunk.fulfilled, (s, a) => {
         s.isUpdating = false
-        s.profile = a.payload
+        const oldProfile = s.profile
+        const newProfile = a.payload as UserProfile & { posts_count?: number; pets_count?: number; followers_count?: number }
+        s.profile = {
+          ...newProfile,
+          posts_count: newProfile.posts_count ?? oldProfile?.posts_count ?? 0,
+          pets_count: newProfile.pets_count ?? oldProfile?.pets_count ?? 0,
+        }
       })
       .addCase(updateMyProfileThunk.rejected, (s, a) => {
         s.isUpdating = false
@@ -142,11 +170,31 @@ const profileSlice = createSlice({
       })
       .addCase(updateMyAvatarThunk.fulfilled, (s, a) => {
         s.isUpdating = false
-        s.profile = a.payload
+        const oldProfile = s.profile
+        const newProfile = a.payload as UserProfile & { posts_count?: number; pets_count?: number; followers_count?: number }
+        s.profile = {
+          ...newProfile,
+          posts_count: newProfile.posts_count ?? oldProfile?.posts_count ?? 0,
+          pets_count: newProfile.pets_count ?? oldProfile?.pets_count ?? 0,
+        }
       })
       .addCase(updateMyAvatarThunk.rejected, (s, a) => {
         s.isUpdating = false
         s.error = (a.payload as string) ?? 'Erro ao atualizar foto de perfil'
+      })
+
+    builder
+      .addCase(fetchPublicProfileThunk.pending, (s) => {
+        s.isLoading = true
+        s.error = null
+      })
+      .addCase(fetchPublicProfileThunk.fulfilled, (s, a) => {
+        s.isLoading = false
+        s.publicProfile = a.payload
+      })
+      .addCase(fetchPublicProfileThunk.rejected, (s, a) => {
+        s.isLoading = false
+        s.error = (a.payload as string) ?? 'Erro ao carregar perfil público'
       })
 
     builder
@@ -158,6 +206,8 @@ const profileSlice = createSlice({
 export default profileSlice.reducer
 
 export const selectProfile = (s: any) => s.profile.profile as UserProfile | null
+export const selectPublicProfile = (s: any) => s.profile.publicProfile as (UserProfile & { posts_count: number; pets_count: number }) | null
 export const selectProfileLoading = (s: any) => s.profile.isLoading as boolean
 export const selectProfileUpdating = (s: any) => s.profile.isUpdating as boolean
 export const selectProfileError = (s: any) => s.profile.error as string | null
+

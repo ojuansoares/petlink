@@ -20,6 +20,7 @@ import { Input } from '../components/ui/Input'
 import { OptionSelect } from '../components/ui/OptionSelect'
 import { Heading, Text } from '../components/ui/Typography'
 import { useTheme } from '../hooks/useTheme'
+import { useNetworkCheck } from '../hooks/useNetworkCheck'
 import { useAppDispatch, useAppSelector } from '../store'
 import { showToast } from '../store/slices/uiSlice'
 import {
@@ -327,6 +328,21 @@ export default function PetsScreen() {
   const isUpdating = useAppSelector(selectPetsUpdating)
   const isDeleting = useAppSelector(selectPetsDeleting)
   const error = useAppSelector(selectPetsError)
+  const { isOnline } = useNetworkCheck()
+
+  React.useEffect(() => {
+    if (error) {
+      dispatch(showToast({ type: 'error', message: error }))
+    }
+  }, [error])
+
+  const requireOnline = (action: () => void) => {
+    if (!isOnline) {
+      dispatch(showToast({ type: 'error', message: 'Sem internet. Conecte-se para continuar.' }))
+      return
+    }
+    action()
+  }
 
   const [isFlowOpen, setIsFlowOpen] = React.useState(false)
   const [step, setStep] = React.useState(0)
@@ -509,26 +525,28 @@ export default function PetsScreen() {
   }
 
   const handleWeightPointUpdate = async () => {
-    if (!activePet?.id || !weightPointKg.trim()) return
-    if (weightPointError) return
+    requireOnline(async () => {
+      if (!activePet?.id || !weightPointKg.trim()) return
+      if (weightPointError) return
 
-    const parsedWeight = Number(weightPointKg)
+      const parsedWeight = Number(weightPointKg)
 
-    try {
-      await dispatch(
-        updatePetThunk({
-          id: activePet.id,
-          patch: {
-            weight_kg: parsedWeight,
-          },
-        })
-      ).unwrap()
+      try {
+        await dispatch(
+          updatePetThunk({
+            id: activePet.id,
+            patch: {
+              weight_kg: parsedWeight,
+            },
+          })
+        ).unwrap()
 
-      dispatch(showToast({ type: 'success', message: 'Peso atualizado com sucesso!' }))
-      closeWeightPointUpdate()
-    } catch (_e) {
-      dispatch(showToast({ type: 'error', message: 'Não foi possível atualizar o peso.' }))
-    }
+        dispatch(showToast({ type: 'success', message: 'Peso atualizado com sucesso!' }))
+        closeWeightPointUpdate()
+      } catch (_e) {
+        dispatch(showToast({ type: 'error', message: 'Não foi possível atualizar o peso.' }))
+      }
+    })
   }
 
   const handleTabChange = (tab: 'details' | 'control') => {
@@ -548,16 +566,49 @@ export default function PetsScreen() {
   }
 
   const handleUpdatePet = async () => {
-    if (!activePet?.id || !name.trim() || !species.trim()) return
-    if (weightError) return
+    requireOnline(async () => {
+      if (!activePet?.id || !name.trim() || !species.trim()) return
+      if (weightError) return
 
-    const parsedWeight = weightKg.trim() ? Number(weightKg) : null
+      const parsedWeight = weightKg.trim() ? Number(weightKg) : null
 
-    try {
-      await dispatch(
-        updatePetThunk({
-          id: activePet.id,
-          patch: {
+      try {
+        await dispatch(
+          updatePetThunk({
+            id: activePet.id,
+            patch: {
+              name: name.trim(),
+              species: species.trim(),
+              breed: breed.trim() || null,
+              birth_date: birthDate.trim() || null,
+              weight_kg: parsedWeight,
+              photo_url: photoUrl.trim() || null,
+              allergies: allergies.trim() || null,
+              temperament: temperament.trim() || null,
+              observations: observations.trim() || null,
+            },
+          })
+        ).unwrap()
+
+        dispatch(showToast({ type: 'success', message: 'Pet atualizado!' }))
+        setIsEditing(false)
+      } catch (e) {
+        dispatch(showToast({ type: 'error', message: 'Erro ao atualizar pet.' }))
+      }
+    })
+  }
+
+  const handleCreatePet = async () => {
+    requireOnline(async () => {
+      if (!name.trim() || !species.trim()) return
+
+      if (weightError) return
+
+      const parsedWeight = weightKg.trim() ? Number(weightKg) : null
+
+      try {
+        await dispatch(
+          createPetThunk({
             name: name.trim(),
             species: species.trim(),
             breed: breed.trim() || null,
@@ -567,44 +618,15 @@ export default function PetsScreen() {
             allergies: allergies.trim() || null,
             temperament: temperament.trim() || null,
             observations: observations.trim() || null,
-          },
-        })
-      ).unwrap()
+          })
+        ).unwrap()
 
-      dispatch(showToast({ type: 'success', message: 'Pet atualizado!' }))
-      setIsEditing(false)
-    } catch (e) {
-      dispatch(showToast({ type: 'error', message: 'Erro ao atualizar pet.' }))
-    }
-  }
-
-  const handleCreatePet = async () => {
-    if (!name.trim() || !species.trim()) return
-
-    if (weightError) return
-
-    const parsedWeight = weightKg.trim() ? Number(weightKg) : null
-
-    try {
-      await dispatch(
-        createPetThunk({
-          name: name.trim(),
-          species: species.trim(),
-          breed: breed.trim() || null,
-          birth_date: birthDate.trim() || null,
-          weight_kg: parsedWeight,
-          photo_url: photoUrl.trim() || null,
-          allergies: allergies.trim() || null,
-          temperament: temperament.trim() || null,
-          observations: observations.trim() || null,
-        })
-      ).unwrap()
-
-      dispatch(showToast({ type: 'success', message: 'Pet criado com sucesso!' }))
-      closeFlow()
-    } catch (e) {
-      dispatch(showToast({ type: 'error', message: 'Não foi possível criar o pet.' }))
-    }
+        dispatch(showToast({ type: 'success', message: 'Pet criado com sucesso!' }))
+        closeFlow()
+      } catch (e) {
+        dispatch(showToast({ type: 'error', message: 'Não foi possível criar o pet.' }))
+      }
+    })
   }
 
   const openPetModal = (pet: Pet) => {
@@ -618,24 +640,25 @@ export default function PetsScreen() {
   }
 
   const handleDeletePet = async () => {
-    if (!selectedPet) return
+    requireOnline(async () => {
+      if (!selectedPet) return
 
-    try {
-      await dispatch(deletePetThunk(selectedPet.id)).unwrap()
-      closePetModal()
-      dispatch(showToast({ type: 'success', message: 'Pet excluído com sucesso!' }))
+      try {
+        await dispatch(deletePetThunk(selectedPet.id)).unwrap()
+        closePetModal()
+        dispatch(showToast({ type: 'success', message: 'Pet excluído com sucesso!' }))
 
-      // Move to next pet or reset
-      const remaining = pets.filter(p => p.id !== selectedPet.id)
-      if (remaining.length > 0) {
-        dispatch(setActivePetId(remaining[0].id))
-      } else {
-        dispatch(setActivePetId(null))
+        const remaining = pets.filter(p => p.id !== selectedPet.id)
+        if (remaining.length > 0) {
+          dispatch(setActivePetId(remaining[0].id))
+        } else {
+          dispatch(setActivePetId(null))
+        }
+        setIsEditing(false)
+      } catch (e: any) {
+        dispatch(showToast({ type: 'error', message: 'Não foi possível excluir o pet.' }))
       }
-      setIsEditing(false)
-    } catch (e: any) {
-      dispatch(showToast({ type: 'error', message: 'Não foi possível excluir o pet.' }))
-    }
+    })
   }
 
   const showEmptyState = !isLoading && pets.length === 0
@@ -754,56 +777,7 @@ export default function PetsScreen() {
               </View>
             )}
 
-            {isEditing ? (
-              <Card variant="organic" style={[styles.detailCard, { backgroundColor: colors.background, elevation: 0, shadowOpacity: 0, borderWidth: 0 }]}>
-                <View style={[styles.detailHeader, { borderBottomColor: withAlpha(colors.border, 0.5) }]}>
-                  <Heading size="xl" weight="800">Editando {activePet.name}</Heading>
-                  <Pressable onPress={() => setIsEditing(false)}>
-                    <Text weight="700" color="primary">Cancelar</Text>
-                  </Pressable>
-                </View>
-
-                <View style={styles.editForm}>
-                  <View style={styles.photoEditWrap}>
-                    <Avatar size={100} name={name} source={photoUrl ? { uri: photoUrl } : undefined} />
-                    <Button label="Mudar foto" variant="outline" onPress={handlePickPhoto} style={styles.photoEditButton} />
-                  </View>
-
-                  <Input label="Nome do Pet" placeholder="Nome" value={name} onChangeText={setName} />
-                  <OptionSelect label="Espécie" placeholder="Espécie" value={species} onChange={setSpecies} options={SPECIES_OPTIONS} />
-                  <Input label="Raça" placeholder="Raça" value={breed} onChangeText={setBreed} />
-
-                  <View style={styles.wrapper}>
-                    <Text size="xs" weight="700" style={[styles.label, { color: colors.mutedForeground }]}>
-                      Data de Nascimento
-                    </Text>
-                    <Pressable
-                      style={[
-                        styles.dateField,
-                        {
-                          backgroundColor: withAlpha(colors.card, 0.8),
-                          borderColor: colors.border
-                        }
-                      ]}
-                      onPress={() => setShowBirthDatePicker(true)}
-                    >
-                      <Ionicons name="calendar-outline" size={18} color={colors.mutedForeground} />
-                      <Text size="base" color={birthDate ? 'foreground' : 'mutedForeground'} style={styles.dateText}>
-                        {formatIsoToDisplay(birthDate) || 'Data de nascimento'}
-                      </Text>
-                    </Pressable>
-                  </View>
-
-                  <Input label="Peso (kg)" placeholder="Peso (kg)" value={weightKg} onChangeText={(val) => setWeightKg(sanitizeWeightInput(val))} keyboardType="numeric" />
-                  <OptionSelect label="Temperamento" placeholder="Temperamento" value={temperament} onChange={setTemperament} options={TEMPERAMENT_OPTIONS} />
-                  <Input label="Alergias" placeholder="Alergias" value={allergies} onChangeText={setAllergies} />
-                  <Input label="Observações" placeholder="Observações" value={observations} onChangeText={setObservations} />
-
-                  <Button label="Salvar Alterações" onPress={handleUpdatePet} loading={isUpdating} />
-                  <Button label="Excluir Pet" variant="destructive" style={{ marginTop: 8 }} onPress={() => openPetModal(activePet)} />
-                </View>
-              </Card>
-            ) : (
+            {!isEditing && (
               <ScrollView
                 ref={scrollRef}
                 horizontal
@@ -1089,13 +1063,12 @@ export default function PetsScreen() {
           </>
         ) : null}
 
-        {error ? <Text style={{ color: colors.destructive }}>{error}</Text> : null}
-      </ScrollView>
+        </ScrollView>
 
       <Modal visible={isFlowOpen} animationType="slide" transparent onRequestClose={closeFlow}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={[styles.modalBackdrop, { backgroundColor: withAlpha(colors.background, 0.78) }]}
+          style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.5)' }]}
         >
           <Card
             variant="organic"
@@ -1182,7 +1155,7 @@ export default function PetsScreen() {
       </Modal>
 
       <Modal visible={isDeleteModalOpen} animationType="fade" transparent onRequestClose={closePetModal}>
-        <View style={[styles.modalBackdrop, { backgroundColor: withAlpha(colors.background, 0.78) }]}>
+        <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
           <Card variant="organic" style={styles.deleteModalCard}>
             <View style={styles.deleteModalIcon}>
               <Ionicons name="warning" size={40} color={colors.destructive} />
@@ -1214,7 +1187,7 @@ export default function PetsScreen() {
       </Modal>
 
       <Modal visible={isWeightPointModalOpen} animationType="fade" transparent onRequestClose={closeWeightPointUpdate}>
-        <View style={[styles.modalBackdrop, { backgroundColor: withAlpha(colors.background, 0.78) }]}> 
+        <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.5)' }]}> 
           <Card variant="organic" style={[styles.weightPointCard, { backgroundColor: colors.background }]}> 
             <Heading size="lg" weight="800">Point de update</Heading>
             <Text color="mutedForeground">Atualize apenas o peso do pet.</Text>
@@ -1250,6 +1223,64 @@ export default function PetsScreen() {
             </View>
           </Card>
         </View>
+      </Modal>
+
+      <Modal visible={isEditing} animationType="slide" transparent onRequestClose={() => setIsEditing(false)}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalBackdrop}
+        >
+          <ScrollView style={[styles.editModalCard, { backgroundColor: colors.background }]} contentContainerStyle={styles.editModalContent}>
+            <View style={styles.editModalHeader}>
+              <Heading size="lg" weight="800">{'Editando ' + activePet?.name}</Heading>
+              <Pressable onPress={() => setIsEditing(false)}>
+                <Ionicons name="close" size={24} color={colors.foreground} />
+              </Pressable>
+            </View>
+
+            <View style={styles.photoEditWrap}>
+              <Avatar size={100} name={name} source={photoUrl ? { uri: photoUrl } : undefined} />
+              <Button label="Mudar foto" variant="outline" onPress={handlePickPhoto} style={styles.photoEditButton} />
+            </View>
+
+            <Input label="Nome do Pet" placeholder="Nome" value={name} onChangeText={setName} />
+            <OptionSelect label="Espécie" placeholder="Espécie" value={species} onChange={setSpecies} options={SPECIES_OPTIONS} />
+            <Input label="Raça" placeholder="Raça" value={breed} onChangeText={setBreed} />
+
+            <View style={styles.wrapper}>
+              <Text size="xs" weight="700" style={[styles.label, { color: colors.mutedForeground }]}>
+                Data de Nascimento
+              </Text>
+              <Pressable
+                style={[
+                  styles.dateField,
+                  {
+                    backgroundColor: withAlpha(colors.card, 0.8),
+                    borderColor: colors.border
+                  }
+                ]}
+                onPress={() => setShowBirthDatePicker(true)}
+              >
+                <Ionicons name="calendar-outline" size={18} color={colors.mutedForeground} />
+                <Text size="base" color={birthDate ? 'foreground' : 'mutedForeground'} style={styles.dateText}>
+                  {formatIsoToDisplay(birthDate) || 'Data de nascimento'}
+                </Text>
+              </Pressable>
+            </View>
+
+            <Input label="Peso (kg)" placeholder="Peso (kg)" value={weightKg} onChangeText={(val) => setWeightKg(sanitizeWeightInput(val))} keyboardType="numeric" />
+            <OptionSelect label="Temperamento" placeholder="Temperamento" value={temperament} onChange={setTemperament} options={TEMPERAMENT_OPTIONS} />
+            <Input label="Alergias" placeholder="Alergias" value={allergies} onChangeText={setAllergies} />
+            <Input label="Observações" placeholder="Observações" value={observations} onChangeText={setObservations} />
+
+            <View style={{ marginTop: 16 }}>
+              <Button label="Salvar Alterações" onPress={handleUpdatePet} loading={isUpdating} />
+            </View>
+            <View style={{ marginTop: 12 }}>
+              <Button label="Excluir Pet" variant="destructive" onPress={() => openPetModal(activePet)} />
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </Modal>
 
       {showBirthDatePicker && DateTimePickerComponent ? (
@@ -1839,5 +1870,26 @@ const styles = StyleSheet.create({
   },
   weightPointActionButton: {
     minWidth: 120,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    padding: 16,
+  },
+  editModalCard: {
+    width: '100%',
+    maxWidth: 500,
+    borderRadius: 24,
+    padding: 20,
+  },
+  editModalContent: {
+    paddingBottom: 40,
+  },
+  editModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
   },
 })

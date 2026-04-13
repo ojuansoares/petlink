@@ -11,7 +11,7 @@ export type OfflineUserProfile = {
   avatar_url: string | null
   bio: string | null
   updated_at: string | null
-  pets_count: number
+  pets_count?: number
   birth_date: string | null
 }
 

@@ -15,6 +15,7 @@ export const swaggerSpec = {
     { name: 'Profile', description: 'Perfil do tutor (RF01)' },
     { name: 'Pets', description: 'Cadastro e listagem de pets (RF02/RF27)' },
     { name: 'Uploads', description: 'Upload de arquivos (Cloudinary)' },
+    { name: 'Posts', description: 'Feed, criação e gerenciamento de posts' },
   ],
   paths: {
     '/health': {
@@ -242,6 +243,27 @@ export const swaggerSpec = {
       },
     },
 
+    '/profile/{userId}': {
+      get: {
+        tags: ['Profile'],
+        summary: 'Buscar perfil público (inclui contagem de posts e pets)',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'userId',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+          },
+        ],
+        responses: {
+          '200': { description: 'Dados básicos do perfil' },
+          '401': { description: 'Não autenticado' },
+          '404': { description: 'Perfil não encontrado' },
+        },
+      },
+    },
+
     '/pets': {
       post: {
         tags: ['Pets'],
@@ -391,6 +413,123 @@ export const swaggerSpec = {
           '400': { description: 'Arquivo inválido' },
           '401': { description: 'Não autenticado' },
           '413': { description: 'Arquivo muito grande' },
+        },
+      },
+    },
+
+    '/posts': {
+      post: {
+        tags: ['Posts'],
+        summary: 'Criar um novo post',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['image_url', 'pet_id'],
+                properties: {
+                  image_url: { type: 'string' },
+                  pet_id: { type: 'string' },
+                  caption: { type: 'string', nullable: true },
+                  location: { type: 'string', nullable: true },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '201': { description: 'Post criado' },
+          '400': { description: 'Dados ausentes' },
+          '404': { description: 'Pet não encontrado' },
+        },
+      },
+    },
+    '/posts/feed': {
+      get: {
+        tags: ['Posts'],
+        summary: 'Obter o feed de postagens (paginado)',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'page', in: 'query', schema: { type: 'integer', default: 1 } },
+          { name: 'limit', in: 'query', schema: { type: 'integer', default: 20 } },
+        ],
+        responses: {
+          '200': { description: 'Lista de posts e hasMore' },
+          '401': { description: 'Não autenticado' },
+        },
+      },
+    },
+    '/posts/user/{userId}': {
+      get: {
+        tags: ['Posts'],
+        summary: 'Obter os posts de um usuário específico',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'userId', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'page', in: 'query', schema: { type: 'integer', default: 1 } },
+          { name: 'limit', in: 'query', schema: { type: 'integer', default: 20 } },
+        ],
+        responses: {
+          '200': { description: 'Lista de posts do usuário' },
+          '401': { description: 'Não autenticado' },
+        },
+      },
+    },
+    '/posts/{postId}': {
+      put: {
+        tags: ['Posts'],
+        summary: 'Atualizar postagem',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'postId', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  image_url: { type: 'string', nullable: true },
+                  caption: { type: 'string', nullable: true },
+                  location: { type: 'string', nullable: true },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': { description: 'Postagem atualizada' },
+          '404': { description: 'Postagem não encontrada' },
+        },
+      },
+      delete: {
+        tags: ['Posts'],
+        summary: 'Excluir postagem',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'postId', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        responses: {
+          '204': { description: 'Excluído com sucesso' },
+          '404': { description: 'Postagem não encontrada' },
+        },
+      },
+    },
+    '/posts/{postId}/pin': {
+      patch: {
+        tags: ['Posts'],
+        summary: 'Fixar ou desfixar postagem (máx 3)',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'postId', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        responses: {
+          '200': { description: 'Postagem atualizada' },
+          '400': { description: 'Limite de pin atingido' },
+          '404': { description: 'Post não encontrado' },
         },
       },
     },
