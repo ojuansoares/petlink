@@ -15,7 +15,8 @@ import ProfileScreen from '../screens/ProfileScreen'
 import { useAppDispatch, useAppSelector } from '../store'
 import { selectUser } from '../store/slices/authSlice'
 import { fetchMyProfileThunk, selectProfile } from '../store/slices/profileSlice'
-import { setShowCreatePost, selectShowCreatePost } from '../store/slices/uiSlice'
+import { setShowCreatePost, selectShowCreatePost, setLoadingPetsForPost, selectLoadingPetsForPost } from '../store/slices/uiSlice'
+import { fetchPetsThunk } from '../store/slices/petsSlice'
 
 type AppTabsParamList = {
   Home: undefined
@@ -69,9 +70,15 @@ function HeaderActions() {
     navigation.getParent()?.navigate('Tabs', { screen: 'Profile' })
   }
 
-  const handleCreatePost = () => {
+  const handleCreatePost = async () => {
+    dispatch(setLoadingPetsForPost(true))
     dispatch(setShowCreatePost(true))
     navigation.getParent()?.navigate('Tabs', { screen: 'Profile' })
+    try {
+      await dispatch(fetchPetsThunk()).unwrap()
+    } finally {
+      dispatch(setLoadingPetsForPost(false))
+    }
   }
 
   return (

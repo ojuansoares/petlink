@@ -1,21 +1,25 @@
-import React, { useState, useLayoutEffect } from 'react'
-import { useNavigation } from '@react-navigation/native'
+import React, { useState, useLayoutEffect, useCallback } from 'react'
+import { useNavigation, useFocusEffect } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 import { ActivityIndicator, Dimensions, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Image } from 'expo-image'
+import { AppToast } from '../components/ui/AppToast'
 import { api } from '../api/axios'
+import { uploadImageWithRetry } from '../api/uploadWithRetry'
 import { Avatar } from '../components/ui/Avatar'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { OptionSelect } from '../components/ui/OptionSelect'
-import { Text } from '../components/ui/Typography'
+import { Heading, Text } from '../components/ui/Typography'
 import { CreatePostModal } from '../components/ui/CreatePostModal'
 import { PostOptionsModal } from '../components/ui/PostOptionsModal'
 import { BRAZIL_STATES } from '../constants/brazilStates'
 import { useTheme } from '../hooks/useTheme'
 import { useNetworkCheck } from '../hooks/useNetworkCheck'
 import { useAppDispatch, useAppSelector } from '../store'
-import { selectShowCreatePost, setShowCreatePost, showToast } from '../store/slices/uiSlice'
+import { selectShowCreatePost, setShowCreatePost, setLoadingPetsForPost, selectLoadingPetsForPost, showToast } from '../store/slices/uiSlice'
+import { fetchPetsThunk, selectPetsList } from '../store/slices/petsSlice'
 import {
   fetchMyProfileThunk,
   selectProfile,
@@ -26,13 +30,13 @@ import {
   updateMyProfileThunk,
 } from '../store/slices/profileSlice'
 import {
-  fetchUserPostsThunk,
-  fetchMoreUserPostsThunk,
-  selectUserPosts,
-  selectHasMoreUserPosts,
-  selectUserPostsPage,
-  selectIsLoadingUserPosts,
-  selectIsLoadingMoreUserPosts,
+  fetchMyPostsThunk,
+  fetchMoreMyPostsThunk,
+  selectMyPosts,
+  selectHasMoreMyPosts,
+  selectMyPostsPage,
+  selectIsLoadingMyPosts,
+  selectIsLoadingMoreMyPosts,
   Post,
 } from '../store/slices/postsSlice'
 
@@ -93,6 +97,7 @@ export default function ProfileScreen() {
   const { colors, withAlpha, mode } = useTheme()
   const navigation = useNavigation<any>()
 
+  const insets = useSafeAreaInsets()
   const currentUser = useAppSelector((state: any) => state.auth.user)
   const profile = useAppSelector(selectProfile)
   const isUpdating = useAppSelector(selectProfileUpdating)
@@ -115,11 +120,11 @@ export default function ProfileScreen() {
     action()
   }
 
-  const posts = useAppSelector(selectUserPosts)
-  const isPostsLoading = useAppSelector(selectIsLoadingUserPosts)
-  const isPostsLoadingMore = useAppSelector(selectIsLoadingMoreUserPosts)
-  const hasMorePosts = useAppSelector(selectHasMoreUserPosts)
-  const postsPage = useAppSelector(selectUserPostsPage)
+  const posts = useAppSelector(selectMyPosts)
+  const isPostsLoading = useAppSelector(selectIsLoadingMyPosts)
+  const isPostsLoadingMore = useAppSelector(selectIsLoadingMoreMyPosts)
+  const hasMorePosts = useAppSelector(selectHasMoreMyPosts)
+  const postsPage = useAppSelector(selectMyPostsPage)
 
   const [name, setName] = React.useState('')
   const [location, setLocation] = React.useState('')
@@ -128,37 +133,42 @@ export default function ProfileScreen() {
   const [birthDate, setBirthDate] = React.useState('')
   const [showBirthDatePicker, setShowBirthDatePicker] = React.useState(false)
   const [isUploadingAvatar, setIsUploadingAvatar] = React.useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  
+  const [uploadAvatarAttempt, setUploadAvatarAttempt] = useState(1)
   const [isEditMode, setIsEditMode] = React.useState(false)
   const [isImageExpanded, setIsImageExpanded] = React.useState(false)
-  const [selectedPost, setSelectedPost] = React.useState<Post | null>(null)
-  const [isPostOptionsVisible, setIsPostOptionsVisible] = React.useState(false)
-  const [isPostImageExpanded, setIsPostImageExpanded] = React.useState(false)
-  const [isPostOptionsOpen, setIsPostOptionsOpen] = React.useState(false)
   const showCreatePost = useAppSelector(selectShowCreatePost)
+  const isLoadingPetsForPost = useAppSelector(selectLoadingPetsForPost)
+  const pets = useAppSelector(selectPetsList)
 
   const handleCloseCreatePost = () => {
     dispatch(setShowCreatePost(false))
   }
 
   React.useEffect(() => {
-    dispatch(fetchMyProfileThunk())
-    if (currentUser?.id) {
-      dispatch(fetchUserPostsThunk(currentUser.id))
+    if (showCreatePost) {
+      dispatch(fetchPetsThunk())
     }
-  }, [dispatch, currentUser?.id])
+  }, [showCreatePost])
 
-  React.useEffect(() => {
-    if (!profile) return
-    setName(profile.name ?? '')
-    setLocation(normalizeStateValue(profile.location))
-    setAvatarUrl(profile.avatar_url ?? '')
-    setBio(profile.bio ?? '')
-    setBirthDate(profile.birth_date ?? '')
-  }, [profile])
+  // ── Stale-while-revalidate: carrega cache offline imediatamente, depois atualiza via API ──
+  useFocusEffect(
+    useCallback(() => {
+      dispatch(fetchMyProfileThunk())
+      if (!currentUser?.id) return
+      // 1) Pré-popula com cache offline silenciosamente (não mostra spinner, não sobrescreve API)
+      dispatch(fetchMyPostsThunk({ userId: currentUser.id, isOnline: false, cacheOnly: true }))
+      // 2) Se online, busca dados frescos da API (substitui o cache quando chegar)
+      if (isOnline) {
+        dispatch(fetchMyPostsThunk({ userId: currentUser.id, isOnline: true }))
+      }
+    }, [dispatch, currentUser?.id, isOnline])
+  )
 
   const loadMorePosts = () => {
     if (!isPostsLoading && !isPostsLoadingMore && hasMorePosts && currentUser?.id) {
-      dispatch(fetchMoreUserPostsThunk({ userId: currentUser.id, page: postsPage }))
+      dispatch(fetchMoreMyPostsThunk({ userId: currentUser.id, page: postsPage }))
     }
   }
 
@@ -215,11 +225,15 @@ export default function ProfileScreen() {
         formData.append('folder', 'petlink/avatars')
         formData.append('file', { uri: asset.uri, name: fileName, type: mimeType } as any)
 
-        const uploadResponse = await api.post('/uploads/image', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
+        setUploadAvatarAttempt(1)
+        const uploadResponse = await uploadImageWithRetry({
+          formData,
+          maxRetries: 3,
+          baseTimeoutMs: 30000,
+          onAttemptChange: (attempt) => setUploadAvatarAttempt(attempt)
         })
 
-        const uploadedUrl = uploadResponse.data?.url as string | undefined
+        const uploadedUrl = uploadResponse?.url as string | undefined
         if (!uploadedUrl) return
 
         await dispatch(updateMyAvatarThunk({ avatar_url: uploadedUrl })).unwrap()
@@ -241,15 +255,26 @@ export default function ProfileScreen() {
     return [{ label: `Atual: ${location}`, value: location }, ...BRAZIL_STATES]
   }, [location])
 
-  const renderPostItem = ({ item }: { item: Post }) => (
-    <Pressable 
+  const renderPostItem = ({ item, index }: { item: Post; index: number }) => (
+    <Pressable
       style={styles.postTile}
       onPress={() => {
-        setSelectedPost(item)
-        setIsPostOptionsVisible(true)
+        navigation.navigate('ProfileFeed', {
+          userId: currentUser.id,
+          initialScrollIndex: index,
+          title: 'Minhas publicações'
+        })
       }}
     >
-      <Image source={{ uri: item.image_url }} style={styles.postImage} contentFit="cover" />
+      <Image
+        source={{ uri: item.image_url }}
+        style={styles.postImage}
+        contentFit="cover"
+        priority={index < 12 ? 'high' : 'normal'}
+        transition={150}
+        cachePolicy="memory-disk"
+        recyclingKey={item.id}
+      />
       {item.is_pinned && (
         <View style={styles.pinIconWrapper}>
           <Ionicons name="pin" size={16} color="#FFF" />
@@ -272,7 +297,7 @@ export default function ProfileScreen() {
             <Avatar
               size={140}
               name={profile?.name ?? 'Usuario'}
-              source={avatarUrl ? { uri: avatarUrl } : undefined}
+              source={profile?.avatar_url ? { uri: profile.avatar_url } : undefined}
             />
             {isEditMode ? (
               <View style={[styles.avatarOverlay, { backgroundColor: withAlpha(colors.background, 0.42) }]}>
@@ -284,6 +309,12 @@ export default function ProfileScreen() {
               </View>
             ) : null}
           </Pressable>
+          
+          {isEditMode && isUploadingAvatar && uploadAvatarAttempt > 1 && (
+            <Text size="xs" color="mutedForeground" style={{ textAlign: 'center', marginTop: 8 }}>
+              Tentativa {uploadAvatarAttempt}/3
+            </Text>
+          )}
 
           {!isEditMode ? (
             <Pressable
@@ -366,7 +397,15 @@ export default function ProfileScreen() {
         <Button
           label="Criar primeiro post"
           variant="outline"
-          onPress={() => dispatch(setShowCreatePost(true))}
+          onPress={async () => {
+            dispatch(setLoadingPetsForPost(true))
+            dispatch(setShowCreatePost(true))
+            try {
+              await dispatch(fetchPetsThunk()).unwrap()
+            } finally {
+              dispatch(setLoadingPetsForPost(false))
+            }
+          }}
           style={{ marginTop: 16 }}
         />
       </View>
@@ -383,9 +422,16 @@ export default function ProfileScreen() {
         ListEmptyComponent={renderEmptyPosts}
         keyExtractor={(item) => item.id}
         onEndReached={loadMorePosts}
-        onEndReachedThreshold={0.5}
+        onEndReachedThreshold={0.8}
         contentContainerStyle={{ paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
+        // ── Performance ──────────────────────────────────────────
+        initialNumToRender={12}       // 4 linhas × 3 colunas (igual ao backend limit)
+        maxToRenderPerBatch={12}
+        windowSize={5}
+        removeClippedSubviews={true}
+        updateCellsBatchingPeriod={50}
+        // ─────────────────────────────────────────────────────────
       />
 
       <CreatePostModal
@@ -393,109 +439,88 @@ export default function ProfileScreen() {
         onClose={handleCloseCreatePost}
       />
 
-      <Modal visible={isImageExpanded} animationType="fade" transparent onRequestClose={() => setIsImageExpanded(false)}>
-        <View style={styles.fullscreenBackdrop}>
-          <Pressable onPress={() => setIsImageExpanded(false)} style={styles.closeExpanded}>
+      <Modal visible={isImageExpanded} animationType="fade" transparent statusBarTranslucent onRequestClose={() => setIsImageExpanded(false)}>
+        <AppToast />
+        <View style={[styles.fullscreenBackdrop, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+          <Pressable onPress={() => setIsImageExpanded(false)} style={[styles.closeExpanded, { top: insets.top + 10 }]}>
             <Ionicons name="close" size={32} color="#fff" />
           </Pressable>
-          {avatarUrl ? (
-            <Image source={{ uri: avatarUrl }} style={styles.fullImage} contentFit="contain" />
+          {profile?.avatar_url ? (
+            <Image source={{ uri: profile.avatar_url }} style={styles.fullImage} contentFit="contain" />
           ) : (
-            <Avatar size={200} name={name} />
+            <Avatar size={200} name={profile?.name ?? 'Usuario'} />
           )}
         </View>
       </Modal>
 
-      <Modal visible={isPostOptionsVisible} animationType="fade" transparent onRequestClose={() => setIsPostOptionsVisible(false)}>
-        <View style={[styles.postOptionsBackdrop, { backgroundColor: 'rgba(0,0,0,0.85)' }]}>
-          <View style={[styles.postModalContainer, { backgroundColor: colors.card }]}>
-            <Pressable onPress={() => setIsPostImageExpanded(true)} style={styles.postImageLargeWrapper}>
-              <Image source={{ uri: selectedPost?.image_url }} style={styles.postImageLarge} contentFit="cover" />
-            </Pressable>
-            <View style={styles.postInfoRow}>
-              <View style={styles.postOptionsInfo}>
-                <Text size="sm" weight="600" numberOfLines={2}>{selectedPost?.caption || 'Sem descrição'}</Text>
-                <Text size="xs" color="mutedForeground" style={{ marginTop: 4 }}>
-                  {selectedPost?.pets?.name ? `Pet: ${selectedPost.pets.name} · ` : ''}{new Date(selectedPost?.created_at || '').toLocaleDateString('pt-BR')}
-                </Text>
-              </View>
-              <Pressable style={styles.postOptionsMenuButton} onPress={() => setIsPostOptionsOpen(true)}>
-                <Ionicons name="ellipsis-vertical" size={24} color={colors.foreground} />
-              </Pressable>
-            </View>
-          </View>
-          <Pressable onPress={() => setIsPostOptionsVisible(false)} style={styles.postOptionsCloseButton}>
-            <Ionicons name="close" size={28} color="#fff" />
-          </Pressable>
-        </View>
-      </Modal>
-
-      <Modal visible={isPostImageExpanded} animationType="fade" transparent onRequestClose={() => setIsPostImageExpanded(false)}>
-        <View style={styles.fullscreenBackdrop}>
-          <Pressable onPress={() => setIsPostImageExpanded(false)} style={styles.closeExpanded}>
-            <Ionicons name="close" size={32} color="#fff" />
-          </Pressable>
-          <Image source={{ uri: selectedPost?.image_url }} style={styles.fullImage} contentFit="contain" />
-        </View>
-      </Modal>
-
-      <Modal visible={isEditMode} animationType="slide" transparent onRequestClose={handleCancelEdit}>
+      <Modal visible={isEditMode} animationType="slide" transparent statusBarTranslucent onRequestClose={handleCancelEdit}>
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.modalBackdrop}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.keyboardAvoidingView}
         >
-          <View style={[styles.editModalCard, { backgroundColor: colors.background, borderColor: withAlpha(colors.border, 0.6) }]}>
-            <View style={styles.editModalHeader}>
-              <Text size="lg" weight="800">Editar Perfil</Text>
-              <Pressable onPress={handleCancelEdit}>
-                <Ionicons name="close" size={24} color={colors.foreground} />
-              </Pressable>
-            </View>
-
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <View style={styles.editForm}>
-                <View style={styles.avatarEditModalWrap}>
-                  <Avatar size={80} name={name || 'Usuario'} source={avatarUrl ? { uri: avatarUrl } : undefined} />
-                  <Button
-                    label="Mudar foto"
-                    variant="outline"
-                    size="sm"
-                    onPress={handlePickAvatarFromGallery}
-                    loading={isUploadingAvatar}
-                    disabled={isUploadingAvatar}
-                  />
-                </View>
-
-                <Input label="Seu nome" placeholder="Nome" value={name} onChangeText={setName} />
-                <Input label="E-mail" value={currentUser?.email || ''} editable={false} />
-                <OptionSelect
-                  label="Localização"
-                  placeholder="Estado"
-                  value={location}
-                  onChange={setLocation}
-                  options={locationOptions}
-                  leftIconName="location-outline"
-                />
-                <Input label="Bio / Descrição" placeholder="Fale sobre você" value={bio} onChangeText={setBio} multiline numberOfLines={3} />
-
-                <View style={styles.editActionsRow}>
-                  <Button label="Cancelar" variant="outline" onPress={handleCancelEdit} style={styles.editActionButton} />
-                  <Button label="Salvar" onPress={handleUpdateProfile} loading={isUpdating} style={styles.editActionButton} />
-                </View>
+          <Pressable style={styles.sheetBackdrop} onPress={handleCancelEdit}>
+            <Pressable 
+              style={[
+                styles.editSheetCard, 
+                { 
+                  backgroundColor: colors.background, 
+                  borderColor: withAlpha(colors.border, 0.4),
+                  paddingBottom: Math.max(insets.bottom, 24)
+                }
+              ]}
+              onPress={(e) => e.stopPropagation()}
+            >
+              <AppToast />
+              <View style={styles.editModalHeader}>
+                <Heading size="lg" weight="800">Editar Perfil</Heading>
+                <Pressable onPress={handleCancelEdit} style={styles.closeButton}>
+                  <Ionicons name="close" size={24} color={colors.foreground} />
+                </Pressable>
               </View>
-            </ScrollView>
-          </View>
+
+              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                <View style={[styles.editForm, { paddingHorizontal: 16 }]}>
+                  <View style={styles.avatarEditModalWrap}>
+                    <Avatar size={90} name={name || 'Usuario'} source={avatarUrl ? { uri: avatarUrl } : undefined} />
+                    <Button
+                      label="Mudar foto"
+                      variant="outline"
+                      size="sm"
+                      onPress={handlePickAvatarFromGallery}
+                      loading={isUploadingAvatar}
+                      disabled={isUploadingAvatar}
+                    />
+                  </View>
+
+                  <Input label="Seu nome" placeholder="Nome" value={name} onChangeText={setName} />
+                  <Input label="E-mail" value={currentUser?.email || ''} editable={false} />
+                  <OptionSelect
+                    label="Localização"
+                    placeholder="Estado"
+                    value={location}
+                    onChange={setLocation}
+                    options={locationOptions}
+                    leftIconName="location-outline"
+                  />
+                  <Input 
+                    label="Bio / Descrição" 
+                    placeholder="Fale sobre você..." 
+                    value={bio} 
+                    onChangeText={setBio} 
+                    multiline 
+                  />
+
+                  <View style={styles.editActionsRow}>
+                    <Button label="Cancelar" variant="outline" onPress={handleCancelEdit} style={styles.editActionButton} />
+                    <Button label="Salvar" onPress={handleUpdateProfile} loading={isUpdating} style={styles.editActionButton} />
+                  </View>
+                </View>
+              </ScrollView>
+            </Pressable>
+          </Pressable>
         </KeyboardAvoidingView>
       </Modal>
 
-      {selectedPost && (
-        <PostOptionsModal 
-          post={selectedPost} 
-          visible={isPostOptionsOpen} 
-          onClose={() => setIsPostOptionsOpen(false)}
-          isOwnPost={currentUser?.id === selectedPost.author_id}
-        />
-      )}
 
       {showBirthDatePicker && DateTimePickerComponent && (
         <DateTimePickerComponent
@@ -643,25 +668,31 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '80%',
   },
-  modalBackdrop: {
+  keyboardAvoidingView: {
+    flex: 1,
+  },
+  sheetBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    padding: 16,
+    justifyContent: 'flex-end',
   },
-  editModalCard: {
+  editSheetCard: {
     width: '100%',
-    maxWidth: 500,
     maxHeight: '90%',
-    borderRadius: 24,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
     borderWidth: 1,
-    padding: 20,
+    paddingTop: 8,
   },
   editModalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    padding: 20,
+    paddingBottom: 12,
+  },
+  closeButton: {
+    padding: 4,
   },
   avatarEditModalWrap: {
     alignItems: 'center',

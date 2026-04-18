@@ -62,11 +62,11 @@ export function OptionSelect({
         <Ionicons name="chevron-down" size={18} color={colors.mutedForeground} />
       </Pressable>
 
-      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+      <Modal visible={open} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setOpen(false)}>
         <View style={styles.backdrop}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setOpen(false)} />
 
-          <View style={[styles.sheet, { backgroundColor: colors.card, borderColor: colors.border }]}> 
+          <View style={[styles.sheet, { backgroundColor: colors.background, borderColor: colors.border }]}> 
             <Text size="base" weight="700" style={styles.title}>Selecione o estado</Text>
 
             <FlatList

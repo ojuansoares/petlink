@@ -1,24 +1,30 @@
 import React, { useState } from 'react'
-import { Modal, Pressable, StyleSheet, View, Share, ActivityIndicator } from 'react-native'
+import { Modal, Pressable, StyleSheet, View, Share, ActivityIndicator, Platform, KeyboardAvoidingView, ScrollView } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import * as MediaLibrary from 'expo-media-library'
+import * as FileSystem from 'expo-file-system'
 import { useTheme } from '../../hooks/useTheme'
+import { AppToast } from './AppToast'
 import { useNetworkCheck } from '../../hooks/useNetworkCheck'
 import { useAppDispatch, useAppSelector } from '../../store'
 import { deletePostThunk, togglePinThunk, updatePostThunk, Post } from '../../store/slices/postsSlice'
 import { showToast } from '../../store/slices/uiSlice'
 import { Button } from './Button'
 import { Input } from './Input'
+import { OptionSelect } from './OptionSelect'
 import { Heading, Text } from './Typography'
+import { BRAZIL_STATES } from '../../constants/brazilStates'
 
 interface PostOptionsModalProps {
   post: Post
   visible: boolean
   onClose: () => void
   isOwnPost: boolean
+  context?: 'feed' | 'profile'
 }
 
-export function PostOptionsModal({ post, visible, onClose, isOwnPost }: Readonly<PostOptionsModalProps>) {
+export function PostOptionsModal({ post, visible, onClose, isOwnPost, context = 'feed' }: Readonly<PostOptionsModalProps>) {
   const { colors, withAlpha } = useTheme()
   const dispatch = useAppDispatch()
   const { isOnline } = useNetworkCheck()
@@ -35,6 +41,18 @@ export function PostOptionsModal({ post, visible, onClose, isOwnPost }: Readonly
   const [editOpen, setEditOpen] = useState(false)
   const [caption, setCaption] = useState(post.caption || '')
   const [location, setLocation] = useState(post.location || '')
+
+  const locationLabel =
+    BRAZIL_STATES.find((item) => item.value === location)?.label ??
+    (location ? `Estado ${location}` : 'Não informado')
+
+  const locationOptions = React.useMemo(() => {
+    if (!location) return BRAZIL_STATES
+    const alreadyExists = BRAZIL_STATES.some((item) => item.value === location)
+    if (alreadyExists) return BRAZIL_STATES
+    return [{ label: `Atual: ${location}`, value: location }, ...BRAZIL_STATES]
+  }, [location])
+  const [isPinning, setIsPinning] = useState(false)
   const [isUpdating, setIsUpdating] = useState(false)
   const [isDownloading, setIsDownloading] = useState(false)
 
@@ -60,7 +78,9 @@ export function PostOptionsModal({ post, visible, onClose, isOwnPost }: Readonly
 
       dispatch(showToast({ type: 'info', message: 'Salvando imagem...' }))
       
-      const asset = await MediaLibrary.createAssetAsync(post.image_url)
+      const fileUri = `${FileSystem.cacheDirectory}petlink-post-${post.id}.jpg`
+      const { uri } = await FileSystem.downloadAsync(post.image_url, fileUri)
+      const asset = await MediaLibrary.createAssetAsync(uri)
       dispatch(showToast({ type: 'success', message: 'Imagem salva na galeria!' }))
       onClose()
     } catch (error: any) {
@@ -74,11 +94,14 @@ export function PostOptionsModal({ post, visible, onClose, isOwnPost }: Readonly
   const handleTogglePin = async () => {
     requireOnline(async () => {
       try {
+        setIsPinning(true)
         await dispatch(togglePinThunk(post.id)).unwrap()
         dispatch(showToast({ type: 'success', message: post.is_pinned ? 'Post desfixado' : 'Post fixado com sucesso' }))
         onClose()
       } catch (error: any) {
         dispatch(showToast({ type: 'error', message: error ?? 'Erro ao fixar post' }))
+      } finally {
+        setIsPinning(false)
       }
     })
   }
@@ -115,49 +138,65 @@ export function PostOptionsModal({ post, visible, onClose, isOwnPost }: Readonly
     })
   }
 
+  const insets = useSafeAreaInsets()
+
   if (editOpen) {
     return (
-      <Modal visible={visible} animationType="slide" transparent onRequestClose={() => setEditOpen(false)}>
-        <View style={styles.backdrop}>
-          <View style={[styles.container, { backgroundColor: colors.background }]}>
-            <View style={styles.header}>
-              <Heading size="lg" weight="800">Editar Publicação</Heading>
-              <Pressable onPress={() => setEditOpen(false)} style={styles.closeButton}>
-                <Ionicons name="close" size={24} color={colors.foreground} />
-              </Pressable>
-            </View>
-            <View style={styles.contentContainer}>
-              <Input
-                label="Legenda"
-                placeholder="Escreva uma legenda..."
-                value={caption}
-                onChangeText={setCaption}
-              />
-              <Input
-                label="Localização"
-                placeholder="Ex: São Paulo"
-                value={location}
-                onChangeText={setLocation}
-              />
-              <Button
-                label="Salvar alterações"
-                onPress={handleUpdate}
-                loading={isUpdating}
-                disabled={isUpdating}
-                style={{ marginTop: 16 }}
-              />
-            </View>
-          </View>
-        </View>
+      <Modal visible={visible} animationType="slide" transparent statusBarTranslucent onRequestClose={() => setEditOpen(false)}>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.keyboardAvoidingView}
+        >
+          <Pressable style={styles.backdrop} onPress={() => setEditOpen(false)}>
+            <Pressable style={[styles.container, { backgroundColor: colors.background, paddingBottom: Math.max(insets.bottom, 24) }]} onPress={(e) => e.stopPropagation()}>
+              <AppToast />
+              <View style={styles.header}>
+                <Heading size="lg" weight="800">Editar Publicação</Heading>
+                <Pressable onPress={() => setEditOpen(false)} style={styles.closeButton}>
+                  <Ionicons name="close" size={24} color={colors.foreground} />
+                </Pressable>
+              </View>
+              <ScrollView 
+                contentContainerStyle={styles.contentContainer}
+                keyboardShouldPersistTaps="handled"
+                bounces={false}
+              >
+                <Input
+                  label="Legenda"
+                  placeholder="Escreva uma legenda..."
+                  value={caption}
+                  onChangeText={setCaption}
+                  multiline
+                />
+                <OptionSelect
+                  label="Localização"
+                  placeholder="Selecionar estado..."
+                  value={location}
+                  onChange={setLocation}
+                  options={locationOptions}
+                  leftIconName="location-outline"
+                />
+                <Button
+                  label="Salvar alterações"
+                  onPress={handleUpdate}
+                  loading={isUpdating}
+                  disabled={isUpdating}
+                  style={{ marginTop: 16 }}
+                />
+              </ScrollView>
+            </Pressable>
+          </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
     )
   }
 
   if (deleteConfirmOpen) {
     return (
-      <Modal visible={visible} animationType="fade" transparent onRequestClose={() => setDeleteConfirmOpen(false)}>
+      <Modal visible={visible} animationType="fade" transparent statusBarTranslucent onRequestClose={() => setDeleteConfirmOpen(false)}>
         <View style={styles.centerBackdrop}>
-          <View style={[styles.dialogContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <AppToast />
+          <View style={[styles.dialogContainer, { backgroundColor: colors.background, borderColor: colors.border }]}>
             <View style={styles.dialogIcon}>
               <Ionicons name="warning" size={32} color={colors.destructive} />
             </View>
@@ -176,9 +215,13 @@ export function PostOptionsModal({ post, visible, onClose, isOwnPost }: Readonly
   }
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" transparent statusBarTranslucent onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable style={[styles.sheet, { backgroundColor: colors.card }]} onPress={(e) => e.stopPropagation()}>
+        <AppToast />
+        <Pressable 
+          style={[styles.sheet, { backgroundColor: colors.background, paddingBottom: Math.max(insets.bottom, 24) }]} 
+          onPress={(e) => e.stopPropagation()}
+        >
           <View style={styles.sheetHandleWrap}>
             <View style={[styles.sheetHandle, { backgroundColor: colors.border }]} />
           </View>
@@ -198,6 +241,23 @@ export function PostOptionsModal({ post, visible, onClose, isOwnPost }: Readonly
                   <Text size="base" weight="600" style={styles.optionText}>Editar</Text>
                 </Pressable>
               </>
+            )}
+
+            {isOwnPost && context === 'profile' && (
+              <Pressable
+                style={[styles.optionItem, { borderBottomColor: colors.border }]}
+                onPress={handleTogglePin}
+                disabled={isPinning}
+              >
+                {isPinning ? (
+                  <ActivityIndicator size="small" color={colors.foreground} />
+                ) : (
+                  <Ionicons name={post.is_pinned ? 'pin-outline' : 'pin'} size={22} color={colors.foreground} />
+                )}
+                <Text size="base" weight="600" style={styles.optionText}>
+                  {post.is_pinned ? 'Desafixar publicação' : 'Fixar no perfil'}
+                </Text>
+              </Pressable>
             )}
 
             <Pressable
@@ -238,6 +298,9 @@ export function PostOptionsModal({ post, visible, onClose, isOwnPost }: Readonly
 }
 
 const styles = StyleSheet.create({
+  keyboardAvoidingView: {
+    flex: 1,
+  },
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -278,11 +341,8 @@ const styles = StyleSheet.create({
   },
   container: {
     width: '100%',
-    position: 'absolute',
-    bottom: 0,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    paddingBottom: 32,
   },
   header: {
     flexDirection: 'row',

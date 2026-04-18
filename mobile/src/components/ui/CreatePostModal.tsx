@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Modal, Pressable, ScrollView, StyleSheet, View, ActivityIndicator, KeyboardAvoidingView, Platform, Keyboard, useWindowDimensions } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import * as ImagePicker from 'expo-image-picker'
 import { Image } from 'expo-image'
@@ -7,13 +8,15 @@ import { useTheme } from '../../hooks/useTheme'
 import { useNetworkCheck } from '../../hooks/useNetworkCheck'
 import { useAppDispatch, useAppSelector } from '../../store'
 import { createPostThunk } from '../../store/slices/postsSlice'
-import { showToast } from '../../store/slices/uiSlice'
+import { showToast, selectLoadingPetsForPost } from '../../store/slices/uiSlice'
 import { selectPetsList } from '../../store/slices/petsSlice'
 import { Button } from './Button'
 import { Input } from './Input'
 import { OptionSelect } from './OptionSelect'
 import { Heading, Text } from './Typography'
-import { api } from '../../api/axios'
+import { AppLoadingOverlay } from './AppLoadingOverlay'
+import { uploadImageWithRetry } from '../../api/uploadWithRetry'
+import { AppToast } from './AppToast'
 
 interface CreatePostModalProps {
   visible: boolean
@@ -57,6 +60,7 @@ export function CreatePostModal({ visible, onClose }: Readonly<CreatePostModalPr
 
   const pets = useAppSelector(selectPetsList)
   const isPosting = useAppSelector((state: any) => state.posts.isPosting)
+  const isLoadingPetsForPost = useAppSelector(selectLoadingPetsForPost)
 
   const requireOnline = (action: () => void) => {
     if (!isOnline) {
@@ -71,6 +75,8 @@ export function CreatePostModal({ visible, onClose }: Readonly<CreatePostModalPr
   const [caption, setCaption] = useState('')
   const [location, setLocation] = useState('')
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false)
+  const [uploadAttempt, setUploadAttempt] = useState(1)
+  const [maxUploadAttempts, setMaxUploadAttempts] = useState(3)
 
   const petOptions = pets.map(pet => ({ label: pet.name, value: pet.id }))
 
@@ -105,14 +111,21 @@ export function CreatePostModal({ visible, onClose }: Readonly<CreatePostModalPr
         type: mimeType,
       } as any)
 
-      const response = await api.post('/uploads/image', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+      setUploadAttempt(1)
+      const data = await uploadImageWithRetry({
+        formData,
+        maxRetries: 3,
+        baseTimeoutMs: 30000,
+        onAttemptChange: (attempt, max) => {
+          setUploadAttempt(attempt)
+          setMaxUploadAttempts(max)
+        },
       })
 
-      const uploadedUrl = response.data?.url as string | undefined
+      const uploadedUrl = data?.url as string | undefined
       if (uploadedUrl) setPhotoUrl(uploadedUrl)
     } catch {
-      dispatch(showToast({ type: 'error', message: 'Erro ao enviar imagem' }))
+      dispatch(showToast({ type: 'error', message: 'Erro ao enviar imagem após várias tentativas' }))
     } finally {
       setIsUploadingPhoto(false)
     }
@@ -153,6 +166,7 @@ export function CreatePostModal({ visible, onClose }: Readonly<CreatePostModalPr
     onClose()
   }
 
+  const insets = useSafeAreaInsets()
   const { height: screenHeight } = useWindowDimensions()
   const [keyboardHeight, setKeyboardHeight] = useState(0)
 
@@ -163,13 +177,15 @@ export function CreatePostModal({ visible, onClose }: Readonly<CreatePostModalPr
   }, [])
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
+    <Modal visible={visible} animationType="slide" transparent statusBarTranslucent onRequestClose={handleClose}>
+      <AppLoadingOverlay visible={isLoadingPetsForPost} message="Carregando seus pets..." />
+      <AppToast />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={0}
         style={styles.backdrop}
       >
-        <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={[styles.container, { backgroundColor: colors.background, paddingBottom: Math.max(insets.bottom, 20) }]}>
           <View style={styles.header}>
             <Heading size="xl" weight="800">Criar Publicação</Heading>
             <Pressable onPress={handleClose} style={styles.closeButton}>
@@ -224,7 +240,14 @@ export function CreatePostModal({ visible, onClose }: Readonly<CreatePostModalPr
                       disabled={isUploadingPhoto}
                     >
                       {isUploadingPhoto ? (
-                        <ActivityIndicator color={colors.primary} />
+                        <>
+                          <ActivityIndicator color={colors.primary} />
+                          {uploadAttempt > 1 && (
+                            <Text size="xs" color="mutedForeground" style={{ marginTop: 8, textAlign: 'center' }}>
+                              Enviando... (Tentativa {uploadAttempt}/{maxUploadAttempts})
+                            </Text>
+                          )}
+                        </>
                       ) : (
                         <>
                           <Ionicons name="image-outline" size={32} color={colors.mutedForeground} />

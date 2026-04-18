@@ -1,6 +1,7 @@
 import React from 'react'
 import { Modal, StyleSheet, View } from 'react-native'
 import { useTheme } from '../../hooks/useTheme'
+import { AppToast } from './AppToast'
 import { Button } from './Button'
 import { Heading, Text } from './Typography'
 
@@ -15,12 +16,13 @@ export function LogoutConfirmModal({ visible, onCancel, onConfirm }: Readonly<Lo
 
   return (
     <Modal visible={visible} transparent animationType="fade" statusBarTranslucent>
+      <AppToast />
       <View style={styles.overlayBackdrop}>
         <View
           style={[
             styles.confirmCard,
             {
-              backgroundColor: colors.card,
+              backgroundColor: colors.background,
               borderColor: withAlpha(colors.border, 0.8),
             },
           ]}

@@ -2,6 +2,7 @@ import { AppError } from '../../shared/AppError'
 import { postsRepository, type PostCreateInput } from './posts.repository'
 import { petsRepository } from '../pets/pets.repository'
 import { uploadsService } from '../uploads/uploads.service'
+import { optimizePostUrls } from '../../shared/cloudinaryUtils'
 
 export const postsService = {
   async create(authorId: string, payload: PostCreateInput) {
@@ -27,12 +28,16 @@ export const postsService = {
     return post
   },
 
-  async getFeed(page = 1, limit = 20) {
-    return await postsRepository.listFeed(page, limit)
+  async getFeed(page = 1, limit = 20, random = false) {
+    const result = await postsRepository.listFeed(page, limit, random)
+    // Otimiza URLs para o contexto de feed (800px, auto-format, auto-quality)
+    return { ...result, posts: optimizePostUrls(result.posts, 'feed') }
   },
 
-  async getByAuthor(authorId: string, page = 1, limit = 20) {
-    return await postsRepository.listByAuthor(authorId, page, limit)
+  async getByAuthor(authorId: string, page = 1, limit = 12) {
+    const result = await postsRepository.listByAuthor(authorId, page, limit)
+    // Grid de perfil usa thumbnails (400×400 crop fill) — menor payload
+    return { ...result, posts: optimizePostUrls(result.posts, 'thumb') }
   },
 
   async update(authorId: string, postId: string, patch: Partial<{ image_url: string; caption: string | null; location: string | null }>) {

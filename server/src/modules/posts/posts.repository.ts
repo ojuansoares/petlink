@@ -44,17 +44,32 @@ export const postsRepository = {
     return data
   },
 
-  async listFeed(page: number, limit: number) {
+  async listFeed(page: number, limit: number, random = false) {
     const offset = (page - 1) * limit
-    const { data, error, count } = await supabaseAdmin
+    const query = supabaseAdmin
       .from('posts')
       .select(`
         *,
         profiles:author_id (name, avatar_url),
         pets:pet_id (name)
       `, { count: 'exact' })
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1)
+
+    if (random) {
+      query.order('created_at', { ascending: false })
+      const { data: shuffled, error } = await query
+
+      if (error) throw error
+
+      const shuffledPosts = shuffled ? shuffled.sort(() => Math.random() - 0.5) : []
+      
+      const paginatedPosts = shuffledPosts.slice(offset, offset + limit)
+      const hasMore = offset + limit < shuffledPosts.length
+      
+      return { posts: paginatedPosts, hasMore }
+    }
+
+    query.order('created_at', { ascending: false })
+    const { data, error, count } = await query.range(offset, offset + limit - 1)
 
     if (error) throw error
     const hasMore = count !== null ? offset + limit < count : (data?.length === limit)

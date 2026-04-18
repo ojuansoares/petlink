@@ -1,13 +1,16 @@
 import React from 'react'
-import { useRoute, RouteProp } from '@react-navigation/native'
+import { useRoute, RouteProp, useNavigation } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 import { ActivityIndicator, Dimensions, FlatList, Modal, Pressable, StyleSheet, View } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Image } from 'expo-image'
 import { Avatar } from '../components/ui/Avatar'
 import { Text } from '../components/ui/Typography'
 import { BRAZIL_STATES } from '../constants/brazilStates'
 import { useTheme } from '../hooks/useTheme'
+import { useNetworkCheck } from '../hooks/useNetworkCheck'
 import { useAppDispatch, useAppSelector } from '../store'
+import { AppToast } from '../components/ui/AppToast'
 import { showToast } from '../store/slices/uiSlice'
 import {
   fetchPublicProfileThunk,
@@ -23,6 +26,7 @@ import {
   selectUserPostsPage,
   selectIsLoadingUserPosts,
   selectIsLoadingMoreUserPosts,
+  selectUserPostsUserId,
   Post
 } from '../store/slices/postsSlice'
 
@@ -65,10 +69,13 @@ function normalizeStateValue(rawValue?: string | null): string {
 
 export default function PublicProfileScreen() {
   const route = useRoute<RouteProp<ParamList, 'PublicProfile'>>()
+  const insets = useSafeAreaInsets()
+  const navigation = useNavigation<any>()
   const dispatch = useAppDispatch()
   const { colors } = useTheme()
   const { userId } = route.params
-  
+  const { isOnline } = useNetworkCheck()
+
   const profile = useAppSelector(selectPublicProfile)
   const profileError = useAppSelector(selectProfileError)
   const isLoading = useAppSelector(selectProfileLoading)
@@ -79,23 +86,32 @@ export default function PublicProfileScreen() {
     }
   }, [profileError])
 
+  const requireOnline = (action: () => void) => {
+    if (!isOnline) {
+      dispatch(showToast({ type: 'error', message: 'Sem internet. Conecte-se para ver o perfil.' }))
+      return
+    }
+    action()
+  }
+
   const posts = useAppSelector(selectUserPosts)
   const isPostsLoading = useAppSelector(selectIsLoadingUserPosts)
   const isPostsLoadingMore = useAppSelector(selectIsLoadingMoreUserPosts)
   const hasMorePosts = useAppSelector(selectHasMoreUserPosts)
   const postsPage = useAppSelector(selectUserPostsPage)
+  const storedUserId = useAppSelector(selectUserPostsUserId)
 
   const [isImageExpanded, setIsImageExpanded] = React.useState(false)
 
   React.useEffect(() => {
     if (userId) {
       dispatch(fetchPublicProfileThunk(userId))
-      dispatch(fetchUserPostsThunk(userId))
+      dispatch(fetchUserPostsThunk({ userId, isOnline }))
     }
-  }, [dispatch, userId])
+  }, [dispatch, userId, isOnline])
 
   const loadMorePosts = () => {
-    if (!isPostsLoading && !isPostsLoadingMore && hasMorePosts && userId) {
+    if (!isPostsLoading && !isPostsLoadingMore && hasMorePosts && userId && storedUserId === userId) {
       dispatch(fetchMoreUserPostsThunk({ userId, page: postsPage }))
     }
   }
@@ -104,15 +120,32 @@ export default function PublicProfileScreen() {
     ? BRAZIL_STATES.find((item) => item.value === normalizeStateValue(profile.location))?.label ?? profile.location
     : 'Estado não informado'
 
-  const renderPostItem = ({ item }: { item: Post }) => (
-    <View style={styles.postTile}>
-      <Image source={{ uri: item.image_url }} style={styles.postImage} contentFit="cover" />
+  const renderPostItem = ({ item, index }: { item: Post; index: number }) => (
+    <Pressable 
+      style={styles.postTile}
+      onPress={() => {
+        navigation.navigate('ProfileFeed', {
+          userId: profile?.id || '',
+          initialScrollIndex: index,
+          title: `Publicações de ${profile?.name?.split(' ')[0] || 'Usuário'}`
+        })
+      }}
+    >
+      <Image
+        source={{ uri: item.image_url }}
+        style={styles.postImage}
+        contentFit="cover"
+        priority={index < 12 ? 'high' : 'normal'}
+        transition={150}
+        cachePolicy="memory-disk"
+        recyclingKey={item.id}
+      />
       {item.is_pinned && (
         <View style={styles.pinIconWrapper}>
           <Ionicons name="pin" size={16} color="#FFF" />
         </View>
       )}
-    </View>
+    </Pressable>
   )
 
   const renderHeader = () => (
@@ -194,14 +227,22 @@ export default function PublicProfileScreen() {
         ListEmptyComponent={renderEmptyPosts}
         keyExtractor={(item) => item.id}
         onEndReached={loadMorePosts}
-        onEndReachedThreshold={0.5}
+        onEndReachedThreshold={0.8}
         contentContainerStyle={{ paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
+        // ── Performance ──────────────────────────────────────────
+        initialNumToRender={12}
+        maxToRenderPerBatch={12}
+        windowSize={5}
+        removeClippedSubviews={true}
+        updateCellsBatchingPeriod={50}
+        // ─────────────────────────────────────────────────────────
       />
 
-      <Modal visible={isImageExpanded} animationType="fade" transparent onRequestClose={() => setIsImageExpanded(false)}>
-        <View style={styles.fullscreenBackdrop}>
-          <Pressable onPress={() => setIsImageExpanded(false)} style={styles.closeExpanded}>
+      <Modal visible={isImageExpanded} animationType="fade" transparent statusBarTranslucent onRequestClose={() => setIsImageExpanded(false)}>
+        <AppToast />
+        <View style={[styles.fullscreenBackdrop, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+          <Pressable onPress={() => setIsImageExpanded(false)} style={[styles.closeExpanded, { top: insets.top + 10 }]}>
             <Ionicons name="close" size={32} color="#fff" />
           </Pressable>
           {profile?.avatar_url ? (

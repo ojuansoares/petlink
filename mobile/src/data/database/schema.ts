@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export const offlineSchema = appSchema({
-  version: 2,
+  version: 3,
   tables: [
     tableSchema({
       name: 'pets',
@@ -51,6 +51,35 @@ export const offlineSchema = appSchema({
         { name: 'updated_at', type: 'string', isOptional: true },
         { name: 'pets_count', type: 'number' },
         { name: 'birth_date', type: 'string', isOptional: true },
+      ],
+    }),
+    tableSchema({
+      name: 'feed_photos',
+      columns: [
+        { name: 'post_id', type: 'string', isIndexed: true },
+        { name: 'image_url', type: 'string' },
+        { name: 'author_id', type: 'string', isIndexed: true },
+        { name: 'pet_id', type: 'string', isOptional: true },
+        { name: 'caption', type: 'string', isOptional: true },
+        { name: 'location', type: 'string', isOptional: true },
+        { name: 'is_pinned', type: 'boolean', isOptional: true },
+        { name: 'created_at', type: 'string' },
+        { name: 'updated_at', type: 'string', isOptional: true },
+        { name: 'author_name', type: 'string', isOptional: true },
+        { name: 'author_avatar_url', type: 'string', isOptional: true },
+        { name: 'pet_name', type: 'string', isOptional: true },
+      ],
+    }),
+    tableSchema({
+      name: 'profile_photos',
+      columns: [
+        { name: 'user_id', type: 'string', isIndexed: true },
+        { name: 'post_id', type: 'string' },
+        { name: 'image_url', type: 'string' },
+        { name: 'pet_name', type: 'string', isOptional: true },
+        { name: 'caption', type: 'string', isOptional: true },
+        { name: 'created_at', type: 'string' },
+        { name: 'is_pinned', type: 'boolean', isOptional: true },
       ],
     }),
   ],

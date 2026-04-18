@@ -23,6 +23,7 @@ function uploadBufferToCloudinary(params: {
         folder: params.folder,
         public_id: params.publicId,
         resource_type: params.resourceType,
+        timeout: 60000, // 60 segundos de timeout
       },
       (error, result) => {
         if (error || !result) return reject(error ?? new Error('Upload falhou'))

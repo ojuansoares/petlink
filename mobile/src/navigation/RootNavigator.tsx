@@ -11,6 +11,7 @@ import AuthStack from './AuthStack'
 import AppTabs from './AppTabs'
 import SettingsMenuScreen from '../screens/SettingsMenuScreen'
 import PublicProfileScreen from '../screens/PublicProfileScreen'
+import ProfileFeedScreen from '../screens/ProfileFeedScreen'
 import { AppStackParamList } from './types'
 
 const AppStack = createStackNavigator<AppStackParamList>()
@@ -105,6 +106,14 @@ function AuthenticatedNavigator() {
           title: 'Perfil',
           headerLeft: PublicProfileBackButton,
         }}
+      />
+      <AppStack.Screen
+        name="ProfileFeed"
+        component={ProfileFeedScreen}
+        options={({ route }) => ({
+          title: route.params.title || 'Publicações',
+          headerLeft: PublicProfileBackButton,
+        })}
       />
     </AppStack.Navigator>
   )

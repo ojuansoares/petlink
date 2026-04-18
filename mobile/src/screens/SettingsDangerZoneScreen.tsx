@@ -11,6 +11,7 @@ import { showToast } from '../store/slices/uiSlice'
 import { setBiometricEnabled, setBiometricSessionLocked } from '../services/BiometricService'
 import { clearAuthTokens } from '../utils/authStorage'
 import { ProfileOfflineRepository } from '../data/repositories/ProfileOfflineRepository'
+import { AppToast } from '../components/ui/AppToast'
 
 export default function SettingsDangerZoneScreen() {
   const dispatch = useAppDispatch()
@@ -69,6 +70,7 @@ export default function SettingsDangerZoneScreen() {
       </View>
 
       <Modal visible={showDeleteConfirm} transparent animationType="fade" statusBarTranslucent>
+        <AppToast />
         <View style={styles.overlayBackdrop}>
           <View
             style={[

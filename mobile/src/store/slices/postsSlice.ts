@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, createSelector } from '@reduxjs/toolkit'
 import { api } from '../../api/axios'
+import { offlinePostsRepository } from '../../data/repositories/PostsOfflineRepository'
 
 // ─── Types ───────────────────────────────────────────────────
 export interface Post {
@@ -18,27 +19,47 @@ export interface Post {
 
 interface PostsState {
   feed: Post[]
+  // ── own user's posts (Profile screen) ──
+  myPosts: Post[]
+  myPostsPage: number
+  hasMoreMyPosts: boolean
+  isLoadingMyPosts: boolean
+  isLoadingMoreMyPosts: boolean
+  // ── public profile posts (PublicProfileScreen) ──
   userPosts: Post[]
-  feedPage: number
+  userPostsUserId: string | null
   userPostsPage: number
-  hasMoreFeed: boolean
   hasMoreUserPosts: boolean
-  isLoadingFeed: boolean
-  isLoadingMoreFeed: boolean
   isLoadingUserPosts: boolean
   isLoadingMoreUserPosts: boolean
+  // ── misc ──
+  feedPage: number
+  hasMoreFeed: boolean
+  isLoadingFeed: boolean
+  isLoadingMoreFeed: boolean
   isPosting: boolean
   error: string | null
 }
 
 // ─── Thunks ──────────────────────────────────────────────────
+
+/** Feed global (outros usuários) — salva até 5 no offline */
 export const fetchFeedThunk = createAsyncThunk(
   'posts/fetchFeed',
-  async (_, { rejectWithValue }) => {
+  async (isOnline: boolean, { rejectWithValue }) => {
+    if (!isOnline) {
+      const localPosts = await offlinePostsRepository.getFeedPhotos()
+      return { posts: localPosts, hasMore: false, isOffline: true } as { posts: Post[]; hasMore: boolean; isOffline: boolean }
+    }
     try {
-      const { data } = await api.get('/posts/feed?page=1&limit=20')
+      const { data } = await api.get('/posts/feed?page=1&limit=20&random=true')
+      await offlinePostsRepository.saveFeedPhotos(data.posts)
       return data as { posts: Post[]; hasMore: boolean }
     } catch (err: any) {
+      const localPosts = await offlinePostsRepository.getFeedPhotos()
+      if (localPosts.length > 0) {
+        return { posts: localPosts, hasMore: false, isOffline: true } as { posts: Post[]; hasMore: boolean; isOffline: boolean }
+      }
       return rejectWithValue(err.response?.data?.error ?? 'Erro ao carregar feed')
     }
   }
@@ -48,7 +69,7 @@ export const fetchMoreFeedThunk = createAsyncThunk(
   'posts/fetchMoreFeed',
   async (page: number, { rejectWithValue }) => {
     try {
-      const { data } = await api.get(`/posts/feed?page=${page}&limit=20`)
+      const { data } = await api.get(`/posts/feed?page=${page}&limit=20&random=true`)
       return data as { posts: Post[]; hasMore: boolean }
     } catch (err: any) {
       return rejectWithValue(err.response?.data?.error ?? 'Erro ao carregar mais')
@@ -56,12 +77,75 @@ export const fetchMoreFeedThunk = createAsyncThunk(
   }
 )
 
-export const fetchUserPostsThunk = createAsyncThunk(
-  'posts/fetchUserPosts',
-  async (userId: string, { rejectWithValue }) => {
+/**
+ * Posts do próprio usuário logado.
+ * Sempre persiste no cache offline (profile_photos).
+ * O ProfileScreen deve usar este thunk.
+ */
+export const fetchMyPostsThunk = createAsyncThunk(
+  'posts/fetchMyPosts',
+  async (
+    payload: { userId: string; isOnline: boolean; cacheOnly?: boolean },
+    { rejectWithValue }
+  ) => {
+    const { userId, isOnline, cacheOnly } = payload
+
+    // cacheOnly=true: apenas retorna cache local sem tocar a API
+    if (!isOnline || cacheOnly) {
+      const localPosts = await offlinePostsRepository.getProfilePhotos(userId)
+      return { posts: localPosts, hasMore: false, isOffline: true, cacheOnly: !!cacheOnly } as {
+        posts: Post[]; hasMore: boolean; isOffline: boolean; cacheOnly: boolean
+      }
+    }
+
     try {
       const { data } = await api.get(`/posts/user/${userId}?page=1&limit=20`)
+      // persiste para uso offline
+      await offlinePostsRepository.saveProfilePhotos(userId, data.posts)
       return data as { posts: Post[]; hasMore: boolean }
+    } catch (err: any) {
+      // fallback offline
+      const localPosts = await offlinePostsRepository.getProfilePhotos(userId)
+      if (localPosts.length > 0) {
+        return { posts: localPosts, hasMore: false, isOffline: true, cacheOnly: false } as {
+          posts: Post[]; hasMore: boolean; isOffline: boolean; cacheOnly: boolean
+        }
+      }
+      return rejectWithValue(err.response?.data?.error ?? 'Erro ao carregar seus posts')
+    }
+  }
+)
+
+export const fetchMoreMyPostsThunk = createAsyncThunk(
+  'posts/fetchMoreMyPosts',
+  async (payload: { userId: string; page: number }, { rejectWithValue }) => {
+    try {
+      const { data } = await api.get(`/posts/user/${payload.userId}?page=${payload.page}&limit=20`)
+      return data as { posts: Post[]; hasMore: boolean }
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.error ?? 'Erro ao carregar mais posts')
+    }
+  }
+)
+
+/**
+ * Posts de um perfil público qualquer (não o próprio usuário).
+ * NÃO persiste offline — apenas API GET.
+ * O PublicProfileScreen deve usar este thunk.
+ */
+export const fetchUserPostsThunk = createAsyncThunk(
+  'posts/fetchUserPosts',
+  async (payload: { userId: string; isOnline: boolean; currentUserId?: string }, { rejectWithValue }) => {
+    const { userId, isOnline } = payload
+
+    if (!isOnline) {
+      // perfis públicos não ficam no offline
+      return { posts: [], hasMore: false, userId } as { posts: Post[]; hasMore: boolean; userId: string }
+    }
+
+    try {
+      const { data } = await api.get(`/posts/user/${userId}?page=1&limit=20`)
+      return { ...data, userId } as { posts: Post[]; hasMore: boolean; userId: string }
     } catch (err: any) {
       return rejectWithValue(err.response?.data?.error ?? 'Erro ao carregar posts do usuário')
     }
@@ -112,10 +196,21 @@ export const updatePostThunk = createAsyncThunk(
 
 export const togglePinThunk = createAsyncThunk(
   'posts/togglePin',
-  async (postId: string, { rejectWithValue }) => {
+  async (postId: string, { rejectWithValue, getState }) => {
     try {
       const { data } = await api.patch(`/posts/${postId}/pin`)
-      return data.post as Post
+      const updatedPost = data.post as Post
+      
+      const state = getState() as any
+      const myPosts = state.posts?.myPosts
+      const userId = state.auth?.user?.id
+
+      if (userId && myPosts) {
+        const updatedMyPosts = myPosts.map((p: Post) => p.id === postId ? updatedPost : p)
+        await offlinePostsRepository.saveProfilePhotos(userId, updatedMyPosts)
+      }
+
+      return updatedPost
     } catch (err: any) {
       return rejectWithValue(err.response?.data?.error ?? 'Erro ao fixar/desfixar post')
     }
@@ -137,15 +232,21 @@ export const deletePostThunk = createAsyncThunk(
 // ─── Slice ───────────────────────────────────────────────────
 const initialState: PostsState = {
   feed: [],
+  myPosts: [],
+  myPostsPage: 1,
+  hasMoreMyPosts: true,
+  isLoadingMyPosts: false,
+  isLoadingMoreMyPosts: false,
   userPosts: [],
-  feedPage: 1,
+  userPostsUserId: null,
   userPostsPage: 1,
-  hasMoreFeed: true,
   hasMoreUserPosts: true,
-  isLoadingFeed: false,
-  isLoadingMoreFeed: false,
   isLoadingUserPosts: false,
   isLoadingMoreUserPosts: false,
+  feedPage: 1,
+  hasMoreFeed: true,
+  isLoadingFeed: false,
+  isLoadingMoreFeed: false,
   isPosting: false,
   error: null,
 }
@@ -162,10 +263,16 @@ const postsSlice = createSlice({
       state.feedPage = 1
       state.hasMoreFeed = true
     },
+    resetMyPosts: (state) => {
+      state.myPosts = []
+      state.myPostsPage = 1
+      state.hasMoreMyPosts = true
+    },
     resetUserPosts: (state) => {
       state.userPosts = []
       state.userPostsPage = 1
       state.hasMoreUserPosts = true
+      state.userPostsUserId = null
     },
   },
   extraReducers: (builder) => {
@@ -201,7 +308,46 @@ const postsSlice = createSlice({
         s.isLoadingMoreFeed = false
       })
 
-    // ── fetchUserPosts ──
+    // ── fetchMyPosts (own profile) ──
+    builder
+      .addCase(fetchMyPostsThunk.pending, (s, a) => {
+        // cacheOnly é um carregamento silencioso do cache, não mostra loading
+        if (!a.meta.arg.cacheOnly) {
+          s.isLoadingMyPosts = true
+        }
+        s.error = null
+      })
+      .addCase(fetchMyPostsThunk.fulfilled, (s, a) => {
+        s.isLoadingMyPosts = false
+        const payload = a.payload as { posts: Post[]; hasMore: boolean; cacheOnly?: boolean }
+        // Se for cacheOnly (pré-carregamento do cache), só popula se ainda não há dados
+        // Evita sobrescrever resultado da API que pode ter chegado antes
+        if (payload.cacheOnly && s.myPosts.length > 0) return
+        s.myPosts = payload.posts
+        s.hasMoreMyPosts = payload.hasMore
+        s.myPostsPage = 2
+      })
+      .addCase(fetchMyPostsThunk.rejected, (s, a) => {
+        s.isLoadingMyPosts = false
+        s.error = a.payload as string
+      })
+
+    // ── fetchMoreMyPosts ──
+    builder
+      .addCase(fetchMoreMyPostsThunk.pending, (s) => {
+        s.isLoadingMoreMyPosts = true
+      })
+      .addCase(fetchMoreMyPostsThunk.fulfilled, (s, a) => {
+        s.isLoadingMoreMyPosts = false
+        s.myPosts.push(...a.payload.posts)
+        s.hasMoreMyPosts = a.payload.hasMore
+        s.myPostsPage += 1
+      })
+      .addCase(fetchMoreMyPostsThunk.rejected, (s) => {
+        s.isLoadingMoreMyPosts = false
+      })
+
+    // ── fetchUserPosts (public profile) ──
     builder
       .addCase(fetchUserPostsThunk.pending, (s) => {
         s.isLoadingUserPosts = true
@@ -212,6 +358,7 @@ const postsSlice = createSlice({
         s.userPosts = a.payload.posts
         s.hasMoreUserPosts = a.payload.hasMore
         s.userPostsPage = 2
+        s.userPostsUserId = a.meta.arg.userId
       })
       .addCase(fetchUserPostsThunk.rejected, (s, a) => {
         s.isLoadingUserPosts = false
@@ -241,7 +388,7 @@ const postsSlice = createSlice({
       .addCase(createPostThunk.fulfilled, (s, a) => {
         s.isPosting = false
         s.feed.unshift(a.payload)
-        s.userPosts.unshift(a.payload)
+        s.myPosts.unshift(a.payload)
       })
       .addCase(createPostThunk.rejected, (s, a) => {
         s.isPosting = false
@@ -255,8 +402,8 @@ const postsSlice = createSlice({
         const feedIdx = s.feed.findIndex((p) => p.id === updatedPost.id)
         if (feedIdx >= 0) s.feed[feedIdx] = updatedPost
 
-        const userIdx = s.userPosts.findIndex((p) => p.id === updatedPost.id)
-        if (userIdx >= 0) s.userPosts[userIdx] = updatedPost
+        const myIdx = s.myPosts.findIndex((p) => p.id === updatedPost.id)
+        if (myIdx >= 0) s.myPosts[myIdx] = updatedPost
       })
       .addCase(updatePostThunk.rejected, (s, a) => {
         s.error = a.payload as string
@@ -269,12 +416,8 @@ const postsSlice = createSlice({
         const feedIdx = s.feed.findIndex((p) => p.id === updatedPost.id)
         if (feedIdx >= 0) s.feed[feedIdx] = updatedPost
 
-        const userIdx = s.userPosts.findIndex((p) => p.id === updatedPost.id)
-        if (userIdx >= 0) {
-          s.userPosts[userIdx] = updatedPost
-          // Optionally, userPosts could be re-sorted by is_pinned and created_at here.
-          // But simply updating it is enough; the list will sort on next fetch.
-        }
+        const myIdx = s.myPosts.findIndex((p) => p.id === updatedPost.id)
+        if (myIdx >= 0) s.myPosts[myIdx] = updatedPost
       })
       .addCase(togglePinThunk.rejected, (s, a) => {
         s.error = a.payload as string
@@ -284,12 +427,12 @@ const postsSlice = createSlice({
     builder
       .addCase(deletePostThunk.fulfilled, (s, a) => {
         s.feed = s.feed.filter((p) => p.id !== a.payload)
-        s.userPosts = s.userPosts.filter((p) => p.id !== a.payload)
+        s.myPosts = s.myPosts.filter((p) => p.id !== a.payload)
       })
   },
 })
 
-export const { clearPostsError, resetFeed, resetUserPosts } = postsSlice.actions
+export const { clearPostsError, resetFeed, resetMyPosts, resetUserPosts } = postsSlice.actions
 export default postsSlice.reducer
 
 // ─── Selectors ───────────────────────────────────────────────
@@ -299,6 +442,23 @@ export const selectFeedPage = (s: any): number => s.posts.feedPage
 export const selectIsLoadingFeed = (s: any): boolean => s.posts.isLoadingFeed
 export const selectIsLoadingMoreFeed = (s: any): boolean => s.posts.isLoadingMoreFeed
 
+// ── own user ──
+const selectRawMyPosts = (s: any): Post[] => s.posts.myPosts
+
+export const selectMyPosts = createSelector(
+  selectRawMyPosts,
+  (posts) => [...posts].sort((a, b) => {
+    if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  })
+)
+
+export const selectHasMoreMyPosts = (s: any): boolean => s.posts.hasMoreMyPosts
+export const selectMyPostsPage = (s: any): number => s.posts.myPostsPage
+export const selectIsLoadingMyPosts = (s: any): boolean => s.posts.isLoadingMyPosts
+export const selectIsLoadingMoreMyPosts = (s: any): boolean => s.posts.isLoadingMoreMyPosts
+
+// ── public profile ──
 const selectRawUserPosts = (s: any): Post[] => s.posts.userPosts
 
 export const selectUserPosts = createSelector(
@@ -308,9 +468,30 @@ export const selectUserPosts = createSelector(
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   })
 )
+
+/**
+ * @deprecated use selectUserPosts directly in PublicProfileScreen.
+ * Kept for backward compatibility.
+ */
+export const selectUserPostsByUserId = createSelector(
+  [
+    (s: any) => s.posts.userPosts,
+    (s: any) => s.posts.userPostsUserId,
+    (_: any, userId: string) => userId,
+  ],
+  (posts, storedId, userId) => {
+    if (storedId !== userId) return []
+    return [...posts].sort((a, b) => {
+      if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    })
+  }
+)
+
 export const selectHasMoreUserPosts = (s: any): boolean => s.posts.hasMoreUserPosts
 export const selectUserPostsPage = (s: any): number => s.posts.userPostsPage
 export const selectIsLoadingUserPosts = (s: any): boolean => s.posts.isLoadingUserPosts
 export const selectIsLoadingMoreUserPosts = (s: any): boolean => s.posts.isLoadingMoreUserPosts
+export const selectUserPostsUserId = (s: any): string | null => s.posts.userPostsUserId
 
 export const selectIsPosting = (s: any): boolean => s.posts.isPosting

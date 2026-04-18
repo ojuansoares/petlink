@@ -12,7 +12,10 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { api } from '../api/axios'
+import { uploadImageWithRetry } from '../api/uploadWithRetry'
+import { AppToast } from '../components/ui/AppToast'
 import { Avatar } from '../components/ui/Avatar'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
@@ -173,6 +176,8 @@ function PetCreationStepContent(props: Readonly<{
   temperament: string
   observations: string
   isUploadingPhoto: boolean
+  uploadAttempt?: number
+  maxUploadAttempts?: number
   colors: any
   onNameChange: (value: string) => void
   onSpeciesChange: (value: string) => void
@@ -257,7 +262,9 @@ function PetCreationStepContent(props: Readonly<{
           <Avatar size={112} name={props.name || 'Pet'} source={props.photoUrl ? { uri: props.photoUrl } : undefined} />
         </View>
         <Button
-          label={props.isUploadingPhoto ? 'Enviando foto...' : 'Escolher foto do pet'}
+          label={props.isUploadingPhoto
+            ? (props.uploadAttempt && props.uploadAttempt > 1 ? `Enviando... (Tentativa ${props.uploadAttempt}/${props.maxUploadAttempts})` : 'Enviando foto...')
+            : 'Escolher foto do pet'}
           variant="outline"
           onPress={props.onPickPhoto}
           loading={props.isUploadingPhoto}
@@ -317,6 +324,7 @@ function ControlCard({ title, subtitle, icon, color, borderColor, iconColor, bad
 }
 
 export default function PetsScreen() {
+  const insets = useSafeAreaInsets()
   const dispatch = useAppDispatch()
   const { colors, withAlpha, mode } = useTheme()
 
@@ -347,6 +355,8 @@ export default function PetsScreen() {
   const [isFlowOpen, setIsFlowOpen] = React.useState(false)
   const [step, setStep] = React.useState(0)
   const [isUploadingPhoto, setIsUploadingPhoto] = React.useState(false)
+  const [uploadAttempt, setUploadAttempt] = React.useState(1)
+  const [maxUploadAttempts, setMaxUploadAttempts] = React.useState(3)
 
   const [isEditing, setIsEditing] = React.useState(false)
   const [isSelectorVisible, setIsSelectorVisible] = React.useState(false)
@@ -486,11 +496,18 @@ export default function PetsScreen() {
         type: mimeType,
       } as any)
 
-      const response = await api.post('/uploads/image', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+      setUploadAttempt(1)
+      const data = await uploadImageWithRetry({
+        formData,
+        maxRetries: 3,
+        baseTimeoutMs: 30000,
+        onAttemptChange: (attempt, max) => {
+          setUploadAttempt(attempt)
+          setMaxUploadAttempts(max)
+        }
       })
 
-      const uploadedUrl = response.data?.url as string | undefined
+      const uploadedUrl = data?.url as string | undefined
       if (!uploadedUrl) return
 
       setPhotoUrl(uploadedUrl)
@@ -757,20 +774,28 @@ export default function PetsScreen() {
             ) : null}
 
             {!isEditing && (
-              <View style={styles.tabBarContainer}>
+              <View style={[styles.tabBarContainer, { borderBottomColor: colors.border }]}>
                 <Pressable
                   onPress={() => handleTabChange('details')}
-                  style={[styles.tabButton, activeTab === 'details' && { borderBottomColor: colors.primary }]}
+                  style={[styles.tabButton, activeTab === 'details' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
                 >
-                  <Text size="sm" weight="800" color={activeTab === 'details' ? 'primary' : 'mutedForeground'}>
+                  <Text
+                    weight="800"
+                    size="sm"
+                    style={{ color: activeTab === 'details' ? colors.primary : colors.mutedForeground }}
+                  >
                     Detalhes
                   </Text>
                 </Pressable>
                 <Pressable
                   onPress={() => handleTabChange('control')}
-                  style={[styles.tabButton, activeTab === 'control' && { borderBottomColor: colors.primary }]}
+                  style={[styles.tabButton, activeTab === 'control' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
                 >
-                  <Text size="sm" weight="800" color={activeTab === 'control' ? 'primary' : 'mutedForeground'}>
+                  <Text
+                    weight="800"
+                    size="sm"
+                    style={{ color: activeTab === 'control' ? colors.primary : colors.mutedForeground }}
+                  >
                     Controle
                   </Text>
                 </Pressable>
@@ -818,7 +843,7 @@ export default function PetsScreen() {
                     </View>
 
                     <View style={styles.heroSection}>
-                       <Heading size="2xl" weight="800" style={styles.heroName}>{activePet.name}</Heading>
+                      <Heading size="2xl" weight="800" style={styles.heroName}>{activePet.name}</Heading>
                       <View style={styles.heroTag}>
                         <Text size="xs" weight="700" color="primaryForeground">
                           {SPECIES_TRANSLATION[activePet.species.toLowerCase()] || activePet.species.toUpperCase()}
@@ -862,7 +887,7 @@ export default function PetsScreen() {
                           </View>
                         ) : null}
                       </View>
-                    
+
                       <ScrollView
                         ref={chartScrollRef}
                         horizontal
@@ -875,7 +900,7 @@ export default function PetsScreen() {
                         <View style={styles.chartBars} onLayout={handleChartLayout}>
                           {(() => {
                             const count = weightHistory.length
-                    
+
                             if (count === 0) {
                               return (
                                 <View style={styles.emptyChartState}>
@@ -883,25 +908,25 @@ export default function PetsScreen() {
                                 </View>
                               )
                             }
-                    
+
                             const weights = weightHistory.map((h: any) => h.weight)
                             const maxWeight = Math.max(...weights)
                             const minHeight = 4
                             const maxHeight = 80
-                    
+
                             return weightHistory.map((item: any, i: number) => {
                               const barHeight = maxWeight > 0
                                 ? (item.weight / maxWeight) * maxHeight
                                 : minHeight
-                    
+
                               const dateObj = parseIsoDate(item.date)
                               if (!dateObj) return null
-                    
-                              const day   = String(dateObj.getDate()).padStart(2, '0')
+
+                              const day = String(dateObj.getDate()).padStart(2, '0')
                               const month = String(dateObj.getMonth() + 1).padStart(2, '0')
                               const dateLabel = `${day}/${month}`
                               const isSelected = selectedWeightIndex === i
-                    
+
                               return (
                                 <Pressable
                                   key={`weight-${i}`}
@@ -973,7 +998,7 @@ export default function PetsScreen() {
                     </View>
 
                     <View style={styles.extraSection}>
-                       <Heading size="sm" weight="800">Mais sobre {activePet.name}</Heading>
+                      <Heading size="sm" weight="800">Mais sobre {activePet.name}</Heading>
 
                       <View style={styles.tagList}>
                         <View style={[styles.tag, { backgroundColor: colors.muted }]}>
@@ -1063,12 +1088,13 @@ export default function PetsScreen() {
           </>
         ) : null}
 
-        </ScrollView>
+      </ScrollView>
 
-      <Modal visible={isFlowOpen} animationType="slide" transparent onRequestClose={closeFlow}>
+      <Modal visible={isFlowOpen} animationType="slide" transparent statusBarTranslucent onRequestClose={closeFlow}>
+        <AppToast />
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.5)' }]}
+          style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.5)', paddingTop: insets.top, paddingBottom: insets.bottom }]}
         >
           <Card
             variant="organic"
@@ -1117,6 +1143,8 @@ export default function PetsScreen() {
               temperament={temperament}
               observations={observations}
               isUploadingPhoto={isUploadingPhoto}
+              uploadAttempt={uploadAttempt}
+              maxUploadAttempts={maxUploadAttempts}
               onNameChange={setName}
               onSpeciesChange={setSpecies}
               onBreedChange={setBreed}
@@ -1154,8 +1182,9 @@ export default function PetsScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      <Modal visible={isDeleteModalOpen} animationType="fade" transparent onRequestClose={closePetModal}>
-        <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
+      <Modal visible={isDeleteModalOpen} animationType="fade" transparent statusBarTranslucent onRequestClose={closePetModal}>
+        <AppToast />
+        <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.5)', paddingTop: insets.top, paddingBottom: insets.bottom }]}>
           <Card variant="organic" style={styles.deleteModalCard}>
             <View style={styles.deleteModalIcon}>
               <Ionicons name="warning" size={40} color={colors.destructive} />
@@ -1186,49 +1215,50 @@ export default function PetsScreen() {
         </View>
       </Modal>
 
-      <Modal visible={isWeightPointModalOpen} animationType="fade" transparent onRequestClose={closeWeightPointUpdate}>
-        <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.5)' }]}> 
-          <Card variant="organic" style={[styles.weightPointCard, { backgroundColor: colors.background }]}> 
-            <Heading size="lg" weight="800">Point de update</Heading>
-            <Text color="mutedForeground">Atualize apenas o peso do pet.</Text>
+      <Modal visible={isWeightPointModalOpen} animationType="fade" transparent statusBarTranslucent onRequestClose={closeWeightPointUpdate}>
+        <AppToast />
+        <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.5)', paddingTop: insets.top, paddingBottom: insets.bottom }]}>          <Card variant="organic" style={[styles.weightPointCard, { backgroundColor: colors.background }]}>
+          <Heading size="lg" weight="800">Point de update</Heading>
+          <Text color="mutedForeground">Atualize apenas o peso do pet.</Text>
 
-            <Input
-              label="Peso (kg)"
-              placeholder="Ex: 8.50"
-              value={weightPointKg}
-              onChangeText={(value) => setWeightPointKg(sanitizeWeightInput(value))}
-              keyboardType="numeric"
+          <Input
+            label="Peso (kg)"
+            placeholder="Ex: 8.50"
+            value={weightPointKg}
+            onChangeText={(value) => setWeightPointKg(sanitizeWeightInput(value))}
+            keyboardType="numeric"
+          />
+
+          {weightPointError ? (
+            <Text size="xs" style={{ color: colors.destructive }}>{weightPointError}</Text>
+          ) : null}
+
+          <View style={styles.weightPointActions}>
+            <Button
+              label="Cancelar"
+              variant="outline"
+              size="sm"
+              onPress={closeWeightPointUpdate}
+              style={styles.weightPointActionButton}
             />
-
-            {weightPointError ? (
-              <Text size="xs" style={{ color: colors.destructive }}>{weightPointError}</Text>
-            ) : null}
-
-            <View style={styles.weightPointActions}>
-              <Button
-                label="Cancelar"
-                variant="outline"
-                size="sm"
-                onPress={closeWeightPointUpdate}
-                style={styles.weightPointActionButton}
-              />
-              <Button
-                label="Salvar peso"
-                size="sm"
-                onPress={handleWeightPointUpdate}
-                loading={isUpdating}
-                disabled={!weightPointKg.trim() || Boolean(weightPointError)}
-                style={styles.weightPointActionButton}
-              />
-            </View>
-          </Card>
+            <Button
+              label="Salvar peso"
+              size="sm"
+              onPress={handleWeightPointUpdate}
+              loading={isUpdating}
+              disabled={!weightPointKg.trim() || Boolean(weightPointError)}
+              style={styles.weightPointActionButton}
+            />
+          </View>
+        </Card>
         </View>
       </Modal>
 
-      <Modal visible={isEditing} animationType="slide" transparent onRequestClose={() => setIsEditing(false)}>
+      <Modal visible={isEditing} animationType="slide" transparent statusBarTranslucent onRequestClose={() => setIsEditing(false)}>
+        <AppToast />
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.modalBackdrop}
+          style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.5)', paddingTop: insets.top, paddingBottom: insets.bottom }]}
         >
           <ScrollView style={[styles.editModalCard, { backgroundColor: colors.background }]} contentContainerStyle={styles.editModalContent}>
             <View style={styles.editModalHeader}>
@@ -1240,7 +1270,16 @@ export default function PetsScreen() {
 
             <View style={styles.photoEditWrap}>
               <Avatar size={100} name={name} source={photoUrl ? { uri: photoUrl } : undefined} />
-              <Button label="Mudar foto" variant="outline" onPress={handlePickPhoto} style={styles.photoEditButton} />
+              <Button
+                label={isUploadingPhoto
+                  ? (uploadAttempt > 1 ? `Enviando... (Tentativa ${uploadAttempt}/${maxUploadAttempts})` : 'Enviando foto...')
+                  : 'Mudar foto'}
+                variant="outline"
+                onPress={handlePickPhoto}
+                loading={isUploadingPhoto}
+                disabled={isUploadingPhoto}
+                style={styles.photoEditButton}
+              />
             </View>
 
             <Input label="Nome do Pet" placeholder="Nome" value={name} onChangeText={setName} />
@@ -1301,9 +1340,9 @@ export default function PetsScreen() {
         />
       ) : null}
 
-      <Modal visible={isImageExpanded} animationType="fade" transparent onRequestClose={() => setIsImageExpanded(false)}>
-        <View style={[styles.fullscreenBackdrop, { backgroundColor: 'rgba(0,0,0,0.95)' }]}>
-          <Pressable onPress={() => setIsImageExpanded(false)} style={styles.closeExpanded}>
+      <Modal visible={isImageExpanded} animationType="fade" transparent statusBarTranslucent onRequestClose={() => setIsImageExpanded(false)}>
+        <View style={[styles.fullscreenBackdrop, { backgroundColor: 'rgba(0,0,0,0.95)', paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+          <Pressable onPress={() => setIsImageExpanded(false)} style={[styles.closeExpanded, { top: insets.top + 10 }]}>
             <Ionicons name="close" size={32} color="#fff" />
           </Pressable>
           {activePet?.photo_url ? (
@@ -1318,8 +1357,9 @@ export default function PetsScreen() {
         </View>
       </Modal>
       {/* Modal de Controle Integrado */}
-      <Modal visible={!!controlType} animationType="fade" transparent onRequestClose={() => setControlType(null)}>
-        <View style={[styles.controlModalBackdrop, { backgroundColor: withAlpha(colors.background, 0.98) }]}>
+      <Modal visible={!!controlType} animationType="fade" transparent statusBarTranslucent onRequestClose={() => setControlType(null)}>
+        <AppToast />
+        <View style={[styles.controlModalBackdrop, { backgroundColor: withAlpha(colors.background, 0.98), paddingTop: insets.top, paddingBottom: insets.bottom }]}>
           <ScrollView contentContainerStyle={styles.controlModalScroll}>
             {controlType && (
               <>
@@ -1391,16 +1431,13 @@ const styles = StyleSheet.create({
   },
   tabBarContainer: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-    marginTop: 12,
-    marginBottom: 8,
+    borderBottomWidth: 1,
+    marginTop: 8,
   },
   tabButton: {
-    paddingVertical: 10,
-    marginHorizontal: 16,
-    borderBottomWidth: 3,
-    borderBottomColor: 'transparent',
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
   },
   controlGrid: {
     padding: 20,

@@ -22,13 +22,14 @@ import {
   selectAuthLoading,
   selectAuthLoadingContext,
 } from './src/store/slices/authSlice'
-import { selectIsDark, systemThemeChanged, selectToasts, dismissToast, showToast } from './src/store/slices/uiSlice'
+import { selectIsDark, systemThemeChanged, setOnline, showToast } from './src/store/slices/uiSlice'
 import { hydrateActivePetThunk } from './src/store/slices/petsSlice'
 import { supabase } from './src/config/supabase'
 import RootNavigator from './src/navigation/RootNavigator'
 import { tokens, withAlpha } from './src/theme'
 import OnboardingScreen, { OnboardingStep } from './src/screens/OnboardingScreen'
 import { AppLoadingOverlay } from './src/components/ui/AppLoadingOverlay'
+import { AppToast } from './src/components/ui/AppToast'
 
 LogBox.ignoreLogs([
   'InteractionManager has been deprecated',
@@ -146,7 +147,6 @@ function AppContent() {
   const authLoading = useAppSelector(selectAuthLoading)
   const authLoadingContext = useAppSelector(selectAuthLoadingContext)
   const isDark = useAppSelector(selectIsDark)
-  const toasts = useAppSelector(selectToasts)
   const [showLaunchSplash, setShowLaunchSplash] = React.useState(true)
   const [connectionStatus, setConnectionStatus] = React.useState<'online' | 'offline'>('online')
   const [showConnectionBanner, setShowConnectionBanner] = React.useState(false)
@@ -198,16 +198,7 @@ function AppContent() {
     })
   }, [dispatch])
 
-  useEffect(() => {
-    if (toasts.length === 0) return
-
-    const activeToast = toasts[0]
-    const timer = setTimeout(() => {
-      dispatch(dismissToast(activeToast.id))
-    }, 3500)
-
-    return () => clearTimeout(timer)
-  }, [toasts, dispatch])
+  // Removido useEffect de dismiss toasts pois agora vive no AppToast
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -260,6 +251,7 @@ function AppContent() {
   useEffect(() => {
     const handleConnectivity = (state: { isConnected: boolean | null; isInternetReachable: boolean | null }) => {
       const isOnline = state.isConnected !== false && state.isInternetReachable !== false
+      dispatch(setOnline(isOnline))
 
       if (lastConnectionRef.current === null) {
         lastConnectionRef.current = isOnline
@@ -282,7 +274,7 @@ function AppContent() {
       })
 
     return unsubscribe
-  }, [showConnectivityBanner])
+  }, [dispatch, showConnectivityBanner])
 
   useEffect(() => {
     return () => {
@@ -356,37 +348,7 @@ function AppContent() {
         <RootNavigator />
       )}
 
-      {toasts.length > 0 ? (
-        <View style={styles.toastContainer} pointerEvents="none">
-          {toasts.map((toast, index) => {
-            if (index > 0) return null
-            const isError = toast.type === 'error'
-            const bgColor = isError ? palette.destructive : palette.primary
-            const fgColor = isError ? palette.destructiveForeground : palette.primaryForeground
-            
-            return (
-              <View
-                key={toast.id}
-                style={[
-                  styles.toastBox,
-                  {
-                    backgroundColor: bgColor,
-                    borderColor: withAlpha(palette.border, 0.9),
-                  },
-                ]}
-              >
-                {!isError && <ActivityIndicator size="small" color={fgColor} style={styles.toastSpinner} />}
-                <View style={styles.toastTextWrapper}>
-                  <Text style={[styles.toastTitle, { color: fgColor }]}>
-                    {isError ? 'Aviso' : 'Sucesso'}
-                  </Text>
-                  <Text style={[styles.toastMessage, { color: fgColor }]}>{toast.message}</Text>
-                </View>
-              </View>
-            )
-          })}
-        </View>
-      ) : null}
+      <AppToast />
 
       <AppLoadingOverlay visible={authLoading && hydrated} message={loadingMessage} />
     </>

@@ -11,12 +11,13 @@ interface Toast {
 }
 
 interface UIState {
-  themeMode:        ThemeMode
-  resolvedTheme:  'light' | 'dark'
-  toasts:        Toast[]
-  isOnline:      boolean
-  isSyncing:     boolean
-  showCreatePost: boolean
+  themeMode:           ThemeMode
+  resolvedTheme:     'light' | 'dark'
+  toasts:           Toast[]
+  isOnline:         boolean
+  isSyncing:        boolean
+  showCreatePost:   boolean
+  isLoadingPetsForPost: boolean
 }
 
 // Normaliza o retorno do Appearance (pode vir 'unspecified' ou null)
@@ -26,12 +27,13 @@ function resolveSystemTheme(): 'light' | 'dark' {
 
 // ─── Slice ───────────────────────────────────────────────────
 const initialState: UIState = {
-  themeMode:        'light',
-  resolvedTheme:  'light',
-  toasts:        [],
-  isOnline:     true,
-  isSyncing:    false,
-  showCreatePost: false,
+  themeMode:              'light',
+  resolvedTheme:      'light',
+  toasts:              [],
+  isOnline:            true,
+  isSyncing:           false,
+  showCreatePost:      false,
+  isLoadingPetsForPost: false,
 }
 
 const uiSlice = createSlice({
@@ -83,6 +85,10 @@ const uiSlice = createSlice({
     setShowCreatePost: (state, action: PayloadAction<boolean>) => {
       state.showCreatePost = action.payload
     },
+
+    setLoadingPetsForPost: (state, action: PayloadAction<boolean>) => {
+      state.isLoadingPetsForPost = action.payload
+    },
   },
 })
 
@@ -95,6 +101,7 @@ export const {
   setOnline,
   setSyncing,
   setShowCreatePost,
+  setLoadingPetsForPost,
 } = uiSlice.actions
 
 export default uiSlice.reducer
@@ -107,3 +114,4 @@ export const selectIsOnline      = (s: any): boolean            => s.ui.isOnline
 export const selectIsSyncing     = (s: any): boolean            => s.ui.isSyncing
 export const selectIsDark        = (s: any): boolean            => s.ui.resolvedTheme === 'dark'
 export const selectShowCreatePost = (s: any): boolean            => s.ui.showCreatePost
+export const selectLoadingPetsForPost = (s: any): boolean      => s.ui.isLoadingPetsForPost

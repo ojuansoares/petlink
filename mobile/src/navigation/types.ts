@@ -11,4 +11,5 @@ export type AppStackParamList = {
   SettingsNotifications: undefined
   SettingsDangerZone: undefined
   PublicProfile: { userId: string }
+  ProfileFeed: { userId: string; initialScrollIndex: number; title: string }
 }
