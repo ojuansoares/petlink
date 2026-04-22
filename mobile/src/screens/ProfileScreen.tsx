@@ -456,21 +456,34 @@ export default function ProfileScreen() {
       <Modal visible={isEditMode} animationType="slide" transparent statusBarTranslucent onRequestClose={handleCancelEdit}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={styles.keyboardAvoidingView}
+          style={{ flex: 1 }}
         >
-          <Pressable style={styles.sheetBackdrop} onPress={handleCancelEdit}>
-            <Pressable 
-              style={[
-                styles.editSheetCard, 
-                { 
-                  backgroundColor: colors.background, 
-                  borderColor: withAlpha(colors.border, 0.4),
-                  paddingBottom: Math.max(insets.bottom, 24)
-                }
-              ]}
+          {/* Fundo escuro clicável para fechar */}
+          <Pressable
+            style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}
+            onPress={handleCancelEdit}
+          >
+            {/* Painel branco — para o toque não propagar para o backdrop */}
+            <Pressable
               onPress={(e) => e.stopPropagation()}
+              style={[
+                {
+                  width: '100%',
+                  maxHeight: '92%',
+                  backgroundColor: colors.background,
+                  borderTopLeftRadius: 34,
+                  borderTopRightRadius: 34,
+                  paddingBottom: Math.max(insets.bottom, 24),
+                },
+              ]}
             >
               <AppToast />
+
+              {/* Handle */}
+              <View style={{ alignItems: 'center', paddingTop: 12, paddingBottom: 4 }}>
+                <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: withAlpha(colors.border, 0.6) }} />
+              </View>
+
               <View style={styles.editModalHeader}>
                 <Heading size="lg" weight="800">Editar Perfil</Heading>
                 <Pressable onPress={handleCancelEdit} style={styles.closeButton}>
@@ -478,7 +491,11 @@ export default function ProfileScreen() {
                 </Pressable>
               </View>
 
-              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                bounces={false}
+              >
                 <View style={[styles.editForm, { paddingHorizontal: 16 }]}>
                   <View style={styles.avatarEditModalWrap}>
                     <Avatar size={90} name={name || 'Usuario'} source={avatarUrl ? { uri: avatarUrl } : undefined} />
@@ -502,12 +519,12 @@ export default function ProfileScreen() {
                     options={locationOptions}
                     leftIconName="location-outline"
                   />
-                  <Input 
-                    label="Bio / Descrição" 
-                    placeholder="Fale sobre você..." 
-                    value={bio} 
-                    onChangeText={setBio} 
-                    multiline 
+                  <Input
+                    label="Bio / Descrição"
+                    placeholder="Fale sobre você..."
+                    value={bio}
+                    onChangeText={setBio}
+                    multiline
                   />
 
                   <View style={styles.editActionsRow}>

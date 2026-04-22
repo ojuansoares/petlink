@@ -13,6 +13,7 @@ import {
   useWindowDimensions,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useBottomSheet } from '../hooks/useBottomSheet'
 import { api } from '../api/axios'
 import { uploadImageWithRetry } from '../api/uploadWithRetry'
 import { AppToast } from '../components/ui/AppToast'
@@ -366,6 +367,7 @@ export default function PetsScreen() {
   const tabPagerHeight = Math.max(360, height - (Platform.OS === 'ios' ? 290 : 260))
   const scrollRef = React.useRef<ScrollView>(null)
 
+  const { keyboardBehavior } = useBottomSheet()
   const [activeTab, setActiveTab] = React.useState<'details' | 'control'>('details')
   const [controlType, setControlType] = React.useState<'vacinas' | 'comida' | 'passeios' | 'higiene' | null>(null)
 
@@ -1257,68 +1259,93 @@ export default function PetsScreen() {
       <Modal visible={isEditing} animationType="slide" transparent statusBarTranslucent onRequestClose={() => setIsEditing(false)}>
         <AppToast />
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.5)', paddingTop: insets.top, paddingBottom: insets.bottom }]}
+          behavior={keyboardBehavior}
+          style={{ flex: 1 }}
         >
-          <ScrollView style={[styles.editModalCard, { backgroundColor: colors.background }]} contentContainerStyle={styles.editModalContent}>
-            <View style={styles.editModalHeader}>
-              <Heading size="lg" weight="800">{'Editando ' + activePet?.name}</Heading>
-              <Pressable onPress={() => setIsEditing(false)}>
-                <Ionicons name="close" size={24} color={colors.foreground} />
-              </Pressable>
-            </View>
+          <Pressable
+            style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}
+            onPress={() => setIsEditing(false)}
+          >
+            <Pressable
+              onPress={(e) => e.stopPropagation()}
+              style={[
+                {
+                  width: '100%',
+                  maxHeight: '92%',
+                  backgroundColor: colors.background,
+                  borderTopLeftRadius: 34,
+                  borderTopRightRadius: 34,
+                  paddingBottom: Math.max(insets.bottom, 24),
+                  overflow: 'hidden',
+                },
+              ]}
+            >
+              <View style={{ alignItems: 'center', paddingTop: 12, paddingBottom: 4 }}>
+                <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: withAlpha(colors.border, 0.6) }} />
+              </View>
 
-            <View style={styles.photoEditWrap}>
-              <Avatar size={100} name={name} source={photoUrl ? { uri: photoUrl } : undefined} />
-              <Button
-                label={isUploadingPhoto
-                  ? (uploadAttempt > 1 ? `Enviando... (Tentativa ${uploadAttempt}/${maxUploadAttempts})` : 'Enviando foto...')
-                  : 'Mudar foto'}
-                variant="outline"
-                onPress={handlePickPhoto}
-                loading={isUploadingPhoto}
-                disabled={isUploadingPhoto}
-                style={styles.photoEditButton}
-              />
-            </View>
+              <View style={[styles.editModalHeader, { paddingHorizontal: 20 }]}>
+                <Heading size="lg" weight="800">{'Editando ' + activePet?.name}</Heading>
+                <Pressable onPress={() => setIsEditing(false)} style={styles.closeButtonEdit}>
+                  <Ionicons name="close" size={24} color={colors.foreground} />
+                </Pressable>
+              </View>
 
-            <Input label="Nome do Pet" placeholder="Nome" value={name} onChangeText={setName} />
-            <OptionSelect label="Espécie" placeholder="Espécie" value={species} onChange={setSpecies} options={SPECIES_OPTIONS} />
-            <Input label="Raça" placeholder="Raça" value={breed} onChangeText={setBreed} />
+              <ScrollView style={styles.editModalCard} contentContainerStyle={styles.editModalContent} keyboardShouldPersistTaps="handled">
+                <View style={styles.photoEditWrap}>
+                  <Avatar size={100} name={name} source={photoUrl ? { uri: photoUrl } : undefined} />
+                  <Button
+                    label={isUploadingPhoto
+                      ? (uploadAttempt > 1 ? `Enviando... (Tentativa ${uploadAttempt}/${maxUploadAttempts})` : 'Enviando foto...')
+                      : 'Mudar foto'}
+                    variant="outline"
+                    onPress={handlePickPhoto}
+                    loading={isUploadingPhoto}
+                    disabled={isUploadingPhoto}
+                    style={styles.photoEditButton}
+                  />
+                </View>
 
-            <View style={styles.wrapper}>
-              <Text size="xs" weight="700" style={[styles.label, { color: colors.mutedForeground }]}>
-                Data de Nascimento
-              </Text>
-              <Pressable
-                style={[
-                  styles.dateField,
-                  {
-                    backgroundColor: withAlpha(colors.card, 0.8),
-                    borderColor: colors.border
-                  }
-                ]}
-                onPress={() => setShowBirthDatePicker(true)}
-              >
-                <Ionicons name="calendar-outline" size={18} color={colors.mutedForeground} />
-                <Text size="base" color={birthDate ? 'foreground' : 'mutedForeground'} style={styles.dateText}>
-                  {formatIsoToDisplay(birthDate) || 'Data de nascimento'}
-                </Text>
-              </Pressable>
-            </View>
+                <Input label="Nome do Pet" placeholder="Nome" value={name} onChangeText={setName} />
+                <OptionSelect label="Espécie" placeholder="Espécie" value={species} onChange={setSpecies} options={SPECIES_OPTIONS} />
+                <Input label="Raça" placeholder="Raça" value={breed} onChangeText={setBreed} />
 
-            <Input label="Peso (kg)" placeholder="Peso (kg)" value={weightKg} onChangeText={(val) => setWeightKg(sanitizeWeightInput(val))} keyboardType="numeric" />
-            <OptionSelect label="Temperamento" placeholder="Temperamento" value={temperament} onChange={setTemperament} options={TEMPERAMENT_OPTIONS} />
-            <Input label="Alergias" placeholder="Alergias" value={allergies} onChangeText={setAllergies} />
-            <Input label="Observações" placeholder="Observações" value={observations} onChangeText={setObservations} />
+                <View style={styles.wrapper}>
+                  <Text size="xs" weight="700" style={[styles.label, { color: colors.mutedForeground }]}>
+                    Data de Nascimento
+                  </Text>
+                  <Pressable
+                    style={[
+                      styles.dateField,
+                      {
+                        backgroundColor: withAlpha(colors.card, 0.8),
+                        borderColor: colors.border
+                      }
+                    ]}
+                    onPress={() => setShowBirthDatePicker(true)}
+                  >
+                    <Ionicons name="calendar-outline" size={18} color={colors.mutedForeground} />
+                    <Text size="base" color={birthDate ? 'foreground' : 'mutedForeground'} style={styles.dateText}>
+                      {formatIsoToDisplay(birthDate) || 'Data de nascimento'}
+                    </Text>
+                  </Pressable>
+                </View>
 
-            <View style={{ marginTop: 16 }}>
-              <Button label="Salvar Alterações" onPress={handleUpdatePet} loading={isUpdating} />
-            </View>
-            <View style={{ marginTop: 12 }}>
-              <Button label="Excluir Pet" variant="destructive" onPress={() => activePet && openPetModal(activePet)} />
-            </View>
-          </ScrollView>
+                <Input label="Peso (kg)" placeholder="Peso (kg)" value={weightKg} onChangeText={(val) => setWeightKg(sanitizeWeightInput(val))} keyboardType="numeric" />
+                <OptionSelect label="Temperamento" placeholder="Temperamento" value={temperament} onChange={setTemperament} options={TEMPERAMENT_OPTIONS} />
+                <Input label="Alergias" placeholder="Alergias" value={allergies} onChangeText={setAllergies} />
+                <Input label="Observações" placeholder="Observações" value={observations} onChangeText={setObservations} />
+
+                <View style={styles.editActionsRow}>
+                  <Button label="Cancelar" variant="outline" onPress={() => setIsEditing(false)} style={styles.editActionButton} />
+                  <Button label="Salvar" onPress={handleUpdatePet} loading={isUpdating} style={styles.editActionButton} />
+                </View>
+                <View style={{ marginTop: 12, marginBottom: 20 }}>
+                  <Button label="Excluir Pet" variant="destructive" onPress={() => activePet && openPetModal(activePet)} />
+                </View>
+              </ScrollView>
+            </Pressable>
+          </Pressable>
         </KeyboardAvoidingView>
       </Modal>
 
@@ -1910,8 +1937,6 @@ const styles = StyleSheet.create({
   },
   editModalCard: {
     width: '100%',
-    maxWidth: 500,
-    borderRadius: 24,
     padding: 20,
   },
   editModalContent: {
@@ -1921,6 +1946,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    padding: 20,
+    paddingBottom: 12,
+  },
+  editActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 8,
+  },
+  editActionButton: {
+    flex: 1,
+  },
+  closeButtonEdit: {
+    padding: 4,
   },
 })

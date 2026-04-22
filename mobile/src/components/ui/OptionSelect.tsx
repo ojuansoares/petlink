@@ -6,6 +6,7 @@ import {
   Pressable,
   StyleSheet,
   View,
+  Image,
 } from 'react-native'
 import { useTheme } from '../../hooks/useTheme'
 import { Text } from './Typography'
@@ -13,6 +14,7 @@ import { Text } from './Typography'
 interface SelectOption {
   label: string
   value: string
+  photoUrl?: string | null
 }
 
 interface OptionSelectProps {
@@ -22,6 +24,7 @@ interface OptionSelectProps {
   options: SelectOption[]
   onChange: (value: string) => void
   leftIconName?: keyof typeof Ionicons.glyphMap
+  showPhotos?: boolean
 }
 
 export function OptionSelect({
@@ -31,11 +34,12 @@ export function OptionSelect({
   options,
   onChange,
   leftIconName = 'location-outline',
+  showPhotos = false,
 }: Readonly<OptionSelectProps>) {
   const { colors, withAlpha } = useTheme()
   const [open, setOpen] = React.useState(false)
 
-  const selectedLabel = options.find((option) => option.value === value)?.label
+  const selectedOption = options.find((option) => option.value === value)
 
   return (
     <View style={styles.wrapper}>
@@ -55,9 +59,13 @@ export function OptionSelect({
         ]}
         onPress={() => setOpen(true)}
       >
-        <Ionicons name={leftIconName} size={18} color={colors.mutedForeground} />
-        <Text size="base" style={[styles.fieldText, { color: selectedLabel ? colors.foreground : colors.mutedForeground }]}> 
-          {selectedLabel ?? placeholder}
+        {showPhotos && selectedOption?.photoUrl ? (
+          <Image source={{ uri: selectedOption.photoUrl }} style={styles.fieldPhoto} />
+        ) : (
+          <Ionicons name={leftIconName} size={18} color={colors.mutedForeground} />
+        )}
+        <Text size="base" style={[styles.fieldText, { color: selectedOption ? colors.foreground : colors.mutedForeground }]}> 
+          {selectedOption?.label ?? placeholder}
         </Text>
         <Ionicons name="chevron-down" size={18} color={colors.mutedForeground} />
       </Pressable>
@@ -67,7 +75,7 @@ export function OptionSelect({
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setOpen(false)} />
 
           <View style={[styles.sheet, { backgroundColor: colors.background, borderColor: colors.border }]}> 
-            <Text size="base" weight="700" style={styles.title}>Selecione o estado</Text>
+            <Text size="base" weight="700" style={styles.title}>{label || 'Selecione'}</Text>
 
             <FlatList
               data={options}
@@ -90,7 +98,14 @@ export function OptionSelect({
                       setOpen(false)
                     }}
                   >
-                    <Text size="sm" weight={selected ? '700' : '400'}>{item.label}</Text>
+                    {showPhotos && item.photoUrl ? (
+                      <View style={styles.optionRow}>
+                        <Image source={{ uri: item.photoUrl }} style={styles.optionPhoto} />
+                        <Text size="sm" weight={selected ? '700' : '400'}>{item.label}</Text>
+                      </View>
+                    ) : (
+                      <Text size="sm" weight={selected ? '700' : '400'}>{item.label}</Text>
+                    )}
                   </Pressable>
                 )
               }}
@@ -122,6 +137,11 @@ const styles = StyleSheet.create({
   fieldText: {
     flex: 1,
   },
+  fieldPhoto: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+  },
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.35)',
@@ -146,5 +166,15 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 12,
     marginBottom: 8,
+  },
+  optionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  optionPhoto: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
   },
 })

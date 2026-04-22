@@ -7,6 +7,7 @@ import { Image } from 'expo-image'
 import { useTheme } from '../../hooks/useTheme'
 import { useNetworkCheck } from '../../hooks/useNetworkCheck'
 import { useAppDispatch, useAppSelector } from '../../store'
+import { fetchPetsThunk } from '../../store/slices/petsSlice'
 import { createPostThunk } from '../../store/slices/postsSlice'
 import { showToast, selectLoadingPetsForPost } from '../../store/slices/uiSlice'
 import { selectPetsList } from '../../store/slices/petsSlice'
@@ -57,10 +58,17 @@ export function CreatePostModal({ visible, onClose }: Readonly<CreatePostModalPr
   const { colors, withAlpha } = useTheme()
   const dispatch = useAppDispatch()
   const { isOnline } = useNetworkCheck()
+  const insets = useSafeAreaInsets()
 
   const pets = useAppSelector(selectPetsList)
   const isPosting = useAppSelector((state: any) => state.posts.isPosting)
   const isLoadingPetsForPost = useAppSelector(selectLoadingPetsForPost)
+
+  useEffect(() => {
+    if (visible && pets.length === 0) {
+      dispatch(fetchPetsThunk())
+    }
+  }, [visible, pets.length])
 
   const requireOnline = (action: () => void) => {
     if (!isOnline) {
@@ -78,7 +86,7 @@ export function CreatePostModal({ visible, onClose }: Readonly<CreatePostModalPr
   const [uploadAttempt, setUploadAttempt] = useState(1)
   const [maxUploadAttempts, setMaxUploadAttempts] = useState(3)
 
-  const petOptions = pets.map(pet => ({ label: pet.name, value: pet.id }))
+  const petOptions = pets.map(pet => ({ label: pet.name, value: pet.id, photoUrl: pet.photo_url }))
 
   const handlePickPhoto = async () => {
     try {
@@ -105,11 +113,7 @@ export function CreatePostModal({ visible, onClose }: Readonly<CreatePostModalPr
 
       const formData = new FormData()
       formData.append('folder', 'petlink/posts')
-      formData.append('file', {
-        uri: asset.uri,
-        name: fileName,
-        type: mimeType,
-      } as any)
+      formData.append('file', { uri: asset.uri, name: fileName, type: mimeType } as any)
 
       setUploadAttempt(1)
       const data = await uploadImageWithRetry({
@@ -143,13 +147,7 @@ export function CreatePostModal({ visible, onClose }: Readonly<CreatePostModalPr
       }
 
       try {
-        await dispatch(createPostThunk({
-          pet_id: petId,
-          image_url: photoUrl,
-          caption,
-          location,
-        })).unwrap()
-
+        await dispatch(createPostThunk({ pet_id: petId, image_url: photoUrl, caption, location })).unwrap()
         dispatch(showToast({ type: 'success', message: 'Post publicado com sucesso!' }))
         handleClose()
       } catch {
@@ -166,26 +164,38 @@ export function CreatePostModal({ visible, onClose }: Readonly<CreatePostModalPr
     onClose()
   }
 
-  const insets = useSafeAreaInsets()
-  const { height: screenHeight } = useWindowDimensions()
-  const [keyboardHeight, setKeyboardHeight] = useState(0)
-
-  useEffect(() => {
-    const show = Keyboard.addListener('keyboardDidShow', (e) => setKeyboardHeight(e.endCoordinates.height))
-    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardHeight(0))
-    return () => { show.remove(); hide.remove() }
-  }, [])
-
   return (
-    <Modal visible={visible} animationType="slide" transparent statusBarTranslucent onRequestClose={handleClose}>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent
+      statusBarTranslucent
+      onRequestClose={handleClose}
+    >
       <AppLoadingOverlay visible={isLoadingPetsForPost} message="Carregando seus pets..." />
       <AppToast />
+
+      {/* Fundo escuro — igual ao Login */}
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={0}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.backdrop}
       >
-        <View style={[styles.container, { backgroundColor: colors.background, paddingBottom: Math.max(insets.bottom, 20) }]}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
+
+        {/* Painel branco subindo de baixo — igual ao Login */}
+        <View
+          style={[
+            styles.sheet,
+            {
+              backgroundColor: colors.background,
+              paddingBottom: Math.max(insets.bottom, 20),
+            },
+          ]}
+        >
+          <View style={styles.sheetHandle}>
+            <View style={[styles.handleBar, { backgroundColor: withAlpha(colors.border, 0.6) }]} />
+          </View>
+
           <View style={styles.header}>
             <Heading size="xl" weight="800">Criar Publicação</Heading>
             <Pressable onPress={handleClose} style={styles.closeButton}>
@@ -209,6 +219,7 @@ export function CreatePostModal({ visible, onClose }: Readonly<CreatePostModalPr
                 contentContainerStyle={styles.contentContainer}
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
+                bounces={false}
               >
                 <OptionSelect
                   label="Qual pet está na foto?"
@@ -217,6 +228,7 @@ export function CreatePostModal({ visible, onClose }: Readonly<CreatePostModalPr
                   onChange={setPetId}
                   options={petOptions}
                   leftIconName="paw-outline"
+                  showPhotos
                 />
 
                 <View style={styles.photoSection}>
@@ -276,7 +288,7 @@ export function CreatePostModal({ visible, onClose }: Readonly<CreatePostModalPr
                 />
               </ScrollView>
 
-              <View style={[styles.footer, { borderTopColor: colors.border }]}>
+              <View style={[styles.footer, { borderTopColor: withAlpha(colors.border, 0.4) }]}>
                 <Button
                   label={isPosting ? 'Publicando...' : 'Publicar'}
                   onPress={handleCreatePost}
@@ -298,33 +310,47 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
-  container: {
+  sheet: {
+    width: '100%',
     height: '90%',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: 34,
+    borderTopRightRadius: 34,
+  },
+  sheetHandle: {
+    alignItems: 'center',
+    paddingTop: 12,
+    paddingBottom: 4,
+  },
+  handleBar: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
-    paddingBottom: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
   },
   closeButton: {
     padding: 4,
   },
   content: {
     flex: 1,
+    minHeight: 200,
   },
   contentContainer: {
     padding: 20,
     gap: 20,
+    paddingBottom: 8,
   },
   emptyState: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 40,
+    minHeight: 300,
   },
   label: {
     marginLeft: 12,
@@ -364,6 +390,7 @@ const styles = StyleSheet.create({
   },
   footer: {
     padding: 20,
+    paddingTop: 12,
     borderTopWidth: 1,
   },
 })
