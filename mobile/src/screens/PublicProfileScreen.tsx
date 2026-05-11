@@ -228,7 +228,7 @@ export default function PublicProfileScreen() {
           }
         />
       ) : (
-        <ScrollView showsVerticalScrollIndicator={false}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
           {renderHeader()}
           {renderPetsList()}
         </ScrollView>

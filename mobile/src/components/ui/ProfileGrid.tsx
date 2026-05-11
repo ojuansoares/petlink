@@ -97,7 +97,7 @@ export function ProfileGrid({
       maxToRenderPerBatch={15}
       windowSize={7}
       removeClippedSubviews={true}
-      contentContainerStyle={{ flexGrow: 1 }}
+      contentContainerStyle={{ flexGrow: 1, paddingBottom: 100 }}
     />
   )
 }

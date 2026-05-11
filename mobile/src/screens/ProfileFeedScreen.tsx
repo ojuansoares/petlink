@@ -17,12 +17,7 @@ import { AppStackParamList } from '../navigation/types'
 type NavigationProp = StackNavigationProp<AppStackParamList>
 type ProfileFeedRouteProp = RouteProp<AppStackParamList, 'ProfileFeed'>
 
-function formatDate(iso: string) {
-  const date = new Date(iso)
-  return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1)
-    .toString()
-    .padStart(2, '0')}/${date.getFullYear()}`
-}
+import { getRelativeTime } from '../utils/dateUtils'
 
 export default function ProfileFeedScreen() {
   const { colors } = useTheme()
@@ -94,7 +89,7 @@ export default function ProfileFeedScreen() {
             </Text>
           ) : null}
           <Text color="mutedForeground" size="xs" style={styles.timestamp}>
-            {formatDate(post.created_at)}
+            {getRelativeTime(post.created_at)}
           </Text>
         </View>
       </View>

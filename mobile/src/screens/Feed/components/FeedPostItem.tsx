@@ -14,12 +14,7 @@ interface FeedPostItemProps {
   onOptionsPress: (post: Post) => void
 }
 
-function formatDate(iso: string) {
-  const date = new Date(iso)
-  return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1)
-    .toString()
-    .padStart(2, '0')}/${date.getFullYear()}`
-}
+import { getRelativeTime } from '../../../utils/dateUtils'
 
 export const FeedPostItem = React.memo(({ post, onUserPress, onOptionsPress }: FeedPostItemProps) => {
   const styles = useFeedStyles()
@@ -60,7 +55,7 @@ export const FeedPostItem = React.memo(({ post, onUserPress, onOptionsPress }: F
         {post.caption && (
           <Text size="sm" style={styles.caption}>{post.caption}</Text>
         )}
-        <Text size="xs" color="mutedForeground" style={styles.date}>{formatDate(post.created_at)}</Text>
+        <Text size="xs" color="mutedForeground" style={styles.date}>{getRelativeTime(post.created_at)}</Text>
       </View>
     </View>
   )
