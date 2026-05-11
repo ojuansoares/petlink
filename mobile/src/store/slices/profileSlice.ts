@@ -59,7 +59,7 @@ export const fetchMyProfileThunk = createAsyncThunk(
   }
 )
 
-export const updateMyProfileThunk = createAsyncThunk(
+export const updateProfileThunk = createAsyncThunk(
   'profile/updateMe',
   async (
     payload: { name: string; location: string; avatar_url: string; bio: string; birth_date?: string },
@@ -144,11 +144,11 @@ const profileSlice = createSlice({
       })
 
     builder
-      .addCase(updateMyProfileThunk.pending, (s) => {
+      .addCase(updateProfileThunk.pending, (s) => {
         s.isUpdating = true
         s.error = null
       })
-      .addCase(updateMyProfileThunk.fulfilled, (s, a) => {
+      .addCase(updateProfileThunk.fulfilled, (s, a) => {
         s.isUpdating = false
         const oldProfile = s.profile
         const newProfile = a.payload as UserProfile & { posts_count?: number; pets_count?: number; followers_count?: number }
@@ -158,7 +158,7 @@ const profileSlice = createSlice({
           pets_count: newProfile.pets_count ?? oldProfile?.pets_count ?? 0,
         }
       })
-      .addCase(updateMyProfileThunk.rejected, (s, a) => {
+      .addCase(updateProfileThunk.rejected, (s, a) => {
         s.isUpdating = false
         s.error = (a.payload as string) ?? 'Erro ao atualizar perfil'
       })

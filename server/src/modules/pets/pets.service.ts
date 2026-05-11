@@ -13,6 +13,10 @@ export const petsService = {
       throw new AppError('Peso inválido', 400)
     }
 
+    if (payload.tags && payload.tags.length > 7) {
+      throw new AppError('O pet pode ter no máximo 7 tags', 400)
+    }
+
     const weight_history = payload.weight_kg 
       ? [{ weight: payload.weight_kg, date: new Date().toISOString() }]
       : []
@@ -44,6 +48,10 @@ export const petsService = {
     return petsRepository.listByOwner(ownerId)
   },
 
+  async getPublicPetsByOwner(ownerId: string) {
+    return petsRepository.listPublicByOwner(ownerId)
+  },
+
   async getForOwner(ownerId: string, petId: string) {
     const pet = await petsRepository.findByIdAndOwner(ownerId, petId)
     if (!pet) throw new AppError('Pet não encontrado', 404)
@@ -63,6 +71,7 @@ export const petsService = {
       allergies: string | null
       temperament: string | null
       observations: string | null
+      tags: string[] | null
       is_active: boolean
       weight_history: any[]
     }>
@@ -86,6 +95,10 @@ export const petsService = {
 
     if (patch.weight_kg !== undefined && patch.weight_kg !== null && Number.isNaN(patch.weight_kg)) {
       throw new AppError('Peso inválido', 400)
+    }
+
+    if (patch.tags && patch.tags.length > 7) {
+      throw new AppError('O pet pode ter no máximo 7 tags', 400)
     }
 
     const shouldTrackWeightChange =

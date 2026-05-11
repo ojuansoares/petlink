@@ -13,7 +13,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import * as MediaLibrary from 'expo-media-library'
-import * as FileSystem from 'expo-file-system'
+import { Paths, File } from 'expo-file-system'
 import { useTheme } from '../../hooks/useTheme'
 import { AppToast } from './AppToast'
 import { useNetworkCheck } from '../../hooks/useNetworkCheck'
@@ -81,13 +81,14 @@ export function PostOptionsModal({ post, visible, onClose, isOwnPost, context = 
         return
       }
       dispatch(showToast({ type: 'info', message: 'Salvando imagem...' }))
-      const fileUri = `${FileSystem.cacheDirectory}petlink-post-${post.id}.jpg`
-      const { uri } = await FileSystem.downloadAsync(post.image_url, fileUri)
-      await MediaLibrary.createAssetAsync(uri)
+      const dest = new File(Paths.cache, `petlink-post-${post.id}.jpg`)
+      const file = await File.downloadFileAsync(post.image_url, dest)
+      await MediaLibrary.createAssetAsync(file.uri)
       dispatch(showToast({ type: 'success', message: 'Imagem salva na galeria!' }))
       onClose()
     } catch (error: any) {
-      dispatch(showToast({ type: 'error', message: error?.message || 'Erro ao salvar imagem' }))
+      console.error('[handleDownload] Error:', error)
+      dispatch(showToast({ type: 'error', message: 'Erro ao baixar imagem' }))
     } finally {
       setIsDownloading(false)
     }
@@ -101,7 +102,8 @@ export function PostOptionsModal({ post, visible, onClose, isOwnPost, context = 
         dispatch(showToast({ type: 'success', message: post.is_pinned ? 'Post desfixado' : 'Post fixado com sucesso' }))
         onClose()
       } catch (error: any) {
-        dispatch(showToast({ type: 'error', message: error ?? 'Erro ao fixar post' }))
+        console.error('[handleTogglePin] Error:', error)
+        dispatch(showToast({ type: 'error', message: 'Não foi possível fixar o post no momento' }))
       } finally {
         setIsPinning(false)
       }
@@ -116,7 +118,8 @@ export function PostOptionsModal({ post, visible, onClose, isOwnPost, context = 
         setDeleteConfirmOpen(false)
         onClose()
       } catch (error: any) {
-        dispatch(showToast({ type: 'error', message: error ?? 'Erro ao excluir post' }))
+        console.error('[handleDelete] Error:', error)
+        dispatch(showToast({ type: 'error', message: 'Erro ao excluir publicação' }))
       }
     })
   }
@@ -130,7 +133,8 @@ export function PostOptionsModal({ post, visible, onClose, isOwnPost, context = 
         setEditOpen(false)
         onClose()
       } catch (error: any) {
-        dispatch(showToast({ type: 'error', message: error ?? 'Erro ao atualizar post' }))
+        console.error('[handleUpdate] Error:', error)
+        dispatch(showToast({ type: 'error', message: 'Não foi possível atualizar a publicação' }))
       } finally {
         setIsUpdating(false)
       }
@@ -208,20 +212,26 @@ export function PostOptionsModal({ post, visible, onClose, isOwnPost, context = 
   // ─── Modal de confirmação de exclusão ──────────────────────────────────────
   if (deleteConfirmOpen) {
     return (
-      <Modal visible={visible} animationType="fade" transparent statusBarTranslucent onRequestClose={() => setDeleteConfirmOpen(false)}>
-        <View style={styles.centerBackdrop}>
+      <Modal visible={visible} animationType="slide" transparent statusBarTranslucent onRequestClose={() => setDeleteConfirmOpen(false)}>
+        <View style={styles.backdrop}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setDeleteConfirmOpen(false)} />
           <AppToast />
-          <View style={[styles.dialogContainer, { backgroundColor: colors.background, borderColor: colors.border }]}>
-            <View style={styles.dialogIcon}>
-              <Ionicons name="warning" size={32} color={colors.destructive} />
+          <View style={[styles.confirmSheet, { backgroundColor: colors.background, paddingBottom: Math.max(insets.bottom, 24) }]}>
+            <View style={styles.sheetHandle}>
+              <View style={[styles.handleBar, { backgroundColor: withAlpha(colors.border, 0.6) }]} />
             </View>
-            <Heading size="lg" weight="800" style={styles.dialogTitle}>Excluir publicação?</Heading>
-            <Text color="mutedForeground" style={styles.dialogDesc}>
-              Esta ação não pode ser desfeita. A publicação será permanentemente removida.
-            </Text>
-            <View style={styles.dialogActions}>
-              <Button label="Cancelar" variant="outline" onPress={() => setDeleteConfirmOpen(false)} style={{ flex: 1 }} />
-              <Button label="Excluir" style={{ flex: 1, backgroundColor: colors.destructive }} onPress={handleDelete} />
+            <View style={styles.confirmBody}>
+              <View style={[styles.confirmIcon, { backgroundColor: withAlpha(colors.destructive, 0.1) }]}>
+                <Ionicons name="warning" size={32} color={colors.destructive} />
+              </View>
+              <Heading size="lg" weight="800" style={styles.dialogTitle}>Excluir publicação?</Heading>
+              <Text color="mutedForeground" style={styles.dialogDesc}>
+                Esta ação não pode ser desfeita. A publicação será permanentemente removida.
+              </Text>
+              <View style={styles.dialogActions}>
+                <Button label="Cancelar" variant="outline" onPress={() => setDeleteConfirmOpen(false)} style={{ flex: 1 }} />
+                <Button label="Excluir" style={{ flex: 1, backgroundColor: colors.destructive }} onPress={handleDelete} />
+              </View>
             </View>
           </View>
         </View>
@@ -323,13 +333,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
-  centerBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
   sheet: {
     width: '100%',
     maxHeight: '92%',
@@ -357,7 +360,8 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   contentContainer: {
-    padding: 20,
+    paddingHorizontal: 24,
+    paddingVertical: 20,
     gap: 16,
     paddingBottom: 32,
   },
@@ -374,33 +378,36 @@ const styles = StyleSheet.create({
   optionText: {
     marginLeft: 16,
   },
-  dialogContainer: {
+  // Confirm sheet (delete)
+  confirmSheet: {
     width: '100%',
-    padding: 24,
-    borderRadius: 24,
-    borderWidth: 1,
-    alignItems: 'center',
+    borderTopLeftRadius: 34,
+    borderTopRightRadius: 34,
   },
-  dialogIcon: {
+  confirmBody: {
+    paddingHorizontal: 24,
+    paddingTop: 8,
+    paddingBottom: 8,
+    alignItems: 'center',
+    gap: 12,
+  },
+  confirmIcon: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: 'rgba(239,68,68,0.1)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
   },
   dialogTitle: {
-    marginBottom: 8,
     textAlign: 'center',
   },
   dialogDesc: {
     textAlign: 'center',
-    marginBottom: 24,
   },
   dialogActions: {
     flexDirection: 'row',
     gap: 12,
     width: '100%',
+    marginTop: 8,
   },
 })

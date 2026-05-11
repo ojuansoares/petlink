@@ -13,6 +13,7 @@ export type PetCreateInput = {
   allergies?: string | null
   temperament?: string | null
   observations?: string | null
+  tags?: string[] | null
 }
 
 export const petsRepository = {
@@ -56,6 +57,7 @@ export const petsRepository = {
         allergies: input.allergies ?? null,
         temperament: input.temperament ?? null,
         observations: input.observations ?? null,
+        tags: input.tags ?? [],
       })
       .select('*')
       .single()
@@ -68,6 +70,17 @@ export const petsRepository = {
     const { data, error } = await supabaseAdmin
       .from('pets')
       .select('*')
+      .eq('owner_id', ownerId)
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+    return data ?? []
+  },
+
+  async listPublicByOwner(ownerId: string) {
+    const { data, error } = await supabaseAdmin
+      .from('pets')
+      .select('id, owner_id, name, species, breed, birth_date, weight_kg, weight_history, photo_url, tags, created_at')
       .eq('owner_id', ownerId)
       .order('created_at', { ascending: false })
 
@@ -101,6 +114,7 @@ export const petsRepository = {
       allergies: string | null
       temperament: string | null
       observations: string | null
+      tags: string[] | null
       is_active: boolean
     }>
   ) {

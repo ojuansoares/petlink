@@ -4,10 +4,11 @@ import {
   TextProps as RNTextProps,
   TextStyle,
 } from 'react-native'
-import { useTheme } from '../../hooks/useTheme'
+import { tokens } from '../../theme'
 import { fontFamilies, lineHeights, typeScale, TypeScaleKey } from '../../theme/typography'
+import { useTheme } from '../../hooks/useTheme'
 
-type ColorKey = keyof ReturnType<typeof useTheme>['colors']
+type ColorKey = keyof typeof tokens.light
 
 interface HeadingProps extends RNTextProps {
   size?: TypeScaleKey

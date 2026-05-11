@@ -16,6 +16,7 @@ export const offlineSchema = appSchema({
         { name: 'allergies', type: 'string', isOptional: true },
         { name: 'temperament', type: 'string', isOptional: true },
         { name: 'observations', type: 'string', isOptional: true },
+        { name: 'tags', type: 'string', isOptional: true },
         { name: 'is_active', type: 'boolean', isOptional: true },
         { name: 'created_at', type: 'number' },
         { name: 'updated_at_remote', type: 'string', isOptional: true },

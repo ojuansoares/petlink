@@ -6,6 +6,7 @@ const router = Router()
 
 router.post('/', authMiddleware, petsController.create)
 router.get('/', authMiddleware, petsController.list)
+router.get('/user/:userId', authMiddleware, petsController.getPublicPets)
 router.get('/:petId', authMiddleware, petsController.get)
 router.put('/:petId', authMiddleware, petsController.update)
 router.delete('/:petId', authMiddleware, petsController.remove)

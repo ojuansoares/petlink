@@ -31,6 +31,18 @@ export const petsController = {
     }
   },
 
+  async getPublicPets(req: Request, res: Response) {
+    try {
+      const { userId } = req.params
+      if (!userId) return res.status(400).json({ error: 'userId obrigatório' })
+      const pets = await petsService.getPublicPetsByOwner(userId)
+      return res.status(200).json({ pets })
+    } catch (err: any) {
+      const statusCode = err instanceof AppError ? err.statusCode : err.statusCode ?? 500
+      return res.status(statusCode).json({ error: err.message ?? 'Erro' })
+    }
+  },
+
   async get(req: Request, res: Response) {
     try {
       const authReq = req as AuthRequest

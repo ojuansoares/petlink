@@ -18,6 +18,7 @@ export interface Pet {
   allergies: string | null
   temperament: string | null
   observations: string | null
+  tags: string[] | null
   is_active?: boolean
   created_at?: string
 }
@@ -33,6 +34,7 @@ export interface CreatePetPayload {
   allergies?: string | null
   temperament?: string | null
   observations?: string | null
+  tags?: string[] | null
 }
 
 interface PetsState {
@@ -43,6 +45,8 @@ interface PetsState {
   isUpdating: boolean
   isDeleting: boolean
   error: string | null
+  publicPets: Pet[]
+  publicPetsLoading: boolean
 }
 
 const initialState: PetsState = {
@@ -53,6 +57,8 @@ const initialState: PetsState = {
   isUpdating: false,
   isDeleting: false,
   error: null,
+  publicPets: [],
+  publicPetsLoading: false,
 }
 
 export const fetchPetsThunk = createAsyncThunk(
@@ -145,6 +151,22 @@ export const hydrateActivePetThunk = createAsyncThunk(
   }
 )
 
+export const fetchPublicPetsThunk = createAsyncThunk(
+  'pets/fetchPublic',
+  async (userId: string, { rejectWithValue }) => {
+    try {
+      const { data } = await api.get(`/pets/user/${userId}`)
+      return data.pets as Pet[]
+    } catch (err: any) {
+      if (axios.isAxiosError(err)) {
+        const message = err.response?.data?.error ?? err.response?.data?.message
+        if (message) return rejectWithValue(message)
+      }
+      return rejectWithValue('Erro ao buscar pets do usuário')
+    }
+  }
+)
+
 const petsSlice = createSlice({
   name: 'pets',
   initialState,
@@ -227,6 +249,18 @@ const petsSlice = createSlice({
           s.activePetId = a.payload
         }
       })
+
+    builder
+      .addCase(fetchPublicPetsThunk.pending, (s) => {
+        s.publicPetsLoading = true
+      })
+      .addCase(fetchPublicPetsThunk.fulfilled, (s, a) => {
+        s.publicPetsLoading = false
+        s.publicPets = a.payload
+      })
+      .addCase(fetchPublicPetsThunk.rejected, (s) => {
+        s.publicPetsLoading = false
+      })
   },
 })
 
@@ -240,3 +274,5 @@ export const selectPetsUpdating = (s: any): boolean => s.pets.isUpdating
 export const selectPetsDeleting = (s: any): boolean => s.pets.isDeleting
 export const selectPetsError = (s: any): string | null => s.pets.error
 export const selectActivePetId = (s: any): string | null => s.pets.activePetId
+export const selectPublicPets = (s: any): Pet[] => s.pets.publicPets
+export const selectPublicPetsLoading = (s: any): boolean => s.pets.publicPetsLoading

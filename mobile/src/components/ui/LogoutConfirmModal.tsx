@@ -1,5 +1,6 @@
 import React from 'react'
-import { Modal, StyleSheet, View } from 'react-native'
+import { Modal, Pressable, StyleSheet, View } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTheme } from '../../hooks/useTheme'
 import { AppToast } from './AppToast'
 import { Button } from './Button'
@@ -13,35 +14,44 @@ interface LogoutConfirmModalProps {
 
 export function LogoutConfirmModal({ visible, onCancel, onConfirm }: Readonly<LogoutConfirmModalProps>) {
   const { colors, withAlpha } = useTheme()
+  const insets = useSafeAreaInsets()
 
   return (
-    <Modal visible={visible} transparent animationType="fade" statusBarTranslucent>
+    <Modal visible={visible} transparent animationType="slide" statusBarTranslucent onRequestClose={onCancel}>
       <AppToast />
-      <View style={styles.overlayBackdrop}>
+      <View style={styles.backdrop}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onCancel} />
         <View
           style={[
-            styles.confirmCard,
+            styles.sheet,
             {
               backgroundColor: colors.background,
-              borderColor: withAlpha(colors.border, 0.8),
+              paddingBottom: Math.max(insets.bottom, 24),
             },
           ]}
         >
-          <Heading size="lg" weight="800">Tem certeza que deseja deslogar?</Heading>
-          <Text color="mutedForeground">Voce pode entrar novamente quando quiser.</Text>
+          {/* Handle */}
+          <View style={styles.handleRow}>
+            <View style={[styles.handleBar, { backgroundColor: withAlpha(colors.border, 0.6) }]} />
+          </View>
 
-          <View style={styles.confirmActions}>
-            <Button
-              label="Cancelar"
-              variant="outline"
-              onPress={onCancel}
-              style={styles.confirmActionButton}
-            />
-            <Button
-              label="Deslogar"
-              onPress={onConfirm}
-              style={styles.confirmActionButton}
-            />
+          <View style={styles.body}>
+            <Heading size="lg" weight="800">Tem certeza que deseja deslogar?</Heading>
+            <Text color="mutedForeground">Voce pode entrar novamente quando quiser.</Text>
+
+            <View style={styles.actions}>
+              <Button
+                label="Cancelar"
+                variant="outline"
+                onPress={onCancel}
+                style={styles.actionButton}
+              />
+              <Button
+                label="Deslogar"
+                onPress={onConfirm}
+                style={styles.actionButton}
+              />
+            </View>
           </View>
         </View>
       </View>
@@ -50,27 +60,37 @@ export function LogoutConfirmModal({ visible, onCancel, onConfirm }: Readonly<Lo
 }
 
 const styles = StyleSheet.create({
-  overlayBackdrop: {
+  backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.35)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
   },
-  confirmCard: {
+  sheet: {
     width: '100%',
-    maxWidth: 380,
-    borderRadius: 18,
-    borderWidth: 1,
-    padding: 16,
-    gap: 10,
+    borderTopLeftRadius: 34,
+    borderTopRightRadius: 34,
   },
-  confirmActions: {
-    marginTop: 4,
+  handleRow: {
+    alignItems: 'center',
+    paddingTop: 12,
+    paddingBottom: 4,
+  },
+  handleBar: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+  },
+  body: {
+    paddingHorizontal: 24,
+    paddingTop: 8,
+    gap: 12,
+  },
+  actions: {
     flexDirection: 'row',
     gap: 10,
+    marginTop: 4,
   },
-  confirmActionButton: {
+  actionButton: {
     flex: 1,
   },
 })

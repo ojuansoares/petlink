@@ -39,6 +39,7 @@ export type OfflinePet = {
   allergies: string | null
   temperament: string | null
   observations: string | null
+  tags: string[] | null
   is_active?: boolean
   created_at?: string
 }
@@ -103,6 +104,7 @@ function toOfflinePet(record: PetModelLike, weightMap: Map<string, PetWeightHist
     allergies: record.allergies ?? null,
     temperament: record.temperament ?? null,
     observations: record.observations ?? null,
+    tags: record.tags ? record.tags.split(',') : [],
     is_active: record.isActive ?? undefined,
     created_at: new Date(record.createdAt).toISOString(),
   }
@@ -159,6 +161,7 @@ async function upsertPet(pet: OfflinePet) {
       record.allergies = pet.allergies ?? null
       record.temperament = pet.temperament ?? null
       record.observations = pet.observations ?? null
+      record.tags = pet.tags ? pet.tags.join(',') : null
       record.isActive = pet.is_active ?? null
       record.createdAt = parseIsoToMillis(pet.created_at)
       record.updatedAtRemote = new Date().toISOString()
@@ -177,6 +180,7 @@ async function upsertPet(pet: OfflinePet) {
       record.allergies = pet.allergies ?? null
       record.temperament = pet.temperament ?? null
       record.observations = pet.observations ?? null
+      record.tags = pet.tags ? pet.tags.join(',') : null
       record.isActive = pet.is_active ?? null
       record.createdAt = parseIsoToMillis(pet.created_at)
       record.updatedAtRemote = new Date().toISOString()

@@ -4,6 +4,7 @@ import {
   Pressable,
   PressableProps,
   StyleSheet,
+  View,
   ViewStyle,
 } from 'react-native'
 import Animated, {
@@ -22,6 +23,8 @@ interface ButtonProps extends Omit<PressableProps, 'style'> {
   loading?: boolean
   size?: 'sm' | 'md' | 'lg'
   style?: ViewStyle | ViewStyle[]
+  leftIcon?: React.ReactNode
+  rightIcon?: React.ReactNode
 }
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable)
@@ -35,6 +38,8 @@ export function Button({
   onPressIn,
   onPressOut,
   style,
+  leftIcon,
+  rightIcon,
   ...props
 }: Readonly<ButtonProps>) {
   const { colors, shadows, withAlpha } = useTheme()
@@ -104,9 +109,13 @@ export function Button({
       {loading ? (
         <ActivityIndicator color={labelColor} />
       ) : (
-        <Text size={labelSize as any} weight="700" style={{ color: labelColor, textAlign: 'center' }}>
-          {label}
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          {leftIcon}
+          <Text size={labelSize as any} weight="700" style={{ color: labelColor, textAlign: 'center' }}>
+            {label}
+          </Text>
+          {rightIcon}
+        </View>
       )}
     </AnimatedPressable>
   )
