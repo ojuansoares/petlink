@@ -23,19 +23,19 @@ import { ProfileGrid } from '../components/ui/ProfileGrid'
 import { useTheme } from '../hooks/useTheme'
 import { useAppDispatch, useAppSelector } from '../store'
 import { selectProfile, updateProfileThunk } from '../store/slices/profileSlice'
-import { 
-  fetchMyPostsThunk, 
-  selectMyPosts, 
+import {
+  fetchMyPostsThunk,
+  selectMyPosts,
   selectIsLoadingMyPosts,
 } from '../store/slices/postsSlice'
 import { fetchPetsThunk, selectPetsList } from '../store/slices/petsSlice'
 import { useProfileStyles } from './Profile/useProfileStyles'
 import { selectUser } from '../store/slices/authSlice'
-import { 
-  showToast, 
-  setShowCreatePost, 
-  setLoadingPetsForPost, 
-  selectShowCreatePost 
+import {
+  showToast,
+  setShowCreatePost,
+  setLoadingPetsForPost,
+  selectShowCreatePost
 } from '../store/slices/uiSlice'
 import { useNetworkCheck } from '../hooks/useNetworkCheck'
 import { uploadImageWithRetry } from '../api/uploadWithRetry'
@@ -66,7 +66,7 @@ export default function ProfileScreen() {
   const navigation = useNavigation<NavigationProp>()
   const { colors, withAlpha } = useTheme()
   const { isOnline } = useNetworkCheck()
-  
+
   const currentUser = useAppSelector(selectUser)
   const profile = useAppSelector(selectProfile)
   const posts = useAppSelector(selectMyPosts)
@@ -78,7 +78,7 @@ export default function ProfileScreen() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isUpdating, setIsUpdating] = useState(false)
   const [isImageExpanded, setIsImageExpanded] = useState(false)
-  
+
   // Edit State
   const [name, setName] = useState('')
   const [bio, setBio] = useState('')
@@ -166,9 +166,9 @@ export default function ProfileScreen() {
           </Pressable>
         </PetBubbleRing>
       </View>
-      
+
       <Heading size="xl" weight="800" style={styles.name}>{profile?.name}</Heading>
-      
+
       {profile?.location && (
         <View style={styles.locationRow}>
           <Ionicons name="location-sharp" size={14} color={colors.primary} />
@@ -235,7 +235,7 @@ export default function ProfileScreen() {
     </View>
   )
 
-  const filteredPosts = selectedPetFilter 
+  const filteredPosts = selectedPetFilter
     ? posts.filter(p => p.pet_id === selectedPetFilter)
     : posts
 
@@ -246,8 +246,8 @@ export default function ProfileScreen() {
         loading={isPostsLoading}
         onPostPress={(post) => {
           const index = filteredPosts.findIndex(p => p.id === post.id)
-          navigation.navigate('ProfileFeed', { 
-            userId: currentUser?.id || '', 
+          navigation.navigate('ProfileFeed', {
+            userId: currentUser?.id || '',
             initialScrollIndex: index,
             title: 'Minhas Publicações'
           })
@@ -276,7 +276,7 @@ export default function ProfileScreen() {
             </View>
             <Button label="Alterar Foto" variant="outline" size="sm" onPress={handlePickAvatar} loading={isUploadingAvatar} />
           </View>
-          
+
           <Input label="Nome" value={name} onChangeText={setName} placeholder="Como você quer ser chamado?" />
           <OptionSelect
             label="Localização"
@@ -313,15 +313,15 @@ export default function ProfileScreen() {
               contentFit="contain"
             />
           </View>
-          <Pressable 
-            onPress={() => setIsImageExpanded(false)} 
+          <Pressable
+            onPress={() => setIsImageExpanded(false)}
             style={{ position: 'absolute', top: Math.max(insets.top, 20), right: 20, padding: 10 }}
           >
             <Ionicons name="close" size={32} color="white" />
           </Pressable>
         </View>
       </Modal>
-      
+
       <AppToast />
     </View>
   )

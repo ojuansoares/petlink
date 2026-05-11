@@ -38,6 +38,9 @@ import {
   setActivePetId,
   updatePetThunk,
 } from '../store/slices/petsSlice'
+import { useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { AppStackParamList } from '../navigation/types';
 
 import { usePetsStyles } from './Pets/usePetsStyles'
 import { PetListSelector } from './Pets/components/PetListSelector'
@@ -47,6 +50,8 @@ import { ControlCard } from './Pets/components/ControlCard'
 import { PetCreationStepContent } from './Pets/components/PetCreationStepContent'
 import { AppModal } from '../components/ui/AppModal'
 import { SegmentedTabs } from '../components/ui/SegmentedTabs'
+
+type PetsScreenNavigationProp = StackNavigationProp<AppStackParamList, 'Tabs'>;
 
 const STEP_TITLES = ['Identidade', 'Detalhes', 'Foto', 'Cuidados']
 const SPECIES_TRANSLATION: Record<string, string> = {
@@ -105,6 +110,7 @@ function calculateAge(birthDate: string | null): string {
 }
 
 export default function PetsScreen() {
+  const navigation = useNavigation<PetsScreenNavigationProp>();
   const styles = usePetsStyles()
   const insets = useSafeAreaInsets()
   const dispatch = useAppDispatch()
@@ -151,12 +157,12 @@ export default function PetsScreen() {
     dispatch(fetchPetsThunk())
   }, [dispatch])
 
-  const requireOnline = (action: () => void) => {
+  const requireOnline = async (action: () => Promise<void> | void) => {
     if (!isOnline) {
       dispatch(showToast({ type: 'error', message: 'Sem internet. Conecte-se para continuar.' }))
       return
     }
-    action()
+    await action()
   }
 
   const resetForm = () => {
@@ -450,28 +456,43 @@ export default function PetsScreen() {
               </View>
             </View>
           )
-        ) : (
+        ) : activePet ? (
           <View style={styles.controlGrid}>
             <ControlCard
               title="Vacinas"
-              subtitle="Registro de imunização"
-              icon="medkit"
-              color={mode === 'light' ? '#F0F7FF' : '#0c2436'}
-              borderColor={mode === 'light' ? '#E0F2FE' : '#0ea5e933'}
-              iconColor="#0EA5E9"
-              badge="Histórico"
-              onPress={() => dispatch(showToast({ type: 'info', message: 'Em breve!' }))}
+              subtitle={`Histórico de ${activePet.name}`}
+              icon="shield-checkmark-outline"
+              color={colors.infoContainer}
+              borderColor={colors.info}
+              iconColor={colors.info}
+              badge="Controle"
+              onPress={() => navigation.navigate('Vaccine', { petId: activePet.id, petName: activePet.name })}
+            />
+            <ControlCard
+              title="Consultas"
+              subtitle={`Histórico de ${activePet.name}`}
+              icon="pulse-outline"
+              color={colors.warningContainer}
+              borderColor={colors.warning}
+              iconColor={colors.warning}
+              badge="Médico"
+              onPress={() => navigation.navigate('Consultation', { petId: activePet.id, petName: activePet.name })}
             />
             <ControlCard
               title="Alimentação"
               subtitle="Dietas e horários"
-              icon="restaurant"
+              icon="restaurant-outline"
               color={mode === 'light' ? '#FFF7ED' : '#331d10'}
               borderColor={mode === 'light' ? '#FFEDD5' : '#f9731633'}
               iconColor="#F97316"
-              badge="Agenda"
-              onPress={() => dispatch(showToast({ type: 'info', message: 'Em breve!' }))}
+              badge="Em breve"
+              onPress={() => dispatch(showToast({ type: 'info', message: 'Módulo de alimentação em breve!' }))}
             />
+          </View>
+        ) : (
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 }}>
+            <Ionicons name="paw-outline" size={48} color={colors.mutedForeground} style={{ opacity: 0.3, marginBottom: 16 }} />
+            <Text color="mutedForeground" style={{ textAlign: 'center' }}>Selecione ou cadastre um pet para acessar o painel de controle.</Text>
           </View>
         )}
       </ScrollView>

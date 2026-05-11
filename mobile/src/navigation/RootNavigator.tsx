@@ -13,6 +13,8 @@ import SettingsMenuScreen from '../screens/SettingsMenuScreen'
 import PublicProfileScreen from '../screens/PublicProfileScreen'
 import ProfileFeedScreen from '../screens/ProfileFeedScreen'
 import { AppStackParamList } from './types'
+import { VaccineScreen } from '../screens/Pets/VaccineScreen';
+import { ConsultationScreen } from '../screens/Pets/ConsultationScreen';
 
 const AppStack = createStackNavigator<AppStackParamList>()
 
@@ -96,6 +98,22 @@ function AuthenticatedNavigator() {
         component={require('../screens/SettingsDangerZoneScreen').default}
         options={{
           title: 'Zona sensível',
+          headerLeft: SettingsBackButton,
+        }}
+      />
+      <AppStack.Screen
+        name="Vaccine"
+        component={VaccineScreen}
+        options={{
+          title: 'Vacinas e Vermífugos',
+          headerLeft: SettingsBackButton,
+        }}
+      />
+      <AppStack.Screen
+        name="Consultation"
+        component={ConsultationScreen}
+        options={{
+          title: 'Consultas Veterinárias',
           headerLeft: SettingsBackButton,
         }}
       />

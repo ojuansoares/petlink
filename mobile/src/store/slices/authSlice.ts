@@ -103,6 +103,12 @@ export const loginThunk = createAsyncThunk(
       })
       await writeCachedUser(data.user)
 
+      // Sync Supabase Client session
+      await supabase.auth.setSession({
+        access_token: data.accessToken,
+        refresh_token: data.refreshToken,
+      })
+
       return data
     } catch (err: any) {
       if (axios.isAxiosError(err)) {
@@ -164,6 +170,13 @@ export const hydrateAuthThunk = createAsyncThunk(
         })
 
         await writeCachedUser(data.user)
+        
+        // Sync Supabase Client session
+        await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: tokens.refreshToken,
+        })
+
         return { accessToken, user: data.user }
       } catch (networkErr: any) {
         const status = networkErr?.response?.status
@@ -204,6 +217,12 @@ export const refreshTokenThunk = createAsyncThunk(
         refreshToken: data.refreshToken,
       })
       await writeCachedUser(data.user)
+
+      // Sync Supabase Client session
+      await supabase.auth.setSession({
+        access_token: data.accessToken,
+        refresh_token: data.refreshToken,
+      })
 
       return data
     } catch (err: any) {

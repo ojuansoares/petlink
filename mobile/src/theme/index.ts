@@ -15,6 +15,10 @@ export const tokens = {
     card: '#FFFFFF',
     headerBackground: '#FFFFFF',
     tabBarBackground: '#FFFFFF',
+    info: '#0EA5E9',
+    infoContainer: '#E0F2FE',
+    warning: '#F59E0B',
+    warningContainer: '#FEF3C7',
   },
   dark: {
     background: '#1C1C16',
@@ -32,6 +36,10 @@ export const tokens = {
     card: '#222219',
     headerBackground: '#272A22',
     tabBarBackground: '#22241D',
+    info: '#38BDF8',
+    infoContainer: '#0C2436',
+    warning: '#FBBF24',
+    warningContainer: '#332A10',
   },
 } as const
 
@@ -39,6 +47,7 @@ export type ThemePalette = typeof tokens.light
 export type ThemeMode = keyof typeof tokens
 
 export function withAlpha(hex: string, alpha: number): string {
+  if (!hex) return `rgba(0, 0, 0, ${alpha})`
   const sanitized = hex.replace('#', '')
   const [r, g, b] = sanitized.length === 3
     ? sanitized.split('').map((c) => parseInt(`${c}${c}`, 16))

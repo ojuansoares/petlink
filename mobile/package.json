@@ -24,6 +24,7 @@
     "@reduxjs/toolkit": "^2.11.2",
     "@supabase/supabase-js": "^2.100.1",
     "axios": "^1.13.6",
+    "date-fns": "^4.1.0",
     "expo": "~55.0.15",
     "expo-blur": "~55.0.14",
     "expo-file-system": "~55.0.16",
