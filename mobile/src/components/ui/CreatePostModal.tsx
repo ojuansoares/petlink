@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react'
-import { Modal, Pressable, ScrollView, StyleSheet, View, ActivityIndicator, KeyboardAvoidingView, Platform, Keyboard, useWindowDimensions } from 'react-native'
+import React, { useState, useEffect, useCallback } from 'react'
+import { Modal, Pressable, ScrollView, StyleSheet, View, ActivityIndicator, KeyboardAvoidingView, Platform, Keyboard, useWindowDimensions, TextInput } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import * as ImagePicker from 'expo-image-picker'
@@ -66,14 +66,46 @@ export function CreatePostModal({ visible, onClose }: Readonly<CreatePostModalPr
   const isPosting = useAppSelector((state: any) => state.posts.isPosting)
   const isLoadingPetsForPost = useAppSelector(selectLoadingPetsForPost)
 
+  const [petId, setPetId] = useState('')
+  const [photoUrl, setPhotoUrl] = useState('')
+  const [caption, setCaption] = useState('')
+  const [location, setLocation] = useState('')
+  const [suggestedLocation, setSuggestedLocation] = useState('')
+  const [locationMode, setLocationMode] = useState<'suggestion' | 'selecting' | 'editing'>('suggestion')
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false)
+  const [uploadAttempt, setUploadAttempt] = useState(1)
+  const [maxUploadAttempts, setMaxUploadAttempts] = useState(3)
+
+  const handleGetLocation = useCallback(async () => {
+    const loc = await getCurrentLocation()
+    if (loc) {
+      setSuggestedLocation(loc.cityAndState)
+      setLocation(loc.cityAndState)
+      setLocationMode('suggestion')
+    }
+  }, [getCurrentLocation])
+
+  const handleClearLocation = useCallback(() => {
+    setLocation('')
+    setLocationMode('selecting')
+  }, [])
+
+  const handleSelectLocation = useCallback((value: string) => {
+    setLocation(value)
+    setLocationMode('editing')
+  }, [])
+
   useEffect(() => {
     if (visible && pets.length === 0) {
       dispatch(fetchPetsThunk())
     }
-    if (visible && !location) {
+  }, [visible, pets.length, dispatch])
+
+  useEffect(() => {
+    if (visible && !location && !suggestedLocation) {
       handleGetLocation()
     }
-  }, [visible, pets.length])
+  }, [visible, location, suggestedLocation, handleGetLocation])
 
   const requireOnline = (action: () => void) => {
     if (!isOnline) {
@@ -82,14 +114,6 @@ export function CreatePostModal({ visible, onClose }: Readonly<CreatePostModalPr
     }
     action()
   }
-
-  const [petId, setPetId] = useState('')
-  const [photoUrl, setPhotoUrl] = useState('')
-  const [caption, setCaption] = useState('')
-  const [location, setLocation] = useState('')
-  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false)
-  const [uploadAttempt, setUploadAttempt] = useState(1)
-  const [maxUploadAttempts, setMaxUploadAttempts] = useState(3)
 
   const petOptions = pets.map(pet => ({ label: pet.name, value: pet.id, photoUrl: pet.photo_url }))
 
@@ -167,13 +191,6 @@ export function CreatePostModal({ visible, onClose }: Readonly<CreatePostModalPr
     setCaption('')
     setLocation('')
     onClose()
-  }
-
-  const handleGetLocation = async () => {
-    const loc = await getCurrentLocation()
-    if (loc) {
-      setLocation(loc.state)
-    }
   }
 
   return (
@@ -290,16 +307,45 @@ export function CreatePostModal({ visible, onClose }: Readonly<CreatePostModalPr
                   leftIcon={<Ionicons name="text-outline" size={18} color={colors.mutedForeground} />}
                 />
 
-                <OptionSelect
-                  label="Localização"
-                  placeholder="Onde foi tirada?"
-                  value={location}
-                  onChange={setLocation}
-                  options={BRAZIL_STATES}
-                  leftIconName="location-outline"
-                  onLocationPress={handleGetLocation}
-                  isLoadingLocation={isLoadingLocation}
-                />
+                <View style={styles.locationContainer}>
+                  <Text size="sm" weight="600" color="mutedForeground" style={styles.locationLabel}>Localização</Text>
+                  {isLoadingLocation ? (
+                    <View style={[styles.locationRow, { borderColor: colors.border }]}>
+                      <Ionicons name="location-outline" size={18} color={colors.mutedForeground} />
+                      <ActivityIndicator size="small" color={colors.primary} style={styles.locationLoader} />
+                    </View>
+                  ) : locationMode === 'suggestion' && suggestedLocation ? (
+                    <View style={[styles.locationRow, { borderColor: colors.border }]}>
+                      <Ionicons name="location-outline" size={18} color={colors.mutedForeground} />
+                      <Text size="base" style={[styles.locationText, { color: colors.foreground, flex: 1 }]}>{suggestedLocation}</Text>
+                      <Pressable onPress={handleClearLocation} hitSlop={8}>
+                        <Ionicons name="close-circle" size={20} color={colors.mutedForeground} />
+                      </Pressable>
+                    </View>
+                  ) : locationMode === 'selecting' ? (
+                    <OptionSelect
+                      placeholder="Selecione o estado"
+                      value={location}
+                      onChange={handleSelectLocation}
+                      options={BRAZIL_STATES}
+                      leftIconName="location-outline"
+                    />
+                  ) : (
+                    <View style={[styles.locationRow, { borderColor: colors.border }]}>
+                      <Ionicons name="location-outline" size={18} color={colors.mutedForeground} />
+                      <TextInput
+                        style={[styles.locationInput, { color: colors.foreground }]}
+                        value={location}
+                        onChangeText={setLocation}
+                        placeholder="Ex: São Paulo, SP ou apenas SP"
+                        placeholderTextColor={colors.mutedForeground}
+                      />
+                      <Pressable onPress={() => setLocationMode('selecting')} hitSlop={8}>
+                        <Ionicons name="chevron-down" size={18} color={colors.mutedForeground} />
+                      </Pressable>
+                    </View>
+                  )}
+                </View>
               </ScrollView>
 
               <View style={[styles.footer, { borderTopColor: withAlpha(colors.border, 0.4) }]}>
@@ -406,5 +452,37 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingTop: 12,
     borderTopWidth: 1,
+  },
+  locationContainer: {
+    marginBottom: 16,
+  },
+  locationLabel: {
+    marginBottom: 6,
+    marginLeft: 2,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    gap: 10,
+  },
+  locationText: {
+    flex: 1,
+  },
+  locationInput: {
+    flex: 1,
+    fontSize: 16,
+    padding: 0,
+  },
+  locationLoader: {
+    marginLeft: 4,
+  },
+  locationAutoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
 })

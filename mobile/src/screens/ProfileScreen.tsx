@@ -133,12 +133,24 @@ export default function ProfileScreen() {
     }
   }
 
-  const handleGetLocation = async () => {
+  const handleGetLocation = useCallback(async () => {
     const loc = await getCurrentLocation()
-    if (loc) {
+    if (loc && loc.state) {
       setLocation(loc.state)
     }
-  }
+  }, [getCurrentLocation])
+
+  useEffect(() => {
+    if (isEditModalOpen && !location && profile?.location) {
+      setLocation(profile.location)
+    }
+  }, [isEditModalOpen])
+
+  useEffect(() => {
+    if (isEditModalOpen && !location) {
+      handleGetLocation()
+    }
+  }, [isEditModalOpen, location, handleGetLocation])
 
   const handlePickAvatar = async () => {
     try {

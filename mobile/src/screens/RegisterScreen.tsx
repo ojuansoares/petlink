@@ -204,12 +204,18 @@ export default function RegisterScreen({ navigation }: Readonly<Props>) {
     }
   }
 
-  const handleGetLocation = async () => {
+  const handleGetLocation = React.useCallback(async () => {
     const location = await getCurrentLocation()
-    if (location) {
+    if (location && location.state) {
       setLocation(location.state)
     }
-  }
+  }, [getCurrentLocation])
+
+  React.useEffect(() => {
+    if (!location) {
+      handleGetLocation()
+    }
+  }, [handleGetLocation])
 
   return (
     <View style={styles.screen}>

@@ -6,7 +6,7 @@ import { showToast } from '../store/slices/uiSlice'
 interface LocationResult {
   city: string
   state: string
-  formatted: string
+  cityAndState: string
 }
 
 export function useLocation() {
@@ -50,21 +50,28 @@ export function useLocation() {
         data.address?.town ||
         data.address?.village ||
         data.address?.municipality ||
+        data.address?.county ||
+        data.name ||
         null
 
-      const state = data.address?.state || null
+      const state =
+        data.address?.state ||
+        data.address?.region ||
+        null
 
-      if (!city || !state) {
+      if (!city) {
         dispatch(showToast({ type: 'info', message: 'Não foi possível identificar a cidade. Selecione manualmente.' }))
         return null
       }
 
-      const stateCode = extractStateCode(state)
+      const stateCode = state ? extractStateCode(state) : ''
+
+      const cityAndState = stateCode ? `${city}, ${stateCode}` : city
 
       return {
         city,
         state: stateCode,
-        formatted: `${city}, ${stateCode}`,
+        cityAndState,
       }
     } catch (error) {
       const isNetworkError = error instanceof TypeError && error.message.includes('Network')
