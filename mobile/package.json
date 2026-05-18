@@ -34,6 +34,7 @@
     "expo-linear-gradient": "~55.0.13",
     "expo-linking": "~55.0.13",
     "expo-local-authentication": "^55.0.13",
+    "expo-location": "~55.1.10",
     "expo-media-library": "~55.0.14",
     "expo-secure-store": "~55.0.13",
     "expo-status-bar": "~55.0.5",

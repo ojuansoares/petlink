@@ -11,7 +11,9 @@ export const useProfileStyles = makeStyles((theme) => ({
     alignItems: 'center',
   },
   avatarContainer: {
-    marginBottom: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
   },
   avatarPressable: {
     borderRadius: 999,
@@ -20,8 +22,22 @@ export const useProfileStyles = makeStyles((theme) => ({
     backgroundColor: theme.colors.muted,
     overflow: 'hidden',
   },
+  avatarEditFoot: {
+    position: 'absolute',
+    bottom: -1,
+    borderWidth: 1,
+    borderRadius: 999,
+    minHeight: 36,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: theme.withAlpha(theme.colors.card, 0.94),
+    borderColor: theme.withAlpha(theme.colors.border, 0.9),
+  },
   name: {
     marginBottom: 4,
+    marginTop: 10,
   },
   locationRow: {
     flexDirection: 'row',

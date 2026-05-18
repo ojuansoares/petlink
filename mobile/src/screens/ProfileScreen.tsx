@@ -38,6 +38,7 @@ import {
   selectShowCreatePost
 } from '../store/slices/uiSlice'
 import { useNetworkCheck } from '../hooks/useNetworkCheck'
+import { useLocation } from '../hooks/useLocation'
 import { uploadImageWithRetry } from '../api/uploadWithRetry'
 import { CreatePostModal } from '../components/ui/CreatePostModal'
 import { AppStackParamList } from '../navigation/types'
@@ -66,6 +67,7 @@ export default function ProfileScreen() {
   const navigation = useNavigation<NavigationProp>()
   const { colors, withAlpha } = useTheme()
   const { isOnline } = useNetworkCheck()
+  const { getCurrentLocation, isLoadingLocation } = useLocation()
 
   const currentUser = useAppSelector(selectUser)
   const profile = useAppSelector(selectProfile)
@@ -131,6 +133,13 @@ export default function ProfileScreen() {
     }
   }
 
+  const handleGetLocation = async () => {
+    const loc = await getCurrentLocation()
+    if (loc) {
+      setLocation(loc.state)
+    }
+  }
+
   const handlePickAvatar = async () => {
     try {
       setIsUploadingAvatar(true)
@@ -165,6 +174,10 @@ export default function ProfileScreen() {
             <Avatar size={140} name={profile?.name} source={profile?.avatar_url ? { uri: profile.avatar_url } : undefined} />
           </Pressable>
         </PetBubbleRing>
+        <Pressable onPress={handleStartEdit} style={styles.avatarEditFoot}>
+          <Ionicons name="create-outline" size={18} color={colors.primary} />
+          <Text weight="700">Editar</Text>
+        </Pressable>
       </View>
 
       <Heading size="xl" weight="800" style={styles.name}>{profile?.name}</Heading>
@@ -179,8 +192,6 @@ export default function ProfileScreen() {
       {profile?.bio ? (
         <Text size="sm" color="mutedForeground" style={styles.bio}>{profile.bio}</Text>
       ) : null}
-
-      <Button label="Editar Perfil" variant="outline" size="sm" onPress={handleStartEdit} style={{ marginBottom: 20 }} />
 
       <View style={styles.statsRow}>
         <View style={styles.statItem}>
@@ -278,13 +289,21 @@ export default function ProfileScreen() {
           </View>
 
           <Input label="Nome" value={name} onChangeText={setName} placeholder="Como você quer ser chamado?" />
+          <Input
+            label="Email"
+            value={currentUser?.email || ''}
+            editable={false}
+            placeholder="Seu email"
+          />
           <OptionSelect
             label="Localização"
-            placeholder="Estado"
+            placeholder="Selecione o estado"
             value={location}
             onChange={setLocation}
             options={locationOptions}
             leftIconName="location-outline"
+            onLocationPress={handleGetLocation}
+            isLoadingLocation={isLoadingLocation}
           />
           <Input
             label="Bio"

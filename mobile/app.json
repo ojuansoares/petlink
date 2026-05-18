@@ -35,6 +35,12 @@
       "expo-font",
       "expo-image",
       [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Permita que o aplicativo acesse sua localização para preencher sua cidade automaticamente."
+        }
+      ],
+      [
         "expo-media-library",
         {
           "photosPermission": "Allow PetLink to access your photos to save images.",

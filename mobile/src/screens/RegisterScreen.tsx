@@ -20,6 +20,7 @@ import { OptionSelect } from '../components/ui/OptionSelect'
 import { Heading, Text } from '../components/ui/Typography'
 import { BRAZIL_STATES } from '../constants/brazilStates'
 import { useTheme } from '../hooks/useTheme'
+import { useLocation } from '../hooks/useLocation'
 import { AuthStackParamList } from '../navigation/types'
 import { useAppDispatch, useAppSelector } from '../store'
 import { showToast } from '../store/slices/uiSlice'
@@ -56,6 +57,7 @@ export default function RegisterScreen({ navigation }: Readonly<Props>) {
   const { colors } = useTheme()
   const isLoading = useAppSelector(selectAuthLoading)
   const authError = useAppSelector(selectAuthError)
+  const { getCurrentLocation, isLoadingLocation } = useLocation()
 
   React.useEffect(() => {
     if (authError) {
@@ -202,6 +204,13 @@ export default function RegisterScreen({ navigation }: Readonly<Props>) {
     }
   }
 
+  const handleGetLocation = async () => {
+    const location = await getCurrentLocation()
+    if (location) {
+      setLocation(location.state)
+    }
+  }
+
   return (
     <View style={styles.screen}>
       <View style={styles.brandArea}>
@@ -267,11 +276,14 @@ export default function RegisterScreen({ navigation }: Readonly<Props>) {
               />
 
               <OptionSelect
-                placeholder="Estado"
+                label="Localização"
+                placeholder="Selecione o estado"
                 value={location}
                 onChange={setLocation}
                 options={BRAZIL_STATES}
                 leftIconName="location-outline"
+                onLocationPress={handleGetLocation}
+                isLoadingLocation={isLoadingLocation}
               />
 
               <Input

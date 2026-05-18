@@ -6,6 +6,7 @@ import * as ImagePicker from 'expo-image-picker'
 import { Image } from 'expo-image'
 import { useTheme } from '../../hooks/useTheme'
 import { useNetworkCheck } from '../../hooks/useNetworkCheck'
+import { useLocation } from '../../hooks/useLocation'
 import { useAppDispatch, useAppSelector } from '../../store'
 import { fetchPetsThunk } from '../../store/slices/petsSlice'
 import { createPostThunk } from '../../store/slices/postsSlice'
@@ -58,6 +59,7 @@ export function CreatePostModal({ visible, onClose }: Readonly<CreatePostModalPr
   const { colors, withAlpha } = useTheme()
   const dispatch = useAppDispatch()
   const { isOnline } = useNetworkCheck()
+  const { getCurrentLocation, isLoadingLocation } = useLocation()
   const insets = useSafeAreaInsets()
 
   const pets = useAppSelector(selectPetsList)
@@ -67,6 +69,9 @@ export function CreatePostModal({ visible, onClose }: Readonly<CreatePostModalPr
   useEffect(() => {
     if (visible && pets.length === 0) {
       dispatch(fetchPetsThunk())
+    }
+    if (visible && !location) {
+      handleGetLocation()
     }
   }, [visible, pets.length])
 
@@ -162,6 +167,13 @@ export function CreatePostModal({ visible, onClose }: Readonly<CreatePostModalPr
     setCaption('')
     setLocation('')
     onClose()
+  }
+
+  const handleGetLocation = async () => {
+    const loc = await getCurrentLocation()
+    if (loc) {
+      setLocation(loc.state)
+    }
   }
 
   return (
@@ -285,6 +297,8 @@ export function CreatePostModal({ visible, onClose }: Readonly<CreatePostModalPr
                   onChange={setLocation}
                   options={BRAZIL_STATES}
                   leftIconName="location-outline"
+                  onLocationPress={handleGetLocation}
+                  isLoadingLocation={isLoadingLocation}
                 />
               </ScrollView>
 

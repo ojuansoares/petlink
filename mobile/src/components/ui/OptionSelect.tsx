@@ -1,6 +1,7 @@
 import React from 'react'
 import { Ionicons } from '@expo/vector-icons'
 import {
+  ActivityIndicator,
   FlatList,
   Modal,
   Pressable,
@@ -25,6 +26,8 @@ interface OptionSelectProps {
   onChange: (value: string) => void
   leftIconName?: keyof typeof Ionicons.glyphMap
   showPhotos?: boolean
+  onLocationPress?: () => void
+  isLoadingLocation?: boolean
 }
 
 export function OptionSelect({
@@ -35,6 +38,8 @@ export function OptionSelect({
   onChange,
   leftIconName = 'location-outline',
   showPhotos = false,
+  onLocationPress,
+  isLoadingLocation = false,
 }: Readonly<OptionSelectProps>) {
   const { colors, withAlpha } = useTheme()
   const [open, setOpen] = React.useState(false)
@@ -64,9 +69,28 @@ export function OptionSelect({
         ) : (
           <Ionicons name={leftIconName} size={18} color={colors.mutedForeground} />
         )}
-        <Text size="base" style={[styles.fieldText, { color: selectedOption ? colors.foreground : colors.mutedForeground }]}> 
+        <Text size="base" style={[styles.fieldText, { color: selectedOption ? colors.foreground : colors.mutedForeground }]}>
           {selectedOption?.label ?? placeholder}
         </Text>
+
+        {onLocationPress && (
+          <Pressable
+            onPress={(e) => {
+              e.stopPropagation?.()
+              onLocationPress()
+            }}
+            hitSlop={8}
+            style={styles.locationButton}
+            disabled={isLoadingLocation}
+          >
+            {isLoadingLocation ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <Ionicons name="navigate-circle-outline" size={22} color={colors.primary} />
+            )}
+          </Pressable>
+        )}
+
         <Ionicons name="chevron-down" size={18} color={colors.mutedForeground} />
       </Pressable>
 
@@ -74,7 +98,7 @@ export function OptionSelect({
         <View style={styles.backdrop}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setOpen(false)} />
 
-          <View style={[styles.sheet, { backgroundColor: colors.background, borderColor: colors.border }]}> 
+          <View style={[styles.sheet, { backgroundColor: colors.background, borderColor: colors.border }]}>
             <Text size="base" weight="700" style={styles.title}>{label || 'Selecione'}</Text>
 
             <FlatList
@@ -176,5 +200,8 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
+  },
+  locationButton: {
+    padding: 4,
   },
 })

@@ -70,13 +70,15 @@ export function PetCreationStepContent({
     return (
       <View style={{ gap: 12 }}>
         <Input
-          placeholder="Nome do pet"
+          label="Nome do pet"
+          placeholder="Como seu pet se chama?"
           value={name}
           onChangeText={onNameChange}
           leftIcon={<Ionicons name="paw-outline" size={18} color={colors.mutedForeground} />}
         />
         <OptionSelect
-          placeholder="Espécie"
+          label="Espécie"
+          placeholder="Qual a espécie?"
           value={species}
           onChange={onSpeciesChange}
           options={SPECIES_OPTIONS}
@@ -90,34 +92,39 @@ export function PetCreationStepContent({
     return (
       <View style={{ gap: 12 }}>
         <Input
-          placeholder="Raça"
+          label="Raça"
+          placeholder="Qual a raça?"
           value={breed}
           onChangeText={onBreedChange}
           leftIcon={<Ionicons name="ribbon-outline" size={18} color={colors.mutedForeground} />}
         />
-        <Pressable
-          style={{
-            minHeight: 48,
-            borderRadius: 999,
-            borderWidth: 1,
-            paddingHorizontal: 14,
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 8,
-            backgroundColor: colors.card,
-            borderColor: colors.border
-          }}
-          onPress={onOpenBirthDatePicker}
-        >
-          <Ionicons name="calendar-outline" size={18} color={colors.mutedForeground} />
-          <Text size="base" color={birthDate ? 'foreground' : 'mutedForeground'} style={{ flex: 1 }}>
-            {formatIsoToDisplay(birthDate) || 'Data de nascimento'}
-          </Text>
-          <Ionicons name="chevron-down" size={18} color={colors.mutedForeground} />
-        </Pressable>
+        <View style={{ gap: 6 }}>
+          <Text size="sm" weight="700">Data de nascimento</Text>
+          <Pressable
+            style={{
+              minHeight: 48,
+              borderRadius: 999,
+              borderWidth: 1,
+              paddingHorizontal: 14,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 8,
+              backgroundColor: colors.card,
+              borderColor: colors.border
+            }}
+            onPress={onOpenBirthDatePicker}
+          >
+            <Ionicons name="calendar-outline" size={18} color={colors.mutedForeground} />
+            <Text size="base" color={birthDate ? 'foreground' : 'mutedForeground'} style={{ flex: 1 }}>
+              {formatIsoToDisplay(birthDate) || 'Quando nasceu?'}
+            </Text>
+            <Ionicons name="chevron-down" size={18} color={colors.mutedForeground} />
+          </Pressable>
+        </View>
 
         <Input
-          placeholder="Peso (kg)"
+          label="Peso"
+          placeholder="Quanto pesa? (kg)"
           value={weightKg}
           onChangeText={onWeightKgChange}
           keyboardType="numeric"
@@ -167,7 +174,8 @@ export function PetCreationStepContent({
     return (
       <View style={{ gap: 12 }}>
         <Input
-          placeholder="Alergias (opcional)"
+          label="Alergias"
+          placeholder="Tem alguma alergia? (opcional)"
           value={allergies}
           onChangeText={onAllergiesChange}
           leftIcon={<Ionicons name="medkit-outline" size={18} color={colors.mutedForeground} />}
@@ -196,6 +204,7 @@ export function PetCreationStepContent({
             ))}
           </View>
           <Input
+            label="Nova tag"
             placeholder={tags.length < 7 ? "Digite e aperte enter..." : "Limite atingido"}
             value={tagInput}
             editable={tags.length < 7}
@@ -211,7 +220,8 @@ export function PetCreationStepContent({
         </View>
 
         <Input
-          placeholder="Observações (opcional)"
+          label="Observações"
+          placeholder="Algo mais sobre o pet? (opcional)"
           value={observations}
           onChangeText={onObservationsChange}
           leftIcon={<Ionicons name="document-text-outline" size={18} color={colors.mutedForeground} />}
