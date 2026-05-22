@@ -10,6 +10,7 @@ import locationsReducer  from './slices/locationsSlices'
 import walksReducer      from './slices/walksSlices'
 import notificationsReducer from './slices/notificationsSlice'
 import uiReducer         from './slices/uiSlice'
+import followsReducer    from './slices/followsSlice'
 
 export const store = configureStore({
   reducer: {
@@ -21,6 +22,7 @@ export const store = configureStore({
     walks:         walksReducer,
     notifications: notificationsReducer,
     ui:            uiReducer,
+    follows:       followsReducer,
   },
 })
 

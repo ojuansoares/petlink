@@ -2,6 +2,7 @@ import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import axios from 'axios'
 import { api } from '../../api/axios'
 import { ProfileOfflineRepository, type OfflineUserProfile } from '../../data/repositories/ProfileOfflineRepository'
+import { followUserThunk, unfollowUserThunk } from './followsSlice'
 import { logout, logoutThunk } from './authSlice'
 
 export interface UserProfile extends OfflineUserProfile {
@@ -195,6 +196,19 @@ const profileSlice = createSlice({
       .addCase(fetchPublicProfileThunk.rejected, (s, a) => {
         s.isLoading = false
         s.error = (a.payload as string) ?? 'Erro ao carregar perfil público'
+      })
+
+    // Handle follow/unfollow thunks to update the public profile's followers count
+    builder
+      .addCase(followUserThunk.fulfilled, (s, a) => {
+        if (s.publicProfile && s.publicProfile.id === a.payload) {
+          s.publicProfile.followers_count = (s.publicProfile.followers_count ?? 0) + 1
+        }
+      })
+      .addCase(unfollowUserThunk.fulfilled, (s, a) => {
+        if (s.publicProfile && s.publicProfile.id === a.payload) {
+          s.publicProfile.followers_count = Math.max(0, (s.publicProfile.followers_count ?? 1) - 1)
+        }
       })
 
     builder

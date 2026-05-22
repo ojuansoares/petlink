@@ -6,6 +6,7 @@ const router = Router()
 
 router.post('/', authMiddleware, postsController.create)
 router.get('/feed', authMiddleware, postsController.feed)
+router.get('/followed', authMiddleware, postsController.followed)
 router.get('/user/:userId', authMiddleware, postsController.getByAuthor)
 router.put('/:postId', authMiddleware, postsController.update)
 router.delete('/:postId', authMiddleware, postsController.remove)

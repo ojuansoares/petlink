@@ -38,6 +38,13 @@ import {
   selectPublicPets, 
   selectPublicPetsLoading 
 } from '../store/slices/petsSlice'
+import { 
+  followUserThunk, 
+  unfollowUserThunk, 
+  checkFollowStatusThunk,
+  selectIsFollowing,
+  selectFollowLoading
+} from '../store/slices/followsSlice'
 import { useProfileStyles } from './Profile/useProfileStyles'
 import { useNetworkCheck } from '../hooks/useNetworkCheck'
 import { AppToast } from '../components/ui/AppToast'
@@ -93,17 +100,29 @@ export default function PublicProfileScreen() {
   const { width } = useWindowDimensions()
   const { isOnline } = useNetworkCheck()
   const insets = useSafeAreaInsets()
-  
+   
   const profile = useAppSelector(selectPublicProfile)
   const isProfileLoading = useAppSelector(selectProfileLoading)
   const posts = useAppSelector(selectUserPosts)
   const isPostsLoading = useAppSelector(selectIsLoadingUserPosts)
   const pets = useAppSelector(selectPublicPets)
   const isPetsLoading = useAppSelector(selectPublicPetsLoading)
-
+   
   const [activeTab, setActiveTab] = useState<'posts' | 'pets'>('posts')
   const [selectedPet, setSelectedPet] = useState<any>(null)
   const [isImageExpanded, setIsImageExpanded] = useState(false)
+  
+  // Follow/unfollow state
+  const userIdFromRoute = route.params.userId
+  const isFollowing = useAppSelector(state => selectIsFollowing(state, userIdFromRoute))
+  const followLoading = useAppSelector(state => selectFollowLoading(state, userIdFromRoute))
+   
+   // Check follow status when profile loads or userId changes
+   useEffect(() => {
+     if (userIdFromRoute) {
+       dispatch(checkFollowStatusThunk(userIdFromRoute))
+     }
+   }, [dispatch, userIdFromRoute])
   
   const scrollRef = useRef<ScrollView>(null)
 
@@ -138,22 +157,48 @@ export default function PublicProfileScreen() {
         <Text size="sm" color="mutedForeground" style={styles.bio}>{profile.bio}</Text>
       )}
 
-      <View style={styles.statsRow}>
-        <View style={styles.statItem}>
-          <Text size="lg" weight="800">{(profile as any)?.posts_count ?? posts.length}</Text>
-          <Text size="xs" color="mutedForeground">Posts</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Text size="lg" weight="800">{(profile as any)?.followers_count ?? 0}</Text>
-          <Text size="xs" color="mutedForeground">Seguidores</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Text size="lg" weight="800">{(profile as any)?.pets_count ?? pets.length}</Text>
-          <Text size="xs" color="mutedForeground">Pets</Text>
-        </View>
-      </View>
+       <View style={styles.statsRow}>
+         <View style={styles.statItem}>
+           <Text size="lg" weight="800">{(profile as any)?.posts_count ?? posts.length}</Text>
+           <Text size="xs" color="mutedForeground">Posts</Text>
+         </View>
+         <View style={styles.statItem}>
+           <Text size="lg" weight="800">{(profile as any)?.followers_count ?? 0}</Text>
+           <Text size="xs" color="mutedForeground">Seguidores</Text>
+         </View>
+         <View style={styles.statItem}>
+           <Text size="lg" weight="800">{(profile as any)?.pets_count ?? pets.length}</Text>
+           <Text size="xs" color="mutedForeground">Pets</Text>
+         </View>
+       </View>
 
-      <SegmentedTabs
+       {/* Follow button */}
+       <View style={styles.followButtonContainer}>
+         <Pressable
+           onPress={async () => {
+             if (isFollowing) {
+               dispatch(unfollowUserThunk(userIdFromRoute))
+             } else {
+               dispatch(followUserThunk(userIdFromRoute))
+             }
+           }}
+           disabled={followLoading}
+           style={[
+             styles.followButton,
+             isFollowing ? styles.followButtonFollowing : styles.followButtonFollow
+           ]}
+         >
+           {followLoading ? (
+             <ActivityIndicator size={20} color={isFollowing ? colors.primary : "white"} />
+           ) : (
+             <Text size="sm" weight="600" color={isFollowing ? "primary" : "primaryForeground"}>
+               {isFollowing ? 'Seguindo' : 'Seguir'}
+             </Text>
+           )}
+         </Pressable>
+       </View>
+
+       <SegmentedTabs
         options={[
           { id: 'posts', label: 'Posts' },
           { id: 'pets', label: 'Pets' }

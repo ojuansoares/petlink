@@ -143,5 +143,37 @@ export const postsRepository = {
 
     if (error) throw error
     return count ?? 0
+  },
+
+  async listFollowed(followerId: string, page: number, limit: number) {
+    const offset = (page - 1) * limit
+
+    const { data: followData, error: followError } = await supabaseAdmin
+      .from('follows')
+      .select('following_id')
+      .eq('follower_id', followerId)
+
+    if (followError) throw followError
+
+    const followedIds = followData?.map(f => f.following_id) || []
+
+    if (followedIds.length === 0) {
+      return { posts: [], hasMore: false }
+    }
+
+    const { data, error, count } = await supabaseAdmin
+      .from('posts')
+      .select(`
+        *,
+        profiles:author_id (name, avatar_url),
+        pets:pet_id (name)
+      `, { count: 'exact' })
+      .in('author_id', followedIds)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1)
+
+    if (error) throw error
+    const hasMore = count !== null ? offset + limit < count : (data?.length === limit)
+    return { posts: data || [], hasMore }
   }
 }

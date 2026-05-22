@@ -50,20 +50,41 @@ export const useProfileStyles = makeStyles((theme) => ({
     paddingHorizontal: 20,
     marginBottom: 20,
   },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    width: '100%',
-    paddingVertical: 16,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: theme.colors.border,
-    marginBottom: 16,
-  },
-  statItem: {
-    alignItems: 'center',
-  },
-  // Grid
+   statsRow: {
+     flexDirection: 'row',
+     justifyContent: 'space-around',
+     width: '100%',
+     paddingVertical: 16,
+     borderTopWidth: 1,
+     borderBottomWidth: 1,
+     borderColor: theme.colors.border,
+     marginBottom: 16,
+   },
+   statItem: {
+     alignItems: 'center',
+   },
+   // Follow button
+   followButtonContainer: {
+     alignSelf: 'stretch',
+     paddingHorizontal: 16,
+     marginBottom: 16,
+   },
+   followButton: {
+     flexDirection: 'row',
+     alignItems: 'center',
+     justifyContent: 'center',
+     paddingVertical: 12,
+     borderRadius: 8,
+   },
+   followButtonFollow: {
+     backgroundColor: theme.colors.primary,
+   },
+   followButtonFollowing: {
+     backgroundColor: 'transparent',
+     borderWidth: 2,
+     borderColor: theme.colors.primary,
+   },
+   // Grid
   filterContainer: {
     paddingHorizontal: 16,
     paddingBottom: 12,

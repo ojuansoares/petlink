@@ -106,5 +106,10 @@ export const postsService = {
     const newPinStatus = !currentPinStatus
     const updated = await postsRepository.updateByIdAndAuthor(authorId, postId, { is_pinned: newPinStatus })
     return updated
+  },
+
+  async getFollowed(followerId: string, page = 1, limit = 20) {
+    const result = await postsRepository.listFollowed(followerId, page, limit)
+    return { ...result, posts: optimizePostUrls(result.posts, 'feed') }
   }
 }

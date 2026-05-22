@@ -101,5 +101,21 @@ export const postsController = {
       const statusCode = err instanceof AppError ? err.statusCode : err.statusCode ?? 500
       return res.status(statusCode).json({ error: err.message ?? 'Erro' })
     }
+  },
+
+  async followed(req: Request, res: Response) {
+    try {
+      const authReq = req as AuthRequest
+      if (!authReq.user) return res.status(401).json({ error: 'Não autenticado' })
+
+      const page = parseInt(req.query.page as string, 10) || 1
+      const limit = parseInt(req.query.limit as string, 10) || 20
+
+      const result = await postsService.getFollowed(authReq.user.id, page, limit)
+      return res.status(200).json(result)
+    } catch (err: any) {
+      const statusCode = err instanceof AppError ? err.statusCode : err.statusCode ?? 500
+      return res.status(statusCode).json({ error: err.message ?? 'Erro' })
+    }
   }
 }

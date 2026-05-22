@@ -32,6 +32,12 @@ interface PostsState {
   hasMoreUserPosts: boolean
   isLoadingUserPosts: boolean
   isLoadingMoreUserPosts: boolean
+  // ── followed users feed (Feed screen following tab) ──
+  followedFeed: Post[]
+  followedFeedPage: number
+  hasMoreFollowedFeed: boolean
+  isLoadingFollowedFeed: boolean
+  isLoadingMoreFollowedFeed: boolean
   // ── misc ──
   feedPage: number
   hasMoreFeed: boolean
@@ -73,6 +79,38 @@ export const fetchMoreFeedThunk = createAsyncThunk(
       return data as { posts: Post[]; hasMore: boolean }
     } catch (err: any) {
       return rejectWithValue(err.response?.data?.error ?? 'Erro ao carregar mais')
+    }
+  }
+)
+
+/**
+ * Feed de usuários seguidos
+ * Usado na aba "Seguindo" do FeedScreen
+ */
+export const fetchFollowedFeedThunk = createAsyncThunk(
+  'posts/fetchFollowedFeed',
+  async (isOnline: boolean, { rejectWithValue }) => {
+    if (!isOnline) {
+      // TODO: implement offline followed feed if needed
+      return { posts: [], hasMore: false, isOffline: true } as { posts: Post[]; hasMore: boolean; isOffline: boolean }
+    }
+    try {
+      const { data } = await api.get('/posts/followed?page=1&limit=20')
+      return data as { posts: Post[]; hasMore: boolean }
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.error ?? 'Erro ao carregar feed de seguidos')
+    }
+  }
+)
+
+export const fetchMoreFollowedFeedThunk = createAsyncThunk(
+  'posts/fetchMoreFollowedFeed',
+  async (page: number, { rejectWithValue }) => {
+    try {
+      const { data } = await api.get(`/posts/followed?page=${page}&limit=20`)
+      return data as { posts: Post[]; hasMore: boolean }
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.error ?? 'Erro ao carregar mais feed de seguidos')
     }
   }
 )
@@ -249,6 +287,11 @@ const initialState: PostsState = {
   isLoadingMoreFeed: false,
   isPosting: false,
   error: null,
+  followedFeed: [],
+  followedFeedPage: 1,
+  hasMoreFollowedFeed: true,
+  isLoadingFollowedFeed: false,
+  isLoadingMoreFollowedFeed: false,
 }
 
 const postsSlice = createSlice({
@@ -273,6 +316,11 @@ const postsSlice = createSlice({
       state.userPostsPage = 1
       state.hasMoreUserPosts = true
       state.userPostsUserId = null
+    },
+    resetFollowedFeed: (state) => {
+      state.followedFeed = []
+      state.followedFeedPage = 1
+      state.hasMoreFollowedFeed = true
     },
   },
   extraReducers: (builder) => {
@@ -306,6 +354,38 @@ const postsSlice = createSlice({
       })
       .addCase(fetchMoreFeedThunk.rejected, (s) => {
         s.isLoadingMoreFeed = false
+      })
+
+    // ── fetchFollowedFeed ──
+    builder
+      .addCase(fetchFollowedFeedThunk.pending, (s) => {
+        s.isLoadingFollowedFeed = true
+        s.error = null
+      })
+      .addCase(fetchFollowedFeedThunk.fulfilled, (s, a) => {
+        s.isLoadingFollowedFeed = false
+        s.followedFeed = a.payload.posts
+        s.hasMoreFollowedFeed = a.payload.hasMore
+        s.followedFeedPage = 2
+      })
+      .addCase(fetchFollowedFeedThunk.rejected, (s, a) => {
+        s.isLoadingFollowedFeed = false
+        s.error = a.payload as string
+      })
+
+    // ── fetchMoreFollowedFeed ──
+    builder
+      .addCase(fetchMoreFollowedFeedThunk.pending, (s) => {
+        s.isLoadingMoreFollowedFeed = true
+      })
+      .addCase(fetchMoreFollowedFeedThunk.fulfilled, (s, a) => {
+        s.isLoadingMoreFollowedFeed = false
+        s.followedFeed.push(...a.payload.posts)
+        s.hasMoreFollowedFeed = a.payload.hasMore
+        s.followedFeedPage += 1
+      })
+      .addCase(fetchMoreFollowedFeedThunk.rejected, (s) => {
+        s.isLoadingMoreFollowedFeed = false
       })
 
     // ── fetchMyPosts (own profile) ──
@@ -441,6 +521,13 @@ export const selectHasMoreFeed = (s: any): boolean => s.posts.hasMoreFeed
 export const selectFeedPage = (s: any): number => s.posts.feedPage
 export const selectIsLoadingFeed = (s: any): boolean => s.posts.isLoadingFeed
 export const selectIsLoadingMoreFeed = (s: any): boolean => s.posts.isLoadingMoreFeed
+
+// ── followed feed selectors ───
+export const selectFollowedFeed = (s: any): Post[] => s.posts.followedFeed
+export const selectHasMoreFollowedFeed = (s: any): boolean => s.posts.hasMoreFollowedFeed
+export const selectFollowedFeedPage = (s: any): number => s.posts.followedFeedPage
+export const selectIsLoadingFollowedFeed = (s: any): boolean => s.posts.isLoadingFollowedFeed
+export const selectIsLoadingMoreFollowedFeed = (s: any): boolean => s.posts.isLoadingMoreFollowedFeed
 
 // ── own user ──
 const selectRawMyPosts = (s: any): Post[] => s.posts.myPosts

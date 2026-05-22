@@ -25,10 +25,18 @@ export const profileRepository = {
 
     if (postsCountError) throw postsCountError
 
+    const { count: followersCount, error: followersCountError } = await supabaseAdmin
+      .from('follows')
+      .select('*', { count: 'exact', head: true })
+      .eq('following_id', id)
+
+    if (followersCountError) throw followersCountError
+
     return {
       ...profile,
       pets_count: count ?? 0,
-      posts_count: postsCount ?? 0
+      posts_count: postsCount ?? 0,
+      followers_count: followersCount ?? 0
     }
   },
 
@@ -56,10 +64,18 @@ export const profileRepository = {
 
     if (postsCountError) throw postsCountError
 
+    const { count: followersCount, error: followersCountError } = await supabaseAdmin
+      .from('follows')
+      .select('*', { count: 'exact', head: true })
+      .eq('following_id', id)
+
+    if (followersCountError) throw followersCountError
+
     return {
       ...profile,
       pets_count: petsCount ?? 0,
-      posts_count: postsCount ?? 0
+      posts_count: postsCount ?? 0,
+      followers_count: followersCount ?? 0
     }
   },
 
