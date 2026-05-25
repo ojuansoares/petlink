@@ -3,7 +3,7 @@ import axios from 'axios'
 import * as SecureStore from 'expo-secure-store'
 import { api } from '../../api/axios'
 import { isSupabaseConfigured, supabase } from '../../config/supabase'
-import { getRedirectUrl } from '../../services/AuthDeepLinkService'
+import { getServerRedirectUrl } from '../../services/AuthDeepLinkService'
 import {
   isBiometricEnabled,
   isBiometricSessionLocked,
@@ -248,7 +248,7 @@ export const forgotPasswordThunk = createAsyncThunk(
       }
 
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: getRedirectUrl(),
+        redirectTo: getServerRedirectUrl(),
       })
 
       if (error) {
