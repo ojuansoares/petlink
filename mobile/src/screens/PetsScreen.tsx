@@ -17,6 +17,7 @@ import { Avatar } from '../components/ui/Avatar'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Input } from '../components/ui/Input'
+import { OptionSelect } from '../components/ui/OptionSelect'
 import { Heading, Text } from '../components/ui/Typography'
 import { useTheme } from '../hooks/useTheme'
 import { useNetworkCheck } from '../hooks/useNetworkCheck'
@@ -44,16 +45,23 @@ import { AppStackParamList } from '../navigation/types';
 
 import { usePetsStyles } from './Pets/usePetsStyles'
 import { PetListSelector } from './Pets/components/PetListSelector'
-import { PetDetailsCard } from './Pets/components/PetDetailsCard'
+import { PetDetailsCard, getBadgeConfig } from './Pets/components/PetDetailsCard'
 import { WeightChart } from './Pets/components/WeightChart'
 import { ControlCard } from './Pets/components/ControlCard'
-import { PetCreationStepContent } from './Pets/components/PetCreationStepContent'
+import { Calendar } from './Pets/components/Calendar'
+import { PetCreationStepContent, FIXED_TAGS } from './Pets/components/PetCreationStepContent'
 import { AppModal } from '../components/ui/AppModal'
 import { SegmentedTabs } from '../components/ui/SegmentedTabs'
 
 type PetsScreenNavigationProp = StackNavigationProp<AppStackParamList, 'Tabs'>;
 
 const STEP_TITLES = ['Identidade', 'Detalhes', 'Foto', 'Cuidados']
+const SPECIES_OPTIONS = [
+  { label: 'Cachorro', value: 'dog' },
+  { label: 'Gato', value: 'cat' },
+  { label: 'Pássaro', value: 'bird' },
+  { label: 'Outro', value: 'other' },
+]
 const SPECIES_TRANSLATION: Record<string, string> = {
   dog: 'Cachorro',
   cat: 'Gato',
@@ -114,7 +122,7 @@ export default function PetsScreen() {
   const styles = usePetsStyles()
   const insets = useSafeAreaInsets()
   const dispatch = useAppDispatch()
-  const { colors, withAlpha, mode } = useTheme()
+  const { colors, withAlpha, mode, isDark } = useTheme()
   const { width } = useWindowDimensions()
   const contentWidth = width - 32
 
@@ -178,10 +186,18 @@ export default function PetsScreen() {
     setObservations('')
   }
 
-  const handleNext = () => {
-    if (step === 0 && (!name.trim() || !species.trim())) return
-    setStep(s => Math.min(s + 1, STEP_TITLES.length - 1))
-  }
+   const handleNext = () => {
+     if (step === 0) {
+       if (!name.trim() || !species.trim()) return
+     } else if (step === 1) {
+       if (!breed.trim() || !birthDate.trim() || !weightKg.trim()) return
+     } else if (step === 2) {
+       // Photo is optional, so we can always proceed to next step
+     } else if (step === 3) {
+       // All fields in step 3 are optional, so we can always proceed to finish
+     }
+     setStep(s => Math.min(s + 1, STEP_TITLES.length - 1))
+   }
 
   const handleCreatePet = async () => {
     requireOnline(async () => {
@@ -242,6 +258,7 @@ export default function PetsScreen() {
           }
         })).unwrap()
         dispatch(showToast({ type: 'success', message: 'Pet atualizado!' }))
+        resetForm()
         setIsEditing(false)
         setIsWeightModalOpen(false)
       } catch (err) {
@@ -256,6 +273,7 @@ export default function PetsScreen() {
       try {
         await dispatch(deletePetThunk(activePet.id)).unwrap()
         dispatch(showToast({ type: 'success', message: 'Pet removido.' }))
+        resetForm()
         setIsDeleteModalOpen(false)
         setIsEditing(false)
       } catch (err) {
@@ -304,6 +322,7 @@ export default function PetsScreen() {
   }
 
   const handleStartEdit = () => {
+    resetForm()
     loadFormData()
     setIsEditing(true)
   }
@@ -326,12 +345,12 @@ export default function PetsScreen() {
             <Text color="mutedForeground" style={{ textAlign: 'center' }}>
               Você ainda não tem pets cadastrados. Vamos começar?
             </Text>
-            <Button label="Cadastrar meu primeiro Pet" onPress={() => setIsFlowOpen(true)} />
+            <Button label="Cadastrar meu primeiro Pet" onPress={() => { resetForm(); setIsFlowOpen(true) }} />
           </Card>
         </ScrollView>
         <AppModal
           visible={isFlowOpen}
-          onClose={() => setIsFlowOpen(false)}
+          onClose={() => { resetForm(); setIsFlowOpen(false) }}
           title={STEP_TITLES[step]}
           subtitle={`Passo ${step + 1} de ${STEP_TITLES.length}`}
           footer={
@@ -394,7 +413,7 @@ export default function PetsScreen() {
             )}
             <Heading size="xl" weight="800">{pets.length > 1 ? 'Meus Pets' : 'Meu Pet'}</Heading>
           </View>
-          <Button label="Novo" size="sm" onPress={() => setIsFlowOpen(true)} leftIcon={<Ionicons name="add" size={16} color="#fff" />} />
+          <Button label="Novo" size="sm" onPress={() => { resetForm(); setIsFlowOpen(true) }} leftIcon={<Ionicons name="add" size={16} color="#fff" />} />
         </View>
 
         {isSelectorVisible && (
@@ -440,7 +459,9 @@ export default function PetsScreen() {
                   setIsWeightModalOpen(true)
                 }}
               />
-              
+
+               <Calendar petId={activePet.id} />
+
               <View style={styles.extraSection}>
                 <Heading size="sm" weight="800">Sobre {activePet.name}</Heading>
                 {activePet.observations && (
@@ -449,7 +470,7 @@ export default function PetsScreen() {
                   </View>
                 )}
                 {activePet.allergies && (
-                  <View style={[styles.tag, { backgroundColor: withAlpha(colors.destructive, 0.1) }]}>
+                  <View style={[styles.tag, { backgroundColor: withAlpha(colors.destructive, 0.1), alignSelf: 'flex-start' }]}>
                     <Text size="xs" weight="700" style={{ color: colors.destructive }}>Alergias: {activePet.allergies}</Text>
                   </View>
                 )}
@@ -497,137 +518,251 @@ export default function PetsScreen() {
         )}
       </ScrollView>
 
-      {/* Creation Modal */}
-      <AppModal
-        visible={isFlowOpen}
-        onClose={() => setIsFlowOpen(false)}
-        title={STEP_TITLES[step]}
-        footer={
-          <View style={{ flexDirection: 'row', gap: 12, paddingBottom: 12 }}>
-            {step > 0 && (
-              <Button label="Voltar" variant="outline" style={{ flex: 1 }} onPress={() => setStep(s => s - 1)} />
-            )}
-            {step < STEP_TITLES.length - 1 ? (
-              <Button label="Próximo" variant="primary" style={{ flex: 1 }} onPress={handleNext} />
-            ) : (
-              <Button label="Finalizar" variant="primary" style={{ flex: 1 }} onPress={handleCreatePet} loading={isCreating} />
-            )}
-          </View>
-        }
-      >
-        <PetCreationStepContent
-          step={step}
-          name={name}
-          species={species}
-          breed={breed}
-          birthDate={birthDate}
-          weightKg={weightKg}
-          photoUrl={photoUrl}
-          allergies={allergies}
-          tags={tags}
-          observations={observations}
-          isUploadingPhoto={isUploadingPhoto}
-          onNameChange={setName}
-          onSpeciesChange={setSpecies}
-          onBreedChange={setBreed}
-          onOpenBirthDatePicker={() => setShowBirthDatePicker(true)}
-          onWeightKgChange={setWeightKg}
-          onAllergiesChange={setAllergies}
-          onTagsChange={setTags}
-          onObservationsChange={setObservations}
-          onPickPhoto={handlePickPhoto}
-          formatIsoToDisplay={formatIsoToDisplay}
-        />
-      </AppModal>
+       {/* Creation Modal */}
+       <AppModal
+         visible={isFlowOpen}
+         onClose={() => setIsFlowOpen(false)}
+         title={STEP_TITLES[step]}
+         footer={
+           <View style={{ flexDirection: 'row', gap: 12, paddingBottom: 12 }}>
+             {step > 0 && (
+               <Button label="Voltar" variant="outline" style={{ flex: 1 }} onPress={() => setStep(s => s - 1)} />
+             )}
+             {step < STEP_TITLES.length - 1 ? (
+               <Button label="Próximo" variant="primary" style={{ flex: 1 }} onPress={handleNext} />
+             ) : (
+               <Button label="Finalizar" variant="primary" style={{ flex: 1 }} onPress={handleCreatePet} loading={isCreating} />
+             )}
+           </View>
+         }
+       >
+         {/* Step Indicators */}
+         <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 16 }}>
+           {STEP_TITLES.map((title, index) => (
+             <View key={index} style={{
+               width: 24,
+               height: 24,
+               borderRadius: 12,
+               backgroundColor: index < step ? colors.primary : index === step ? withAlpha(colors.primary, 0.2) : withAlpha(colors.mutedForeground, 0.1),
+               justifyContent: 'center',
+               alignItems: 'center',
+               borderWidth: index === step ? 2 : 0,
+               borderColor: index === step ? colors.primary : 'transparent',
+             }}>
+               {index < step && (
+                 <Ionicons name="checkmark" size={16} color={colors.card} />
+               )}
+               {(index === step && index < STEP_TITLES.length - 1) && (
+                 <Ionicons name="chevron-forward" size={14} color={colors.primary} />
+               )}
+             </View>
+           ))}
+         </View>
+         
+         <PetCreationStepContent
+           step={step}
+           name={name}
+           species={species}
+           breed={breed}
+           birthDate={birthDate}
+           weightKg={weightKg}
+           photoUrl={photoUrl}
+           allergies={allergies}
+           tags={tags}
+           observations={observations}
+           isUploadingPhoto={isUploadingPhoto}
+           onNameChange={setName}
+           onSpeciesChange={setSpecies}
+           onBreedChange={setBreed}
+           onOpenBirthDatePicker={() => setShowBirthDatePicker(true)}
+           onWeightKgChange={setWeightKg}
+           onAllergiesChange={setAllergies}
+           onTagsChange={setTags}
+           onObservationsChange={setObservations}
+           onPickPhoto={handlePickPhoto}
+           formatIsoToDisplay={formatIsoToDisplay}
+         />
+       </AppModal>
 
-      {/* Edit Modal */}
-      <AppModal
-        visible={isEditing}
-        onClose={() => setIsEditing(false)}
-        title="Editar Pet"
-        footer={
-          <View style={{ gap: 12, paddingBottom: 12 }}>
-            <Button label="Salvar Alterações" variant="primary" onPress={handleUpdatePet} loading={isUpdating} />
-            <Button label="Excluir Pet" variant="outline" style={{ borderColor: colors.destructive }} onPress={() => setIsDeleteModalOpen(true)}>
-               <Text color="destructive" weight="700">Excluir Pet</Text>
-            </Button>
-          </View>
-        }
-      >
-        <ScrollView style={{ maxHeight: 400 }} showsVerticalScrollIndicator={false}>
-          <PetCreationStepContent
-            step={0}
-            name={name}
-            species={species}
-            breed={breed}
-            birthDate={birthDate}
-            weightKg={weightKg}
-            photoUrl={photoUrl}
-            allergies={allergies}
-            tags={tags}
-            observations={observations}
-            isUploadingPhoto={isUploadingPhoto}
-            onNameChange={setName}
-            onSpeciesChange={setSpecies}
-            onBreedChange={setBreed}
-            onOpenBirthDatePicker={() => setShowBirthDatePicker(true)}
-            onWeightKgChange={setWeightKg}
-            onAllergiesChange={setAllergies}
-            onTagsChange={setTags}
-            onObservationsChange={setObservations}
-            onPickPhoto={handlePickPhoto}
-            formatIsoToDisplay={formatIsoToDisplay}
-          />
-          <View style={{ height: 20 }} />
-          <PetCreationStepContent
-            step={1}
-            name={name}
-            species={species}
-            breed={breed}
-            birthDate={birthDate}
-            weightKg={weightKg}
-            photoUrl={photoUrl}
-            allergies={allergies}
-            tags={tags}
-            observations={observations}
-            isUploadingPhoto={isUploadingPhoto}
-            onNameChange={setName}
-            onSpeciesChange={setSpecies}
-            onBreedChange={setBreed}
-            onOpenBirthDatePicker={() => setShowBirthDatePicker(true)}
-            onWeightKgChange={setWeightKg}
-            onAllergiesChange={setAllergies}
-            onTagsChange={setTags}
-            onObservationsChange={setObservations}
-            onPickPhoto={handlePickPhoto}
-            formatIsoToDisplay={formatIsoToDisplay}
-          />
-          <View style={{ height: 20 }} />
-          <PetCreationStepContent
-            step={3}
-            name={name}
-            species={species}
-            breed={breed}
-            birthDate={birthDate}
-            weightKg={weightKg}
-            photoUrl={photoUrl}
-            allergies={allergies}
-            tags={tags}
-            observations={observations}
-            isUploadingPhoto={isUploadingPhoto}
-            onNameChange={setName}
-            onSpeciesChange={setSpecies}
-            onBreedChange={setBreed}
-            onOpenBirthDatePicker={() => setShowBirthDatePicker(true)}
-            onWeightKgChange={setWeightKg}
-            onAllergiesChange={setAllergies}
-            onTagsChange={setTags}
-            onObservationsChange={setObservations}
-            onPickPhoto={handlePickPhoto}
-            formatIsoToDisplay={formatIsoToDisplay}
-          />
-        </ScrollView>
-      </AppModal>
+       {/* Edit Modal */}
+       <AppModal
+         visible={isEditing}
+         onClose={() => { resetForm(); setIsEditing(false) }}
+         title="Editar Pet"
+         footer={
+           <View style={{ gap: 12, paddingBottom: 12 }}>
+             <Button label="Salvar Alterações" variant="primary" onPress={handleUpdatePet} loading={isUpdating} />
+             <Button label="Excluir Pet" variant="outline" textColor={colors.destructive} style={{ borderColor: colors.destructive }} onPress={() => setIsDeleteModalOpen(true)} />
+           </View>
+         }
+       >
+           <ScrollView style={{ maxHeight: 400 }} showsVerticalScrollIndicator={false}>
+             <View style={{ gap: 16 }}>
+               {/* Photo Section — top */}
+               <View style={{ alignItems: 'center', gap: 16 }}>
+                 <Avatar
+                   size={160}
+                   name={name || 'Seu Pet'}
+                   source={photoUrl ? { uri: photoUrl } : undefined}
+                 />
+                 <Pressable
+                   onPress={handlePickPhoto}
+                   disabled={isUploadingPhoto}
+                   style={{
+                     paddingHorizontal: 20,
+                     paddingVertical: 10,
+                     borderRadius: 999,
+                     backgroundColor: colors.primary,
+                     flexDirection: 'row',
+                     alignItems: 'center',
+                     gap: 8
+                   }}
+                 >
+                   {isUploadingPhoto ? (
+                     <ActivityIndicator size="small" color={colors.card} />
+                   ) : (
+                     <>
+                       <Ionicons name="camera" size={20} color={colors.card} />
+                       <Text weight="700" style={{ color: colors.card }}>
+                         {photoUrl ? 'Alterar Foto' : 'Escolher Foto'}
+                       </Text>
+                     </>
+                   )}
+                 </Pressable>
+               </View>
+
+               {/* Identity Section */}
+               <View style={{ gap: 12 }}>
+                 <Input
+                   label="Nome do pet"
+                   placeholder="Como seu pet se chama?"
+                   value={name}
+                   onChangeText={setName}
+                   leftIcon={<Ionicons name="paw-outline" size={18} color={colors.mutedForeground} />}
+                 />
+                 <OptionSelect
+                   label="Espécie"
+                   placeholder="Qual a espécie?"
+                   value={species}
+                   onChange={setSpecies}
+                   options={SPECIES_OPTIONS}
+                   leftIconName="leaf-outline"
+                 />
+               </View>
+               
+               {/* Details Section */}
+               <View style={{ gap: 12 }}>
+                 <Input
+                   label="Raça"
+                   placeholder="Qual a raça?"
+                   value={breed}
+                   onChangeText={setBreed}
+                   leftIcon={<Ionicons name="ribbon-outline" size={18} color={colors.mutedForeground} />}
+                 />
+                 <View style={{ gap: 6 }}>
+                   <Text size="sm" weight="700">Data de nascimento</Text>
+                   <Pressable
+                     style={{
+                       minHeight: 48,
+                       borderRadius: 999,
+                       borderWidth: 1,
+                       paddingHorizontal: 14,
+                       flexDirection: 'row',
+                       alignItems: 'center',
+                       gap: 8,
+                       backgroundColor: colors.card,
+                       borderColor: colors.border
+                     }}
+                     onPress={() => setShowBirthDatePicker(true)}
+                   >
+                     <Ionicons name="calendar-outline" size={18} color={colors.mutedForeground} />
+                     <Text size="base" color={birthDate ? 'foreground' : 'mutedForeground'} style={{ flex: 1 }}>
+                       {formatIsoToDisplay(birthDate) || 'Quando nasceu?'}
+                     </Text>
+                     <Ionicons name="chevron-down" size={18} color={colors.mutedForeground} />
+                   </Pressable>
+                 </View>
+                 
+                 <Input
+                   label="Peso"
+                   placeholder="Quanto pesa? (kg)"
+                   value={weightKg}
+                   onChangeText={setWeightKg}
+                   keyboardType="numeric"
+                   leftIcon={<Ionicons name="barbell-outline" size={18} color={colors.mutedForeground} />}
+                 />
+               </View>
+               
+               {/* Care Section */}
+               <View style={{ gap: 12 }}>
+                 <Input
+                   label="Alergias"
+                   placeholder="Tem alguma alergia? (opcional)"
+                   value={allergies}
+                   onChangeText={setAllergies}
+                   leftIcon={<Ionicons name="medkit-outline" size={18} color={colors.mutedForeground} />}
+                 />
+                 
+                <View style={{ gap: 8 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Text size="sm" weight="700">Tags (Personalidade)</Text>
+                    <Text size="xs" color="mutedForeground">{tags.length}/7</Text>
+                  </View>
+
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                    {FIXED_TAGS.map((tag) => {
+                      const selected = tags.includes(tag)
+                      const disabled = !selected && tags.length >= 7
+                      const badge = getBadgeConfig(tag, isDark)
+                      return (
+                        <Pressable
+                          key={tag}
+                          onPress={() => {
+                            if (selected) {
+                              setTags(tags.filter((t) => t !== tag))
+                            } else if (tags.length < 7) {
+                              setTags([...tags, tag])
+                            }
+                          }}
+                          style={{
+                            paddingHorizontal: 10,
+                            paddingVertical: 6,
+                            borderRadius: 999,
+                            borderWidth: 1.5,
+                            borderColor: selected ? badge.text : withAlpha(colors.border, 0.6),
+                            backgroundColor: selected ? badge.bg : 'transparent',
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: 4,
+                            opacity: disabled ? 0.4 : 1,
+                          }}
+                        >
+                          <Ionicons name={badge.icon} size={14} color={selected ? badge.text : colors.mutedForeground} />
+                          <Text
+                            size="xs"
+                            weight="700"
+                            style={{ color: selected ? badge.text : colors.mutedForeground }}
+                          >
+                            {tag}
+                          </Text>
+                        </Pressable>
+                      )
+                    })}
+                  </View>
+                </View>
+                 
+                 <Input
+                   label="Observações"
+                   placeholder="Algo mais sobre o pet? (opcional)"
+                   value={observations}
+                   onChangeText={setObservations}
+                   leftIcon={<Ionicons name="document-text-outline" size={18} color={colors.mutedForeground} />}
+                   multiline
+                 />
+               </View>
+             </View>
+           </ScrollView>
+       </AppModal>
 
       {/* Delete Confirmation */}
       <AppModal
@@ -646,10 +781,10 @@ export default function PetsScreen() {
       </AppModal>
 
       {/* Weight Modal */}
-      <AppModal
-        visible={isWeightModalOpen}
-        onClose={() => setIsWeightModalOpen(false)}
-        title="Atualizar Peso"
+        <AppModal
+          visible={isWeightModalOpen}
+          onClose={() => { resetForm(); setIsWeightModalOpen(false) }}
+          title="Atualizar Peso"
       >
         <View style={{ padding: 20, gap: 16 }}>
           <Input

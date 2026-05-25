@@ -21,6 +21,7 @@ import {
   selectAuthHydrated,
   selectAuthLoading,
   selectAuthLoadingContext,
+  setPasswordResetFlow,
 } from './src/store/slices/authSlice'
 import { selectIsDark, systemThemeChanged, setOnline, showToast } from './src/store/slices/uiSlice'
 import { hydrateActivePetThunk } from './src/store/slices/petsSlice'
@@ -99,7 +100,7 @@ function extractParamsFromUrl(url: string): Record<string, string> {
   return params
 }
 
-function handleDeepLink(
+async function handleDeepLink(
   url: string,
   dispatch: ReturnType<typeof useAppDispatch>
 ) {
@@ -107,17 +108,34 @@ function handleDeepLink(
 
   console.log('Deep link recebido:', url)
 
-  if (!url.includes('auth/callback') && !url.includes('access_token')) {
+  if (!url.includes('auth/callback') && !url.includes('access_token') && !url.includes('token=')) {
     return
   }
 
   const params = extractParamsFromUrl(url)
-  if (!params.access_token || !params.refresh_token) {
+  const linkType = params.type?.toLowerCase()
+
+  // ── Fluxo direto (token + email no deep link, sem passar pelo navegador) ──
+  if (params.token && params.email && linkType === 'recovery') {
+    const { error } = await supabase.auth.verifyOtp({
+      email: params.email,
+      token: params.token,
+      type: 'recovery',
+    })
+    if (error) {
+      console.log('Falha ao verificar token de recuperacao:', error.message)
+      return
+    }
+    dispatch(setPasswordResetFlow(true))
+    dispatch(showToast({ type: 'success', message: 'Token de recuperação validado. Defina sua nova senha.' }))
     return
   }
 
-  const linkType = params.type?.toLowerCase()
+  // ── Fluxo tradicional (via Supabase verify page + redirect com access_token) ──
+  if (!params.access_token || !params.refresh_token) return
+
   const isEmailConfirmation = linkType === 'signup' || linkType === 'email_change'
+  const isRecovery = linkType === 'recovery'
 
   supabase.auth
     .setSession({
@@ -132,9 +150,13 @@ function handleDeepLink(
 
       if (isEmailConfirmation) {
         dispatch(showToast({ type: 'success', message: 'Email confirmado com sucesso! Agora voce ja pode usar o app.' }))
+        dispatch(hydrateAuthThunk())
       }
 
-      dispatch(hydrateAuthThunk())
+      if (isRecovery) {
+        dispatch(setPasswordResetFlow(true))
+        dispatch(showToast({ type: 'success', message: 'Token de recuperação validado. Defina sua nova senha.' }))
+      }
     })
 }
 

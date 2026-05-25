@@ -307,6 +307,12 @@ export default function LoginScreen({ navigation }: Readonly<Props>) {
                 />
               ) : null}
 
+              <View style={styles.forgotRow}>
+                <Pressable onPress={() => navigation.push('ForgotPassword')}>
+                  <Text size="sm" weight="700" color="secondary">Esqueceu a senha?</Text>
+                </Pressable>
+              </View>
+
               <View style={styles.registerRow}>
                 <Text size="sm" color="mutedForeground">Nao tem uma conta? </Text>
                 <Pressable onPress={() => navigation.push('Register')}>
@@ -372,6 +378,10 @@ const styles = StyleSheet.create({
   },
   hint: {
     alignSelf: 'flex-start',
+  },
+  forgotRow: {
+    alignItems: 'center',
+    marginTop: 4,
   },
   registerRow: {
     flexDirection: 'row',

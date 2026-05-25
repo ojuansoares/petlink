@@ -25,6 +25,7 @@ interface ButtonProps extends Omit<PressableProps, 'style'> {
   style?: ViewStyle | ViewStyle[]
   leftIcon?: React.ReactNode
   rightIcon?: React.ReactNode
+  textColor?: string
 }
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable)
@@ -40,6 +41,7 @@ export function Button({
   style,
   leftIcon,
   rightIcon,
+  textColor,
   ...props
 }: Readonly<ButtonProps>) {
   const { colors, shadows, withAlpha } = useTheme()
@@ -74,7 +76,7 @@ export function Button({
               borderColor: 'transparent',
             }
 
-  const labelColor =
+  const computedLabelColor =
     variant === 'primary'
       ? colors.primaryForeground
       : variant === 'outline'
@@ -82,6 +84,8 @@ export function Button({
         : variant === 'destructive'
           ? colors.destructiveForeground
           : colors.foreground
+
+  const labelColor = textColor ?? computedLabelColor
 
   const sizeStyle: ViewStyle = 
     size === 'sm' 

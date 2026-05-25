@@ -22,6 +22,7 @@ import { SegmentedTabs } from '../components/ui/SegmentedTabs'
 import { PetBubbleRing } from '../components/ui/PetBubbleRing'
 import { Card } from '../components/ui/Card'
 import { useTheme } from '../hooks/useTheme'
+import { getBadgeConfig } from './Pets/components/PetDetailsCard'
 import { useAppDispatch, useAppSelector } from '../store'
 import { 
   fetchPublicProfileThunk, 
@@ -96,7 +97,7 @@ export default function PublicProfileScreen() {
   const { userId } = route.params
   const dispatch = useAppDispatch()
   const navigation = useNavigation<NavigationProp>()
-  const { colors } = useTheme()
+  const { colors, isDark } = useTheme()
   const { width } = useWindowDimensions()
   const { isOnline } = useNetworkCheck()
   const insets = useSafeAreaInsets()
@@ -287,7 +288,39 @@ export default function PublicProfileScreen() {
           subtitle={SPECIES_TRANSLATION[selectedPet.species.toLowerCase()] || selectedPet.species}
         >
           <View style={{ padding: 20, alignItems: 'center', gap: 16 }}>
-            <Avatar size={120} name={selectedPet.name} source={selectedPet.photo_url ? { uri: selectedPet.photo_url } : undefined} />
+            <View>
+              <Avatar size={120} name={selectedPet.name} source={selectedPet.photo_url ? { uri: selectedPet.photo_url } : undefined} />
+              {selectedPet.tags && selectedPet.tags.length > 0 && (
+                <View style={{
+                  position: 'absolute',
+                  top: -10,
+                  alignSelf: 'center',
+                  flexDirection: 'row',
+                  gap: 3,
+                }}>
+                  {selectedPet.tags.map((tag: string) => {
+                    const config = getBadgeConfig(tag, isDark)
+                    return (
+                      <View
+                        key={tag}
+                        style={{
+                          width: 24,
+                          height: 24,
+                          borderRadius: 12,
+                          backgroundColor: config.bg,
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          borderWidth: 1,
+                          borderColor: config.border,
+                        }}
+                      >
+                        <Ionicons name={config.icon} size={15} color={config.text} />
+                      </View>
+                    )
+                  })}
+                </View>
+              )}
+            </View>
             <View style={{ width: '100%', gap: 8 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                 <Text weight="700">Idade:</Text>
@@ -297,18 +330,6 @@ export default function PublicProfileScreen() {
                 <Text weight="700">Raça:</Text>
                 <Text>{selectedPet.breed || 'SRD'}</Text>
               </View>
-              {selectedPet.tags && selectedPet.tags.length > 0 && (
-                <View style={{ marginTop: 8, gap: 4 }}>
-                  <Text weight="700">Tags:</Text>
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-                    {selectedPet.tags.map((t: string) => (
-                      <View key={t} style={{ backgroundColor: colors.primary, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 }}>
-                        <Text size="xs" weight="700" style={{ color: colors.card }}>{t}</Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              )}
             </View>
           </View>
         </AppModal>

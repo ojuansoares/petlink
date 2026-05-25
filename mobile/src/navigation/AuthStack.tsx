@@ -4,6 +4,7 @@ import { TransitionPresets } from '@react-navigation/stack'
 import AuthWelcomeScreen from '../screens/AuthWelcomeScreen'
 import LoginScreen from '../screens/LoginScreen'
 import RegisterScreen from '../screens/RegisterScreen'
+import ForgotPasswordScreen from '../screens/ForgotPasswordScreen'
 import { AuthStackParamList } from './types'
 
 const Stack = createStackNavigator<AuthStackParamList>()
@@ -29,6 +30,10 @@ export default function AuthStack() {
       <Stack.Screen
         name="Register"
         component={RegisterScreen}
+      />
+      <Stack.Screen
+        name="ForgotPassword"
+        component={ForgotPasswordScreen}
       />
     </Stack.Navigator>
   )

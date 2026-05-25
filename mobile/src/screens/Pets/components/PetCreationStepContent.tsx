@@ -7,12 +7,30 @@ import { Text } from '../../../components/ui/Typography'
 import { Avatar } from '../../../components/ui/Avatar'
 import { usePetsStyles } from '../usePetsStyles'
 import { useTheme } from '../../../hooks/useTheme'
+import { getBadgeConfig } from './PetDetailsCard'
 
 const SPECIES_OPTIONS = [
   { label: 'Cachorro', value: 'dog' },
   { label: 'Gato', value: 'cat' },
   { label: 'Pássaro', value: 'bird' },
   { label: 'Outro', value: 'other' },
+]
+
+export const FIXED_TAGS = [
+  'Brincalhão',
+  'Carinhoso',
+  'Calmo',
+  'Energético',
+  'Comilão',
+  'Preguiçoso',
+  'Protetor',
+  'Inteligente',
+  'Tímido',
+  'Sociável',
+  'Bagunceiro',
+  'Caçador',
+  'Dócil',
+  'Aventureiro',
 ]
 
 interface StepContentProps {
@@ -63,8 +81,7 @@ export function PetCreationStepContent({
   formatIsoToDisplay,
 }: StepContentProps) {
   const styles = usePetsStyles()
-  const { colors } = useTheme()
-  const [tagInput, setTagInput] = React.useState('')
+  const { colors, withAlpha, isDark } = useTheme()
 
   if (step === 0) {
     return (
@@ -182,41 +199,51 @@ export function PetCreationStepContent({
         />
 
         <View style={{ gap: 8 }}>
-          <Text size="sm" weight="700">Tags (Personalidade)</Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-            {tags.map((tag) => (
-              <Pressable
-                key={tag}
-                onPress={() => onTagsChange(tags.filter((t: string) => t !== tag))}
-                style={{
-                  backgroundColor: colors.primary,
-                  paddingHorizontal: 12,
-                  paddingVertical: 6,
-                  borderRadius: 999,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 4
-                }}
-              >
-                <Text size="xs" weight="700" style={{ color: colors.card }}>{tag}</Text>
-                <Ionicons name="close" size={14} color={colors.card} />
-              </Pressable>
-            ))}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Text size="sm" weight="700">Tags (Personalidade)</Text>
+            <Text size="xs" color="mutedForeground">{tags.length}/7</Text>
           </View>
-          <Input
-            label="Nova tag"
-            placeholder={tags.length < 7 ? "Digite e aperte enter..." : "Limite atingido"}
-            value={tagInput}
-            editable={tags.length < 7}
-            onChangeText={setTagInput}
-            onSubmitEditing={() => {
-              const val = tagInput.trim().toLowerCase()
-              if (val && !tags.includes(val)) {
-                onTagsChange([...tags, val])
-                setTagInput('')
-              }
-            }}
-          />
+
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+            {FIXED_TAGS.map((tag) => {
+              const selected = tags.includes(tag)
+              const disabled = !selected && tags.length >= 7
+              const badge = getBadgeConfig(tag, isDark)
+              return (
+                <Pressable
+                  key={tag}
+                  onPress={() => {
+                    if (selected) {
+                      onTagsChange(tags.filter((t) => t !== tag))
+                    } else if (tags.length < 7) {
+                      onTagsChange([...tags, tag])
+                    }
+                  }}
+                  style={{
+                    paddingHorizontal: 10,
+                    paddingVertical: 6,
+                    borderRadius: 999,
+                    borderWidth: 1.5,
+                    borderColor: selected ? badge.text : withAlpha(colors.border, 0.6),
+                    backgroundColor: selected ? badge.bg : 'transparent',
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 4,
+                    opacity: disabled ? 0.4 : 1,
+                  }}
+                >
+                  <Ionicons name={badge.icon} size={14} color={selected ? badge.text : colors.mutedForeground} />
+                  <Text
+                    size="xs"
+                    weight="700"
+                    style={{ color: selected ? badge.text : colors.mutedForeground }}
+                  >
+                    {tag}
+                  </Text>
+                </Pressable>
+              )
+            })}
+          </View>
         </View>
 
         <Input

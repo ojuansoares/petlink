@@ -4,7 +4,7 @@ import { createStackNavigator } from '@react-navigation/stack'
 import { Ionicons } from '@expo/vector-icons'
 import { Pressable } from 'react-native'
 import { useAppSelector } from '../store'
-import { selectIsAuth } from '../store/slices/authSlice'
+import { selectIsAuth, selectIsPasswordResetFlow } from '../store/slices/authSlice'
 import { selectIsDark } from '../store/slices/uiSlice'
 import { tokens, withAlpha } from '../theme'
 import AuthStack from './AuthStack'
@@ -15,6 +15,7 @@ import ProfileFeedScreen from '../screens/ProfileFeedScreen'
 import { AppStackParamList } from './types'
 import { VaccineScreen } from '../screens/Pets/VaccineScreen';
 import { ConsultationScreen } from '../screens/Pets/ConsultationScreen';
+import ResetPasswordScreen from '../screens/ResetPasswordScreen';
 
 const AppStack = createStackNavigator<AppStackParamList>()
 
@@ -139,6 +140,7 @@ function AuthenticatedNavigator() {
 
 export default function RootNavigator() {
   const isAuth = useAppSelector(selectIsAuth)
+  const isPasswordResetFlow = useAppSelector(selectIsPasswordResetFlow)
   const isDark = useAppSelector(selectIsDark)
   const baseTheme = isDark ? DarkTheme : DefaultTheme
   const palette = isDark ? tokens.dark : tokens.light
@@ -158,7 +160,7 @@ export default function RootNavigator() {
         },
       }}
     >
-      {isAuth ? <AuthenticatedNavigator /> : <AuthStack />}
+      {isPasswordResetFlow ? <ResetPasswordScreen /> : isAuth ? <AuthenticatedNavigator /> : <AuthStack />}
     </NavigationContainer>
   )
 }

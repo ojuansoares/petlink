@@ -27,7 +27,7 @@ const DateTimePickerComponent = (() => {
 type ConsultationScreenRouteProp = RouteProp<AppStackParamList, 'Consultation'>;
 
 export function ConsultationScreen() {
-  const { colors } = useTheme();
+  const { colors, withAlpha } = useTheme();
   const user = useSelector(selectUser);
   const route = useRoute<ConsultationScreenRouteProp>();
   const { petId, petName } = route.params;
@@ -38,6 +38,9 @@ export function ConsultationScreen() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [currentConsultation, setCurrentConsultation] = useState<Consultation | null>(null);
   const [isOptionsVisible, setOptionsVisible] = useState(false);
+  // Detail modal states
+  const [detailConsultation, setDetailConsultation] = useState<Consultation | null>(null);
+  const [isDetailVisible, setIsDetailVisible] = useState(false);
   
   const [vetName, setVetName] = useState('');
   const [clinic, setClinic] = useState('');
@@ -128,50 +131,153 @@ export function ConsultationScreen() {
     }
   };
 
-  const handleDeleteConsultation = async (id: string) => {
-    try {
-      await deleteConsultation(id);
-      fetchConsultations();
-    } catch (error) {
-      console.error("Failed to delete consultation:", error);
-    }
-  };
+    const handleDeleteConsultation = async (id: string) => {
+      try {
+        await deleteConsultation(id);
+        fetchConsultations();
+      } catch (error) {
+        console.error("Failed to delete consultation:", error);
+      }
+    };
 
-  const confirmDelete = (id: string) => {
-    handleDeleteConsultation(id);
-  };
+    const confirmDelete = (id: string) => {
+      handleDeleteConsultation(id);
+    };
 
-  const renderItem = ({ item }: { item: Consultation }) => (
-    <View style={[styles.itemCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-      <View style={{ flex: 1 }}>
-        <Text style={[styles.itemTitle, { color: colors.foreground }]}>Vet: {item.vet_name}</Text>
-        {item.clinic && (
-          <View style={styles.itemMeta}>
-            <Ionicons name="business-outline" size={14} color={colors.mutedForeground} />
-            <Text style={[styles.itemText, { color: colors.mutedForeground }]}>{item.clinic}</Text>
+    const handleOpenDetail = (item: Consultation) => {
+      setDetailConsultation(item);
+      setIsDetailVisible(true);
+    };
+
+    const renderDetailContent = () => {
+      if (!detailConsultation) return null;
+
+      const c = detailConsultation;
+
+      return (
+        <View style={styles.modalContent}>
+          <View style={[styles.detailSection, { borderLeftColor: colors.info }]}>
+            <Text size="xs" color="mutedForeground" weight="800">
+              TIPO DE REGISTRO
+            </Text>
+            <Text size="lg" weight="800" style={{ color: colors.info }}>
+              CONSULTA MÉDICA
+            </Text>
           </View>
-        )}
-        <View style={styles.itemMeta}>
-          <Ionicons name="calendar-outline" size={14} color={colors.mutedForeground} />
-          <Text style={[styles.itemText, { color: colors.mutedForeground }]}>
-            {item.consulted_at ? format(parseISO(item.consulted_at), 'dd/MM/yyyy') : 'N/A'}
-          </Text>
+
+          <View style={styles.detailSection}>
+            <Text size="xs" color="mutedForeground" weight="800">
+              VETERINÁRIO(A)
+            </Text>
+            <Heading size="lg" weight="800">
+              {c.vet_name}
+            </Heading>
+          </View>
+
+          <View style={styles.rowGrid}>
+            <View style={[styles.detailSection, { flex: 1 }]}>
+              <Text size="xs" color="mutedForeground" weight="800">
+                DATA DA CONSULTA
+              </Text>
+              <Text weight="700">
+                {c.consulted_at ? format(parseISO(c.consulted_at), 'dd/MM/yyyy') : 'N/A'}
+              </Text>
+            </View>
+
+            {c.clinic && (
+              <View style={[styles.detailSection, { flex: 1 }]}>
+                <Text size="xs" color="mutedForeground" weight="800">
+                  CLÍNICA
+                </Text>
+                <Text weight="700">{c.clinic}</Text>
+              </View>
+            )}
+          </View>
+
+          <View style={styles.detailSection}>
+            <Text size="xs" color="mutedForeground" weight="800">
+              MOTIVO / QUEIXA
+            </Text>
+            <Text>{c.reason}</Text>
+          </View>
+
+          {c.diagnosis && (
+            <View style={styles.detailSection}>
+              <Text size="xs" color="mutedForeground" weight="800">
+                DIAGNÓSTICO
+              </Text>
+              <Text weight="700">{c.diagnosis}</Text>
+            </View>
+          )}
+
+          {c.exams_requested && (
+            <View style={styles.detailSection}>
+              <Text size="xs" color="mutedForeground" weight="800">
+                EXAMES SOLICITADOS
+              </Text>
+              <Text>{c.exams_requested}</Text>
+            </View>
+          )}
+
+          {c.prescription && (
+            <View style={[styles.detailSection, { backgroundColor: withAlpha(colors.infoContainer, 0.4), padding: 12, borderRadius: 12 }]}>
+              <Text size="xs" color="mutedForeground" weight="800" style={{ marginBottom: 4 }}>
+                RECOMENDAÇÃO / PRESCRIÇÃO
+              </Text>
+              <Text size="sm" weight="600">{c.prescription}</Text>
+            </View>
+          )}
+
+          {c.notes && (
+            <View style={[styles.detailSection, { backgroundColor: withAlpha(colors.muted, 0.5), padding: 12, borderRadius: 12 }]}>
+              <Text size="xs" color="mutedForeground" weight="800" style={{ marginBottom: 4 }}>
+                ANOTAÇÕES
+              </Text>
+              <Text size="sm">"{c.notes}"</Text>
+            </View>
+          )}
         </View>
-        <Text style={[styles.itemReason, { color: colors.foreground }]} numberOfLines={2}>
-          {item.reason}
-        </Text>
-      </View>
-      <TouchableOpacity 
-        style={{ padding: 8 }} 
-        onPress={() => {
-          setCurrentConsultation(item);
-          setOptionsVisible(true);
-        }}
-      >
-        <Ionicons name="ellipsis-vertical" size={20} color={colors.mutedForeground} />
-      </TouchableOpacity>
-    </View>
-  );
+      );
+    };
+
+   const renderItem = ({ item }: { item: Consultation }) => (
+     <View style={[styles.itemCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+       <TouchableOpacity 
+         onPress={() => {
+           handleOpenDetail(item);
+         }}
+         style={{ flex: 1, flexDirection: 'row' }}
+       >
+         <View style={{ flex: 1 }}>
+           <Text style={[styles.itemTitle, { color: colors.foreground }]}>Vet: {item.vet_name}</Text>
+           {item.clinic && (
+             <View style={styles.itemMeta}>
+               <Ionicons name="business-outline" size={14} color={colors.mutedForeground} />
+               <Text style={[styles.itemText, { color: colors.mutedForeground }]}>{item.clinic}</Text>
+             </View>
+           )}
+           <View style={styles.itemMeta}>
+             <Ionicons name="calendar-outline" size={14} color={colors.mutedForeground} />
+             <Text style={[styles.itemText, { color: colors.mutedForeground }]}>
+               {item.consulted_at ? format(parseISO(item.consulted_at), 'dd/MM/yyyy') : 'N/A'}
+             </Text>
+           </View>
+           <Text style={[styles.itemReason, { color: colors.foreground }]} numberOfLines={2}>
+             {item.reason}
+           </Text>
+         </View>
+       </TouchableOpacity>
+       <TouchableOpacity 
+         style={{ padding: 8 }} 
+         onPress={() => {
+           setCurrentConsultation(item);
+           setOptionsVisible(true);
+         }}
+       >
+         <Ionicons name="ellipsis-vertical" size={20} color={colors.mutedForeground} />
+       </TouchableOpacity>
+     </View>
+   );
 
   if (loading) {
     return <ActivityIndicator style={{ flex: 1 }} size="large" color={colors.primary} />;
@@ -298,10 +404,19 @@ export function ConsultationScreen() {
             }}
           />
         )}
-      </AppModal>
-    </View>
-  );
-}
+       </AppModal>
+       
+       {/* Detail Modal */}
+       <AppModal
+         visible={isDetailVisible}
+         onClose={() => setIsDetailVisible(false)}
+         title="Detalhes da Consulta"
+       >
+         {renderDetailContent()}
+       </AppModal>
+     </View>
+   );
+ }
 
 const styles = StyleSheet.create({
   container: {
@@ -347,5 +462,20 @@ const styles = StyleSheet.create({
     padding: 20,
     borderTopWidth: 1,
     borderTopColor: 'rgba(0,0,0,0.05)',
-  }
+  },
+  // Modal styles copied from Calendar component
+  modalContent: {
+    gap: 16,
+    paddingBottom: 24,
+  },
+  detailSection: {
+    gap: 4,
+    borderLeftWidth: 3,
+    borderLeftColor: 'transparent',
+    paddingLeft: 8,
+  },
+  rowGrid: {
+    flexDirection: 'row',
+    gap: 16,
+  },
 });

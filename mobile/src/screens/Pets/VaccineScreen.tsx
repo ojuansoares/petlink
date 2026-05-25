@@ -1,17 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Pressable, Alert } from 'react-native';
+import { View, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
-import { Text } from '../../components/ui/Typography';
+import { Text, Heading } from '../../components/ui/Typography';
 import { SegmentedTabs } from '../../components/ui/SegmentedTabs';
 import { Button } from '../../components/ui/Button';
 import { AppModal } from '../../components/ui/AppModal';
 import { Input } from '../../components/ui/Input';
 import { useRoute, RouteProp } from '@react-navigation/native';
 import { AppStackParamList } from '../../navigation/types';
-import { Vaccine } from '../../data/models';
+import { Vaccine, VaccineDose } from '../../data/models';
 import { getVaccinesByPetId, createVaccine, updateVaccine, deleteVaccine } from '../../api/vaccine.api';
-import { format, parseISO, isAfter, startOfDay, addDays, addWeeks } from 'date-fns';
+import { format, parseISO, startOfDay, addDays, isBefore } from 'date-fns';
 import { DateInput } from '../../components/ui/DateInput';
 import { useSelector } from 'react-redux';
 import { selectUser } from '../../store/slices/authSlice';
@@ -28,7 +28,7 @@ const DateTimePickerComponent = (() => {
 type VaccineScreenRouteProp = RouteProp<AppStackParamList, 'Vaccine'>;
 
 export function VaccineScreen() {
-  const { colors } = useTheme();
+  const { colors, withAlpha } = useTheme();
   const user = useSelector(selectUser);
   const route = useRoute<VaccineScreenRouteProp>();
   const { petId, petName } = route.params;
@@ -40,17 +40,33 @@ export function VaccineScreen() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [currentItem, setCurrentItem] = useState<Vaccine | null>(null);
   const [isOptionsVisible, setOptionsVisible] = useState(false);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  // Detail modal states
+  const [detailItem, setDetailItem] = useState<Vaccine | null>(null);
+  const [isDetailVisible, setIsDetailVisible] = useState(false);
   
   const [name, setName] = useState('');
-  const [appliedAt, setAppliedAt] = useState<Date>(new Date());
-  const [nextDoseAt, setNextDoseAt] = useState<Date | null>(null);
+  const [doses, setDoses] = useState<{ date: Date; applied: boolean }[]>([{ date: new Date(), applied: true }]);
   const [lab, setLab] = useState('');
   const [notes, setNotes] = useState('');
-  const [dateError, setDateError] = useState('');
+  const [showDosePicker, setShowDosePicker] = useState<number | null>(null);
 
-  const [showAppliedPicker, setShowAppliedPicker] = useState(false);
-  const [showNextPicker, setShowNextPicker] = useState(false);
+  const updateDose = (index: number, partial: Partial<{ date: Date; applied: boolean }>) => {
+    setDoses(prev => prev.map((d, i) => i === index ? { ...d, ...partial } : d))
+  }
 
+  const addDose = () => {
+    const lastDate = doses.length > 0 ? doses[doses.length - 1].date : new Date()
+    setDoses(prev => [...prev, { date: addDays(lastDate, 30), applied: false }])
+  }
+
+  const removeDose = (index: number) => {
+    setDoses(prev => prev.filter((_, i) => i !== index))
+  }
+
+  const sortDosesByDate = () => {
+    setDoses(prev => [...prev].sort((a, b) => a.date.getTime() - b.date.getTime()))
+  }
 
   const fetchItems = useCallback(async () => {
     try {
@@ -77,11 +93,9 @@ export function VaccineScreen() {
     setIsEditMode(false);
     setCurrentItem(null);
     setName('');
-    setAppliedAt(new Date());
-    setNextDoseAt(null);
+    setDoses([{ date: new Date(), applied: true }]);
     setLab('');
     setNotes('');
-    setDateError('');
     setModalVisible(true);
   };
 
@@ -89,73 +103,48 @@ export function VaccineScreen() {
     setIsEditMode(true);
     setCurrentItem(item);
     setName(item.name);
-    setAppliedAt(item.applied_at ? parseISO(item.applied_at) : new Date());
-    setNextDoseAt(item.next_dose_at ? parseISO(item.next_dose_at) : null);
+    if (item.doses && item.doses.length > 0) {
+      setDoses(item.doses.map(d => ({ date: parseISO(d.date), applied: d.applied })));
+    } else {
+      setDoses([{ date: parseISO(item.applied_at), applied: item.is_completed }]);
+    }
     setLab(item.lab || '');
     setNotes(item.notes || '');
-    setDateError('');
     setModalVisible(true);
   };
 
-  const onAppliedDateChange = (date: Date) => {
-    setAppliedAt(date);
-    // Logic: If next dose is null or less than 3 weeks from applied, set to 30 days
-    const minNext = addWeeks(date, 3);
-    if (!nextDoseAt || isAfter(minNext, nextDoseAt)) {
-      setNextDoseAt(addDays(date, 30));
-    }
-    setDateError('');
-  };
-
-  const onNextDoseDateChange = (date: Date) => {
-    const minNext = addWeeks(appliedAt, 3);
-    const maxNext = addDays(appliedAt, 45); // 1.5 months approx
-
-    if (isAfter(minNext, date)) {
-      setDateError('A próxima dose deve ser pelo menos 3 semanas após a primeira.');
-    } else if (isAfter(date, maxNext)) {
-      setDateError('A próxima dose não deve passar de 1 mês e meio da primeira.');
-    } else {
-      setDateError('');
-    }
-    setNextDoseAt(date);
-  };
-
   const handleSaveItem = async () => {
-    if (nextDoseAt) {
-      const minNext = addWeeks(appliedAt, 3);
-      const maxNext = addDays(appliedAt, 45);
-      
-      if (isAfter(minNext, nextDoseAt)) {
-        setDateError('A próxima dose deve ser pelo menos 3 semanas após a primeira.');
-        return;
-      }
-      if (isAfter(nextDoseAt, maxNext)) {
-        setDateError('A próxima dose não deve passar de 1 mês e meio da primeira.');
-        return;
-      }
-    }
-    
+    if (doses.length === 0) return
+
     const type = activeTab as 'vaccine' | 'dewormer';
-    
+
     if (!user) {
       console.error('User not authenticated in Redux');
       return;
     }
 
+    const sortedDoses = [...doses].sort((a, b) => a.date.getTime() - b.date.getTime())
+    const dosesJson: VaccineDose[] = sortedDoses.map(d => ({
+      date: d.date.toISOString(),
+      applied: d.applied,
+    }))
+
+    const firstUnapplied = sortedDoses.find(d => !d.applied)
+    const allApplied = sortedDoses.every(d => d.applied)
+
     const vaccineData = {
       pet_id: petId,
-      owner_id: user.id, // Explicitly sending the owner ID from Redux
+      owner_id: user.id,
       name,
       type,
-      applied_at: appliedAt.toISOString(),
-      next_dose_at: nextDoseAt?.toISOString(),
+      applied_at: sortedDoses[0].date.toISOString(),
+      next_dose_at: firstUnapplied ? firstUnapplied.date.toISOString() : undefined,
+      doses: dosesJson,
       lab,
       notes,
       notified: false,
+      is_completed: allApplied,
     };
-
-    console.log('[DEBUG] Saving Vaccine:', vaccineData);
 
     try {
         if (isEditMode && currentItem) {
@@ -179,51 +168,184 @@ export function VaccineScreen() {
     }
   };
 
+  const handleOpenDetail = (item: Vaccine) => {
+    setDetailItem(item);
+    setIsDetailVisible(true);
+  };
+
+  const handleToggleDose = async (doseIndex: number) => {
+    if (!detailItem) return
+    try {
+      setIsUpdatingStatus(true)
+      const currentDoses: VaccineDose[] = (detailItem.doses && detailItem.doses.length > 0)
+        ? detailItem.doses
+        : [{ date: detailItem.applied_at, applied: detailItem.is_completed }]
+      const newDoses = currentDoses.map((d, i) => i === doseIndex ? { ...d, applied: !d.applied } : d)
+      const allApplied = newDoses.every(d => d.applied)
+      const firstUnapplied = newDoses.find(d => !d.applied)
+      const updated = await updateVaccine(detailItem.id, {
+        doses: newDoses,
+        next_dose_at: firstUnapplied ? firstUnapplied.date : undefined,
+        is_completed: allApplied,
+      })
+      setDetailItem(updated)
+      fetchItems()
+    } catch (error) {
+      console.error('Error toggling dose', error)
+    } finally {
+      setIsUpdatingStatus(false)
+    }
+  }
+
+  const renderDetailDoses = (item: Vaccine) => {
+    const dosesList = (item.doses && item.doses.length > 0) ? item.doses : [{ date: item.applied_at, applied: item.is_completed }]
+    return (
+      <View>
+        <Text size="xs" color="mutedForeground" weight="800" style={{ marginBottom: 8 }}>
+          DOSES
+        </Text>
+        {dosesList.map((dose, idx) => {
+          const doseDate = parseISO(dose.date)
+          const isDoseOverdue = !dose.applied && isBefore(startOfDay(doseDate), startOfDay(new Date()))
+          return (
+            <Pressable
+              key={idx}
+              onPress={() => handleToggleDose(idx)}
+              disabled={isUpdatingStatus}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 10,
+                paddingVertical: 10,
+                paddingHorizontal: 12,
+                borderRadius: 10,
+                marginBottom: 4,
+                backgroundColor: withAlpha(dose.applied ? '#22c55e' : (isDoseOverdue ? '#ef4444' : colors.muted), 0.1),
+              }}
+            >
+              <Ionicons
+                name={dose.applied ? 'checkbox' : 'square-outline'}
+                size={22}
+                color={dose.applied ? '#22c55e' : (isDoseOverdue ? '#ef4444' : colors.mutedForeground)}
+              />
+              <View style={{ flex: 1 }}>
+                <Text weight="700" style={{ color: dose.applied ? '#22c55e' : (isDoseOverdue ? '#ef4444' : colors.foreground) }}>
+                  {format(doseDate, 'dd/MM/yyyy')}
+                </Text>
+                <Text size="xs" color="mutedForeground">
+                  {dose.applied ? 'Aplicada' : (isDoseOverdue ? 'Atrasada' : 'Pendente')}
+                </Text>
+              </View>
+            </Pressable>
+          )
+        })}
+      </View>
+    )
+  }
+
+  const renderDetailContent = () => {
+    if (!detailItem) return null;
+    const isDewormer = detailItem.type === 'dewormer';
+
+    return (
+      <View style={styles.modalContent}>
+        <View style={[styles.detailSection, { borderLeftColor: isDewormer ? '#f97316' : colors.primary }]}>
+          <Text size="xs" color="mutedForeground" weight="800">
+            TIPO DE REGISTRO
+          </Text>
+          <Text size="lg" weight="800" style={{ color: isDewormer ? '#f97316' : colors.primary }}>
+            {isDewormer ? 'VERMÍFUGO' : 'VACINA'}
+          </Text>
+        </View>
+
+        <View style={styles.detailSection}>
+          <Text size="xs" color="mutedForeground" weight="800">
+            NOME DO PRODUTO / VACINA
+          </Text>
+          <Heading size="lg" weight="800">
+            {detailItem.name}
+          </Heading>
+        </View>
+
+        {renderDetailDoses(detailItem)}
+
+        {detailItem.lab && (
+          <View style={styles.detailSection}>
+            <Text size="xs" color="mutedForeground" weight="800">
+              LABORATÓRIO
+            </Text>
+            <Text weight="700">{detailItem.lab}</Text>
+          </View>
+        )}
+
+        {detailItem.notes && (
+          <View style={[styles.detailSection, { backgroundColor: withAlpha(colors.muted, 0.5), padding: 12, borderRadius: 12 }]}>
+            <Text size="xs" color="mutedForeground" weight="800" style={{ marginBottom: 4 }}>
+              OBSERVAÇÕES
+            </Text>
+            <Text size="sm">"{detailItem.notes}"</Text>
+          </View>
+        )}
+      </View>
+    );
+  };
+
   const confirmDelete = (id: string) => {
     handleDeleteItem(id);
   };
 
-  const renderItem = ({ item }: { item: Vaccine }) => {
-    const isFuture = item.applied_at ? isAfter(parseISO(item.applied_at), startOfDay(new Date())) : false;
-    
-    return (
-      <View style={[styles.itemCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <View style={{ flex: 1 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Text style={[styles.itemName, { color: colors.foreground }]}>{item.name}</Text>
-            {isFuture && (
-              <View style={{ backgroundColor: colors.infoContainer, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                <Text size="xs" weight="800" style={{ color: colors.info }}>AGENDADA</Text>
+   const renderItem = ({ item }: { item: Vaccine }) => {
+      const dosesList: VaccineDose[] = (item.doses && item.doses.length > 0) ? item.doses : [{ date: item.applied_at, applied: item.is_completed }]
+      const totalDoses = dosesList.length
+      const appliedDoses = dosesList.filter(d => d.applied).length
+      const allDone = totalDoses > 0 && appliedDoses === totalDoses
+      const anyOverdue = dosesList.some(d => !d.applied && isBefore(startOfDay(parseISO(d.date)), startOfDay(new Date())))
+      
+      return (
+        <View style={[styles.itemCard, { backgroundColor: anyOverdue ? 'rgba(239, 68, 68, 0.05)' : colors.card, borderColor: anyOverdue ? 'rgba(239, 68, 68, 0.3)' : colors.border }]}>
+          <TouchableOpacity 
+            onPress={() => {
+              handleOpenDetail(item);
+            }}
+            style={{ flex: 1, flexDirection: 'row' }}
+          >
+            <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <Text style={[styles.itemName, { color: allDone ? colors.mutedForeground : (anyOverdue ? '#ef4444' : colors.foreground), textDecorationLine: allDone ? 'line-through' : 'none' }]}>{item.name}</Text>
+                <View style={{ backgroundColor: allDone ? 'rgba(34, 197, 94, 0.1)' : (anyOverdue ? 'rgba(239, 68, 68, 0.1)' : colors.infoContainer), paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                  <Text size="xs" weight="800" style={{ color: allDone ? '#22c55e' : (anyOverdue ? '#ef4444' : colors.info) }}>
+                    {appliedDoses}/{totalDoses} doses
+                  </Text>
+                </View>
               </View>
-            )}
-          </View>
-          <View style={styles.itemMeta}>
-            <Ionicons name="calendar-outline" size={14} color={colors.mutedForeground} />
-            <Text style={[styles.itemDate, { color: colors.mutedForeground }]}>
-              {item.applied_at ? format(parseISO(item.applied_at), 'dd/MM/yyyy') : 'N/A'}
-            </Text>
-          </View>
-          {item.next_dose_at && (
-            <View style={styles.itemMeta}>
-              <Ionicons name="repeat-outline" size={14} color={colors.primary} />
-              <Text style={[styles.itemDate, { color: colors.primary, fontWeight: '600' }]}>
-                Próxima: {format(parseISO(item.next_dose_at), 'dd/MM/yyyy')}
-              </Text>
+              <View style={styles.itemMeta}>
+                <Ionicons name="calendar-outline" size={14} color={colors.mutedForeground} />
+                <Text style={[styles.itemDate, { color: colors.mutedForeground }]}>
+                  {item.applied_at ? format(parseISO(item.applied_at), 'dd/MM/yyyy') : 'N/A'}
+                </Text>
+              </View>
+              {item.next_dose_at && !allDone && (
+                <View style={styles.itemMeta}>
+                  <Ionicons name="repeat-outline" size={14} color={colors.primary} />
+                  <Text style={[styles.itemDate, { color: colors.primary, fontWeight: '600' }]}>
+                    Próxima: {format(parseISO(item.next_dose_at), 'dd/MM/yyyy')}
+                  </Text>
+                </View>
+              )}
             </View>
-          )}
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={{ padding: 8 }} 
+            onPress={() => {
+              setCurrentItem(item);
+              setOptionsVisible(true);
+            }}
+          >
+            <Ionicons name="ellipsis-vertical" size={20} color={colors.mutedForeground} />
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity 
-          style={{ padding: 8 }} 
-          onPress={() => {
-            setCurrentItem(item);
-            setOptionsVisible(true);
-          }}
-        >
-          <Ionicons name="ellipsis-vertical" size={20} color={colors.mutedForeground} />
-        </TouchableOpacity>
-      </View>
-    );
-  };
+      );
+    };
 
   if (loading) {
     return <ActivityIndicator style={{ flex: 1 }} size="large" color={colors.primary} />;
@@ -267,7 +389,7 @@ export function VaccineScreen() {
           { 
             label: 'Excluir', 
             icon: 'trash-outline', 
-            onPress: () => {}, // Handled by destructive variant
+            onPress: () => {},
             variant: 'destructive' 
           }
         ]}
@@ -276,81 +398,98 @@ export function VaccineScreen() {
         onDelete={() => currentItem && confirmDelete(currentItem.id)}
       />
 
-      <AppModal
-        visible={isModalVisible}
-        onClose={() => setModalVisible(false)}
-        title={isEditMode ? `Editar ${activeTab === 'vaccine' ? 'Vacina' : 'Vermífugo'}` : `Adicionar ${activeTab === 'vaccine' ? 'Vacina' : 'Vermífugo'}`}
-      >
-        <View style={{ gap: 12 }}>
-          <Input
-            label="Nome"
-            value={name}
-            onChangeText={setName}
-            placeholder="Nome da vacina ou vermífugo"
-            leftIcon={<Ionicons name="paw-outline" size={18} color={colors.mutedForeground} />}
-          />
-          
-          <DateInput
-            label="Data de Aplicação"
-            value={appliedAt}
-            onPress={() => setShowAppliedPicker(true)}
-            leftIconName="calendar-outline"
-          />
-
-          <DateInput
-            label="Próxima Dose"
-            value={nextDoseAt}
-            onPress={() => setShowNextPicker(true)}
-            placeholder="Não definida"
-            leftIconName="repeat-outline"
-            error={dateError}
-          />
-
-          <Input
-            label="Laboratório"
-            value={lab}
-            onChangeText={setLab}
-            placeholder="Laboratório (opcional)"
-            leftIcon={<Ionicons name="business-outline" size={18} color={colors.mutedForeground} />}
-          />
-          <Input
-            label="Notas"
-            value={notes}
-            onChangeText={setNotes}
-            placeholder="Notas adicionais"
-            multiline
-            leftIcon={<Ionicons name="document-text-outline" size={18} color={colors.mutedForeground} />}
-          />
-          <Button onPress={handleSaveItem} style={{ marginTop: 16 }} label="Salvar" />
-        </View>
-
-        {showAppliedPicker && DateTimePickerComponent && (
-          <DateTimePickerComponent
-            value={appliedAt}
-            mode="date"
-            display="default"
-            onChange={(_: any, date?: Date) => {
-              setShowAppliedPicker(false);
-              if (date) onAppliedDateChange(date);
-            }}
-          />
-        )}
-
-        {showNextPicker && DateTimePickerComponent && (
-          <DateTimePickerComponent
-            value={nextDoseAt || addDays(appliedAt, 30)}
-            mode="date"
-            display="default"
-            onChange={(_: any, date?: Date) => {
-              setShowNextPicker(false);
-              if (date) onNextDoseDateChange(date);
-            }}
-          />
-        )}
-      </AppModal>
-    </View>
-  );
-}
+       <AppModal
+         visible={isModalVisible}
+         onClose={() => setModalVisible(false)}
+         title={isEditMode ? `Editar ${activeTab === 'vaccine' ? 'Vacina' : 'Vermífugo'}` : `Adicionar ${activeTab === 'vaccine' ? 'Vacina' : 'Vermífugo'}`}
+       >
+          <View style={{ gap: 12 }}>
+            <Input
+              label="Nome"
+              value={name}
+              onChangeText={setName}
+              placeholder="Nome da vacina ou vermífugo"
+              leftIcon={<Ionicons name="paw-outline" size={18} color={colors.mutedForeground} />}
+            />
+            
+            <View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <Text size="xs" color="mutedForeground" weight="800">DOSES</Text>
+                <TouchableOpacity onPress={addDose} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Ionicons name="add-circle-outline" size={18} color={colors.primary} />
+                  <Text size="sm" weight="700" style={{ color: colors.primary }}>Adicionar</Text>
+                </TouchableOpacity>
+              </View>
+              {doses.map((dose, idx) => (
+                <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <Pressable onPress={() => updateDose(idx, { applied: !dose.applied })} style={{ padding: 4 }}>
+                    <Ionicons
+                      name={dose.applied ? 'checkbox' : 'square-outline'}
+                      size={22}
+                      color={dose.applied ? '#22c55e' : colors.mutedForeground}
+                    />
+                  </Pressable>
+                  <DateInput
+                    label=""
+                    value={dose.date}
+                    onPress={() => setShowDosePicker(idx)}
+                    leftIconName="calendar-outline"
+                    containerStyle={{ flex: 1 }}
+                  />
+                  {doses.length > 1 && (
+                    <TouchableOpacity onPress={() => removeDose(idx)} style={{ padding: 4 }}>
+                      <Ionicons name="close-circle-outline" size={20} color="#ef4444" />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              ))}
+            </View>
+  
+            <Input
+              label="Laboratório"
+              value={lab}
+              onChangeText={setLab}
+              placeholder="Laboratório (opcional)"
+              leftIcon={<Ionicons name="business-outline" size={18} color={colors.mutedForeground} />}
+            />
+            <Input
+              label="Notas"
+              value={notes}
+              onChangeText={setNotes}
+              placeholder="Notas adicionais"
+              multiline
+              leftIcon={<Ionicons name="document-text-outline" size={18} color={colors.mutedForeground} />}
+            />
+            <Button onPress={handleSaveItem} style={{ marginTop: 16 }} label="Salvar" />
+          </View>
+  
+          {showDosePicker !== null && DateTimePickerComponent && (
+            <DateTimePickerComponent
+              value={doses[showDosePicker]?.date || new Date()}
+              mode="date"
+              display="default"
+              onChange={(_: any, date?: Date) => {
+                const idx = showDosePicker
+                setShowDosePicker(null)
+                if (date) {
+                  updateDose(idx, { date })
+                }
+              }}
+            />
+          )}
+        </AppModal>
+       
+       {/* Detail Modal */}
+       <AppModal
+         visible={isDetailVisible}
+         onClose={() => setIsDetailVisible(false)}
+         title="Detalhes do Registro"
+       >
+         {renderDetailContent()}
+       </AppModal>
+     </View>
+   );
+ }
 
 const styles = StyleSheet.create({
   container: {
@@ -391,5 +530,20 @@ const styles = StyleSheet.create({
     padding: 20,
     borderTopWidth: 1,
     borderTopColor: 'rgba(0,0,0,0.05)',
-  }
+  },
+  // Modal styles copied from Calendar component
+  modalContent: {
+    gap: 16,
+    paddingBottom: 24,
+  },
+  detailSection: {
+    gap: 4,
+    borderLeftWidth: 3,
+    borderLeftColor: 'transparent',
+    paddingLeft: 8,
+  },
+  rowGrid: {
+    flexDirection: 'row',
+    gap: 16,
+  },
 });

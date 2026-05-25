@@ -50,13 +50,14 @@ export interface AuthUser {
 }
 
 interface AuthState {
-  user:         AuthUser | null
-  accessToken:  string | null
-  isLoading:    boolean
-  loadingContext: 'login' | 'logout' | 'register' | 'hydrate' | 'forgotPassword' | null
-  isRefreshing: boolean
-  error:        string | null
-  hydrated:     boolean  // true depois que lemos o Keychain na inicialização
+  user:                AuthUser | null
+  accessToken:         string | null
+  isLoading:           boolean
+  loadingContext:      'login' | 'logout' | 'register' | 'hydrate' | 'forgotPassword' | null
+  isRefreshing:        boolean
+  error:               string | null
+  hydrated:            boolean  // true depois que lemos o Keychain na inicialização
+  isPasswordResetFlow: boolean  // true durante fluxo de recuperação de senha
 }
 
 const toAuthUser = (user: { id: string; email: string; name?: string; avatarUrl?: string | null; location?: string | null }): AuthUser => ({
@@ -272,15 +273,30 @@ export const forgotPasswordThunk = createAsyncThunk(
   }
 )
 
+export const resetPasswordThunk = createAsyncThunk(
+  'auth/resetPassword',
+  async (password: string, { rejectWithValue }) => {
+    try {
+      const { error } = await supabase.auth.updateUser({ password })
+      if (error) return rejectWithValue(error.message)
+      await supabase.auth.signOut()
+      return { success: true }
+    } catch {
+      return rejectWithValue('Erro ao redefinir senha')
+    }
+  }
+)
+
 // ─── Slice ───────────────────────────────────────────────────
 const initialState: AuthState = {
-  user:         null,
-  accessToken:  null,
-  isLoading:    false,
-  loadingContext: null,
-  isRefreshing: false,
-  error:        null,
-  hydrated:     false,
+  user:                null,
+  accessToken:         null,
+  isLoading:           false,
+  loadingContext:      null,
+  isRefreshing:        false,
+  error:               null,
+  hydrated:            false,
+  isPasswordResetFlow: false,
 }
 
 const authSlice = createSlice({
@@ -305,6 +321,10 @@ const authSlice = createSlice({
       state.user        = null
       state.accessToken = null
       state.error       = null
+    },
+
+    setPasswordResetFlow: (state, action: PayloadAction<boolean>) => {
+      state.isPasswordResetFlow = action.payload
     },
   },
   extraReducers: (builder) => {
@@ -371,10 +391,16 @@ const authSlice = createSlice({
       .addCase(forgotPasswordThunk.pending,   (s) => { s.isLoading = true; s.loadingContext = 'forgotPassword'; s.error = null })
       .addCase(forgotPasswordThunk.fulfilled, (s) => { s.isLoading = false; s.loadingContext = null })
       .addCase(forgotPasswordThunk.rejected,  (s, a) => { s.isLoading = false; s.loadingContext = null; s.error = a.payload as string })
+
+    // ── reset password ──
+    builder
+      .addCase(resetPasswordThunk.pending,   (s) => { s.isLoading = true; s.loadingContext = 'forgotPassword'; s.error = null })
+      .addCase(resetPasswordThunk.fulfilled, (s) => { s.isLoading = false; s.loadingContext = null; s.isPasswordResetFlow = false })
+      .addCase(resetPasswordThunk.rejected,  (s, a) => { s.isLoading = false; s.loadingContext = null; s.error = a.payload as string })
   },
 })
 
-export const { clearError, setTokens, setSession, logout } = authSlice.actions
+export const { clearError, setTokens, setSession, logout, setPasswordResetFlow } = authSlice.actions
 export default authSlice.reducer
 
 // ─── Selectors ───────────────────────────────────────────────
@@ -384,3 +410,4 @@ export const selectAuthLoading  = (s: any) => s.auth.isLoading
 export const selectAuthLoadingContext = (s: any) => s.auth.loadingContext
 export const selectAuthError    = (s: any) => s.auth.error
 export const selectAuthHydrated = (s: any) => s.auth.hydrated
+export const selectIsPasswordResetFlow = (s: any) => s.auth.isPasswordResetFlow

@@ -1,6 +1,6 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import axios from 'axios'
-import { api } from '../../api/axios'
+import { api } from '../api/axios'
 
 interface FollowsState {
   // Map of userId => boolean (whether current user follows this user)
@@ -78,32 +78,32 @@ const followsSlice = createSlice({
         state.loading[action.meta.arg] = true
         state.error = null
       })
-      .addCase(checkFollowStatusThunk.fulfilled, (state, action) => {
-        const { userId, isFollowing } = action.payload
-        state.loading[userId] = false
-        state.following[userId] = isFollowing
-      })
-      .addCase(checkFollowStatusThunk.rejected, (state, action) => {
-        const { userId } = action.meta.arg
-        state.loading[userId] = false
-        state.error = action.payload as string
-      })
+       .addCase(checkFollowStatusThunk.fulfilled, (state, action) => {
+         const { userId, isFollowing } = action.payload
+         state.loading[userId] = false
+         state.following[userId] = isFollowing
+       })
+       .addCase(checkFollowStatusThunk.rejected, (state, action) => {
+         const userId = action.meta.arg as string
+         state.loading[userId] = false
+         state.error = action.payload as string
+       })
 
     builder
       .addCase(followUserThunk.pending, (state, action) => {
         state.loading[action.meta.arg] = true
         state.error = null
       })
-      .addCase(followUserThunk.fulfilled, (state, action) => {
-        const userId = action.payload
-        state.loading[userId] = false
-        state.following[userId] = true
-      })
-      .addCase(followUserThunk.rejected, (state, action) => {
-        const { userId } = action.meta.arg
-        state.loading[userId] = false
-        state.error = action.payload as string
-      })
+       .addCase(followUserThunk.fulfilled, (state, action) => {
+         const userId = action.payload
+         state.loading[userId] = false
+         state.following[userId] = true
+       })
+       .addCase(followUserThunk.rejected, (state, action) => {
+         const userId = action.meta.arg as string
+         state.loading[userId] = false
+         state.error = action.payload as string
+       })
 
     builder
       .addCase(unfollowUserThunk.pending, (state, action) => {
@@ -115,11 +115,11 @@ const followsSlice = createSlice({
         state.loading[userId] = false
         state.following[userId] = false
       })
-      .addCase(unfollowUserThunk.rejected, (state, action) => {
-        const { userId } = action.meta.arg
-        state.loading[userId] = false
-        state.error = action.payload as string
-      })
+       .addCase(unfollowUserThunk.rejected, (state, action) => {
+         const userId = action.meta.arg as string
+         state.loading[userId] = false
+         state.error = action.payload as string
+       })
   },
 })
 

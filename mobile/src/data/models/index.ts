@@ -1,3 +1,8 @@
+export interface VaccineDose {
+  date: string
+  applied: boolean
+}
+
 export type Vaccine = {
   id: string;
   pet_id: string;
@@ -6,11 +11,13 @@ export type Vaccine = {
   type: 'vaccine' | 'dewormer';
   applied_at: string;
   next_dose_at?: string;
+  doses?: VaccineDose[];
   lab?: string;
   batch?: string;
   vet_name?: string;
   notes?: string;
   notified: boolean;
+  is_completed: boolean;
   created_at: string;
 };
 
