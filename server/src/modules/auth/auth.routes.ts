@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express'
+import crypto from 'crypto'
 import { authController } from './auth.controller'
 import { authMiddleware } from '../../middlewares/auth.middleware'
 
@@ -12,14 +13,32 @@ router.post('/refresh', authController.refresh)
 router.get('/me', authMiddleware, authController.me)
 router.post('/logout', authMiddleware, authController.logout)
 
+// ─── Armazenamento temporário de sessões de recovery ──────────────
+// Quando o Supabase redireciona pra cá com os tokens na hash,
+// guardamos num Map e passamos só um código pro app.
+// O app busca os tokens por esse código e chama supabase.auth.setSession().
+const recoveryStore = new Map<string, { accessToken: string; refreshToken: string; type: string }>()
+
+// Limpa códigos expirados a cada 5 minutos
+setInterval(() => {
+  const now = Date.now()
+  for (const [key, _] of recoveryStore) {
+    // código com timestamp no início: "ts_random"
+    const ts = parseInt(key.split('_')[0], 10)
+    if (now - ts > 10 * 60 * 1000) recoveryStore.delete(key) // 10 min
+  }
+}, 5 * 60 * 1000)
+
 // Rota de ponte para redirect do Supabase -> app
-// O Supabase faz redirect pra cá com os tokens na hash.
-// A página tenta abrir o app automaticamente. Se o navegador bloquear
-// (comum em mobile com scheme customizado), o botão aparece como fallback.
+// O Supabase redireciona pra cá com os tokens na hash.
+// Guardamos os tokens no Map e redirecionamos pro app com ?recovery_code=xxx
+// (query param em vez de hash, porque o SO frequentemente perde a hash
+//  ou query params ao abrir scheme customizado).
 router.get('/redirect', (req: Request, res: Response) => {
   const appScheme = (req.query.scheme as string) || process.env.EXPO_SCHEME || 'petlink'
   const fullScheme = appScheme.includes('://') ? appScheme : `${appScheme}://`
-  const appUrl = `${fullScheme}/--/auth/callback`
+  const appUrlBase = `${fullScheme}/--/auth/callback`
+
   res.send(`
 <!DOCTYPE html>
 <html>
@@ -53,10 +72,7 @@ router.get('/redirect', (req: Request, res: Response) => {
       cursor:pointer; text-decoration:none; -webkit-tap-highlight-color:transparent;
     }
     .btn:active { background:#4A5C40; }
-    .fallback {
-      display:block; margin-top:16px; font-size:13px; color:#78786C;
-    }
-    .fallback a { color:#5D7052; }
+    .hidden { display:none; }
   </style>
 </head>
 <body>
@@ -65,40 +81,91 @@ router.get('/redirect', (req: Request, res: Response) => {
     <h1>Redirecionando para o PetLink</h1>
     <p id="statusMsg">Tentando abrir o aplicativo...</p>
     <button class="btn" id="openAppBtn">Abrir PetLink</button>
-    <span class="fallback" id="fallback"></span>
+    <p class="hidden" id="fallbackMsg"></p>
   </div>
   <script>
     (function() {
       var hash = window.location.hash.substring(1);
-      var fullUrl = '${appUrl}' + (hash ? '?' + hash : '');
+      var appUrl = '${appUrlBase}';
 
-      function doRedirect() {
-        window.location.href = fullUrl;
-      }
-
-      if (fullUrl) {
-        // Tenta abrir automaticamente
-        doRedirect();
-
-        // Se após 2s ainda estiver aqui, mostra o botão
-        setTimeout(function() {
-          var btn = document.getElementById('openAppBtn');
-          var msg = document.getElementById('statusMsg');
-          btn.style.display = 'block';
-          msg.textContent = 'Clique no botão para abrir o PetLink.';
-          btn.addEventListener('click', doRedirect);
-        }, 2000);
+      function doRedirect(finalUrl) {
+        window.location.href = finalUrl;
       }
 
       if (hash) {
-        var fb = document.getElementById('fallback');
-        fb.innerHTML = 'Se o botão não funcionar, <a href="' + fullUrl + '">clique aqui</a>.';
+        // Extrai tokens da hash
+        var params = new URLSearchParams(hash);
+        var accessToken = params.get('access_token');
+        var refreshToken = params.get('refresh_token');
+        var type = params.get('type');
+
+        // Manda os tokens pro servidor guardar via fetch
+        fetch('/auth/store-recovery', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ accessToken: accessToken || '', refreshToken: refreshToken || '', type: type || '' })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data.code) {
+            var finalUrl = appUrl + '?recovery_code=' + encodeURIComponent(data.code);
+            doRedirect(finalUrl);
+
+            setTimeout(function() {
+              var btn = document.getElementById('openAppBtn');
+              var msg = document.getElementById('statusMsg');
+              btn.style.display = 'block';
+              msg.textContent = 'Clique no botão para abrir o PetLink.';
+              btn.onclick = function() { doRedirect(finalUrl); };
+            }, 2000);
+          }
+        })
+        .catch(function() {
+          // Fallback: tenta passar direto mesmo
+          var finalUrl = appUrl + '?' + hash;
+          doRedirect(finalUrl);
+
+          setTimeout(function() {
+            var btn = document.getElementById('openAppBtn');
+            var msg = document.getElementById('statusMsg');
+            btn.style.display = 'block';
+            msg.textContent = 'Clique no botão para abrir o PetLink.';
+            btn.onclick = function() { doRedirect(finalUrl); };
+          }, 2000);
+        });
+      } else {
+        var msg = document.getElementById('statusMsg');
+        msg.textContent = 'Link inválido ou expirado. Solicite um novo reset de senha.';
       }
     })();
   </script>
 </body>
 </html>
   `)
+})
+
+// Endpoint chamado pela página /redirect para armazenar os tokens
+router.post('/store-recovery', (req: Request, res: Response) => {
+  const { accessToken, refreshToken, type } = req.body
+  if (!accessToken || !refreshToken) {
+    return res.status(400).json({ error: 'accessToken e refreshToken são obrigatórios' })
+  }
+  const code = `${Date.now()}_${crypto.randomUUID()}`
+  recoveryStore.set(code, { accessToken, refreshToken, type: type || 'recovery' })
+  console.log(`[RECOVERY] Tokens armazenados com código ${code}`)
+  return res.json({ code })
+})
+
+// App chama essa rota com o código pra obter os tokens e aplicar a sessão
+router.get('/recovery-session', (req: Request, res: Response) => {
+  const code = req.query.code as string
+  if (!code) return res.status(400).json({ error: 'Código é obrigatório' })
+
+  const session = recoveryStore.get(code)
+  if (!session) return res.status(404).json({ error: 'Código inválido ou expirado' })
+
+  recoveryStore.delete(code) // one-time use
+  return res.json(session)
 })
 
 export default router

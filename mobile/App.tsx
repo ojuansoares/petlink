@@ -25,6 +25,7 @@ import {
 } from './src/store/slices/authSlice'
 import { selectIsDark, systemThemeChanged, setOnline, showToast } from './src/store/slices/uiSlice'
 import { hydrateActivePetThunk } from './src/store/slices/petsSlice'
+import { api } from './src/api/axios'
 import { supabase } from './src/config/supabase'
 import RootNavigator from './src/navigation/RootNavigator'
 import { tokens, withAlpha } from './src/theme'
@@ -114,6 +115,31 @@ async function handleDeepLink(
 
   const params = extractParamsFromUrl(url)
   const linkType = params.type?.toLowerCase()
+
+  // ── Fluxo via servidor bridge (recovery_code) ──
+  // O servidor guardou os tokens no /auth/redirect e nos mandou um código.
+  // Buscamos os tokens pelo código e aplicamos a sessão.
+  if (params.recovery_code) {
+    try {
+      const { data } = await api.get(`/auth/recovery-session?code=${encodeURIComponent(params.recovery_code)}`)
+      const { accessToken, refreshToken } = data
+      if (!accessToken || !refreshToken) return
+
+      const { error } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      })
+      if (error) {
+        console.log('Falha ao aplicar sessao recovery:', error.message)
+        return
+      }
+      dispatch(setPasswordResetFlow(true))
+      dispatch(showToast({ type: 'success', message: 'Token de recuperação validado. Defina sua nova senha.' }))
+    } catch (err) {
+      console.log('Erro ao buscar sessao recovery:', err)
+    }
+    return
+  }
 
   // ── Fluxo direto (token + email no deep link, sem passar pelo navegador) ──
   if (params.token && params.email && linkType === 'recovery') {
