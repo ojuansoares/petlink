@@ -289,6 +289,12 @@ export default function LoginScreen({ navigation }: Readonly<Props>) {
                 <Text size="xs" color="mutedForeground" style={styles.hint}>A senha precisa ter pelo menos 8 caracteres.</Text>
               ) : null}
 
+              <View style={styles.forgotRow}>
+                <Pressable onPress={() => navigation.push('ForgotPassword')}>
+                  <Text size="sm" weight="700" color="secondary">Esqueceu a senha?</Text>
+                </Pressable>
+              </View>
+
               <Button
                 label={isLoading ? 'Entrando...' : 'Entrar'}
                 onPress={handleLogin}
@@ -306,12 +312,6 @@ export default function LoginScreen({ navigation }: Readonly<Props>) {
                   loading={isBiometricLoading}
                 />
               ) : null}
-
-              <View style={styles.forgotRow}>
-                <Pressable onPress={() => navigation.push('ForgotPassword')}>
-                  <Text size="sm" weight="700" color="secondary">Esqueceu a senha?</Text>
-                </Pressable>
-              </View>
 
               <View style={styles.registerRow}>
                 <Text size="sm" color="mutedForeground">Nao tem uma conta? </Text>
@@ -333,18 +333,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#5D7052',
   },
   brandArea: {
-    flex: 1,
+    flex: 0.9,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
-    paddingBottom: 16,
+    paddingBottom: 8,
   },
   logo: {
     width: 188,
     height: 188,
   },
   keyboardContainer: {
-    flex: 1.38,
+    flex: 1.5,
   },
   bottomSheet: {
     flex: 1,
@@ -356,7 +356,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: 18,
     paddingTop: 8,
-    paddingBottom: 24,
+    paddingBottom: 12,
     justifyContent: 'flex-start',
   },
   card: {
@@ -380,12 +380,12 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   forgotRow: {
-    alignItems: 'center',
-    marginTop: 4,
+    alignItems: 'flex-end',
   },
   registerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
+    justifyContent: 'center',
+    marginTop: 4,
   },
 })

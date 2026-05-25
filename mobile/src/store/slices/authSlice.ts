@@ -3,7 +3,7 @@ import axios from 'axios'
 import * as SecureStore from 'expo-secure-store'
 import { api } from '../../api/axios'
 import { isSupabaseConfigured, supabase } from '../../config/supabase'
-import { getServerRedirectUrl } from '../../services/AuthDeepLinkService'
+import { getRedirectUrl, getServerRedirectUrl } from '../../services/AuthDeepLinkService'
 import {
   isBiometricEnabled,
   isBiometricSessionLocked,

@@ -13,9 +13,9 @@ router.get('/me', authMiddleware, authController.me)
 router.post('/logout', authMiddleware, authController.logout)
 
 // Rota de ponte para redirect do Supabase -> app
-// O Supabase faz redirect pra cá com os tokens na hash, e esta página
-// mostra um botão para o usuário tocar — a interação manual permite que
-// o navegador abra o scheme customizado (exp://, petlink://) sem bloqueio.
+// O Supabase faz redirect pra cá com os tokens na hash.
+// A página tenta abrir o app automaticamente. Se o navegador bloquear
+// (comum em mobile com scheme customizado), o botão aparece como fallback.
 router.get('/redirect', (req: Request, res: Response) => {
   const appScheme = (req.query.scheme as string) || process.env.EXPO_SCHEME || 'petlink'
   const fullScheme = appScheme.includes('://') ? appScheme : `${appScheme}://`
@@ -48,7 +48,7 @@ router.get('/redirect', (req: Request, res: Response) => {
     h1 { font-size:20px; color:#3A3A3A; margin-bottom:8px; }
     p  { font-size:14px; color:#78786C; line-height:1.5; margin-bottom:24px; }
     .btn {
-      display:block; width:100%; padding:16px; font-size:17px; font-weight:600;
+      display:none; width:100%; padding:16px; font-size:17px; font-weight:600;
       background:#5D7052; color:#FFF; border:none; border-radius:14px;
       cursor:pointer; text-decoration:none; -webkit-tap-highlight-color:transparent;
     }
@@ -63,24 +63,36 @@ router.get('/redirect', (req: Request, res: Response) => {
   <div class="card">
     <div class="logo">P</div>
     <h1>Redirecionando para o PetLink</h1>
-    <p>Toque no botão abaixo para voltar ao aplicativo.</p>
+    <p id="statusMsg">Tentando abrir o aplicativo...</p>
     <button class="btn" id="openAppBtn">Abrir PetLink</button>
     <span class="fallback" id="fallback"></span>
   </div>
   <script>
     (function() {
       var hash = window.location.hash.substring(1);
-      var fullUrl = '${appUrl}' + (hash ? '#' + hash : '');
+      var fullUrl = '${appUrl}' + (hash ? '?' + hash : '');
+
+      function doRedirect() {
+        window.location.href = fullUrl;
+      }
 
       if (fullUrl) {
-        document.getElementById('openAppBtn').addEventListener('click', function() {
-          window.location.href = fullUrl;
-        });
+        // Tenta abrir automaticamente
+        doRedirect();
+
+        // Se após 2s ainda estiver aqui, mostra o botão
+        setTimeout(function() {
+          var btn = document.getElementById('openAppBtn');
+          var msg = document.getElementById('statusMsg');
+          btn.style.display = 'block';
+          msg.textContent = 'Clique no botão para abrir o PetLink.';
+          btn.addEventListener('click', doRedirect);
+        }, 2000);
       }
 
       if (hash) {
         var fb = document.getElementById('fallback');
-        fb.innerHTML = 'Se não funcionar, <a href="' + fullUrl + '">clique aqui</a>.';
+        fb.innerHTML = 'Se o botão não funcionar, <a href="' + fullUrl + '">clique aqui</a>.';
       }
     })();
   </script>
