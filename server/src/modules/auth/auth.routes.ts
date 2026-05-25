@@ -19,7 +19,7 @@ router.post('/logout', authMiddleware, authController.logout)
 router.get('/redirect', (req: Request, res: Response) => {
   const appScheme = (req.query.scheme as string) || process.env.EXPO_SCHEME || 'petlink'
   const fullScheme = appScheme.includes('://') ? appScheme : `${appScheme}://`
-  const appUrl = `${fullScheme}--/auth/callback`
+  const appUrl = `${fullScheme}/--/auth/callback`
   res.send(`
 <!DOCTYPE html>
 <html>
