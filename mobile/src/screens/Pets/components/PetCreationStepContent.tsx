@@ -13,8 +13,36 @@ const SPECIES_OPTIONS = [
   { label: 'Cachorro', value: 'dog' },
   { label: 'Gato', value: 'cat' },
   { label: 'Pássaro', value: 'bird' },
+  { label: 'Peixe', value: 'fish' },
+  { label: 'Roedor', value: 'rodent' },
+  { label: 'Coelho', value: 'rabbit' },
+  { label: 'Hamster', value: 'hamster' },
+  { label: 'Tartaruga', value: 'turtle' },
+  { label: 'Cavalo', value: 'horse' },
   { label: 'Outro', value: 'other' },
 ]
+
+const MAX_WEIGHT_BY_SPECIES: Record<string, number> = {
+  dog: 100,
+  cat: 20,
+  bird: 10,
+  fish: 50,
+  rodent: 5,
+  rabbit: 12,
+  hamster: 0.5,
+  turtle: 200,
+  horse: 1000,
+  other: 1000,
+}
+
+function weightMaxLength(maxKg: number): number {
+  return String(Math.floor(maxKg)).length + 3
+}
+
+function weightPlaceholder(maxKg: number): string {
+  if (maxKg < 1) return `Máx ${(maxKg * 1000).toFixed(0)}g`
+  return `Máx ${maxKg}kg`
+}
 
 export const FIXED_TAGS = [
   'Brincalhão',
@@ -37,6 +65,7 @@ interface StepContentProps {
   step: number
   name: string
   species: string
+  customSpecies: string
   breed: string
   birthDate: string
   weightKg: string
@@ -47,6 +76,7 @@ interface StepContentProps {
   isUploadingPhoto: boolean
   onNameChange: (v: string) => void
   onSpeciesChange: (v: string) => void
+  onCustomSpeciesChange: (v: string) => void
   onBreedChange: (v: string) => void
   onOpenBirthDatePicker: () => void
   onWeightKgChange: (v: string) => void
@@ -61,6 +91,7 @@ export function PetCreationStepContent({
   step,
   name,
   species,
+  customSpecies,
   breed,
   birthDate,
   weightKg,
@@ -71,6 +102,7 @@ export function PetCreationStepContent({
   isUploadingPhoto,
   onNameChange,
   onSpeciesChange,
+  onCustomSpeciesChange,
   onBreedChange,
   onOpenBirthDatePicker,
   onWeightKgChange,
@@ -101,6 +133,15 @@ export function PetCreationStepContent({
           options={SPECIES_OPTIONS}
           leftIconName="leaf-outline"
         />
+        {species === 'other' && (
+          <Input
+            label="Qual espécie?"
+            placeholder="Digite a espécie do seu pet"
+            value={customSpecies}
+            onChangeText={onCustomSpeciesChange}
+            leftIcon={<Ionicons name="pencil-outline" size={18} color={colors.mutedForeground} />}
+          />
+        )}
       </View>
     )
   }
@@ -139,14 +180,20 @@ export function PetCreationStepContent({
           </Pressable>
         </View>
 
-        <Input
-          label="Peso"
-          placeholder="Quanto pesa? (kg)"
-          value={weightKg}
-          onChangeText={onWeightKgChange}
-          keyboardType="numeric"
-          leftIcon={<Ionicons name="barbell-outline" size={18} color={colors.mutedForeground} />}
-        />
+        {(() => {
+          const maxKg = MAX_WEIGHT_BY_SPECIES[species] ?? 1000
+          return (
+            <Input
+              label="Peso"
+              placeholder={weightPlaceholder(maxKg)}
+              value={weightKg}
+              onChangeText={onWeightKgChange}
+              keyboardType="decimal-pad"
+              maxLength={weightMaxLength(maxKg)}
+              leftIcon={<Ionicons name="barbell-outline" size={18} color={colors.mutedForeground} />}
+            />
+          )
+        })()}
       </View>
     )
   }

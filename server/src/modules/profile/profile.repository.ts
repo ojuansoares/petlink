@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '../../config/supabase'
+import { Post } from '../../models/Post'
 
 export const profileRepository = {
   async findById(id: string) {
@@ -18,12 +19,7 @@ export const profileRepository = {
 
     if (countError) throw countError
 
-    const { count: postsCount, error: postsCountError } = await supabaseAdmin
-      .from('posts')
-      .select('*', { count: 'exact', head: true })
-      .eq('author_id', id)
-
-    if (postsCountError) throw postsCountError
+    const postsCount = await Post.countDocuments({ authorId: id })
 
     const { count: followersCount, error: followersCountError } = await supabaseAdmin
       .from('follows')
@@ -42,7 +38,7 @@ export const profileRepository = {
     return {
       ...profile,
       pets_count: count ?? 0,
-      posts_count: postsCount ?? 0,
+      posts_count: postsCount,
       followers_count: followersCount ?? 0,
       following_count: followingCount ?? 0
     }
@@ -65,12 +61,7 @@ export const profileRepository = {
 
     if (petsCountError) throw petsCountError
 
-    const { count: postsCount, error: postsCountError } = await supabaseAdmin
-      .from('posts')
-      .select('*', { count: 'exact', head: true })
-      .eq('author_id', id)
-
-    if (postsCountError) throw postsCountError
+    const postsCount = await Post.countDocuments({ authorId: id })
 
     const { count: followersCount, error: followersCountError } = await supabaseAdmin
       .from('follows')
@@ -89,7 +80,7 @@ export const profileRepository = {
     return {
       ...profile,
       pets_count: petsCount ?? 0,
-      posts_count: postsCount ?? 0,
+      posts_count: postsCount,
       followers_count: followersCount ?? 0,
       following_count: followingCount ?? 0
     }

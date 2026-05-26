@@ -1,5 +1,7 @@
 import { AppError } from '../../shared/AppError'
 import { followsRepository } from './follows.repository'
+import { supabaseAdmin } from '../../config/supabase'
+import { sendPush } from '../push/push.service'
 
 export const followsService = {
   async follow(followerId: string, followingId: string) {
@@ -9,6 +11,21 @@ export const followsService = {
     const result = await followsRepository.create(followerId, followingId)
     // create returns null on duplicate (PK violation) – treat as already following
     if (!result) return { alreadyFollowing: true }
+
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('name')
+      .eq('id', followerId)
+      .maybeSingle()
+
+    sendPush(
+      followingId,
+      'social',
+      'Novo seguidor',
+      `${profile?.name ?? 'Alguém'} começou a seguir você`,
+      { screen: 'PublicProfile', userId: followerId },
+    )
+
     return { alreadyFollowing: false }
   },
 

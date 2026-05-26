@@ -21,17 +21,25 @@ import {
   selectAuthHydrated,
   selectAuthLoading,
   selectAuthLoadingContext,
+  selectIsAuth,
   setPasswordResetFlow,
 } from './src/store/slices/authSlice'
 import { selectIsDark, systemThemeChanged, setOnline, showToast } from './src/store/slices/uiSlice'
 import { hydrateActivePetThunk } from './src/store/slices/petsSlice'
-import { api } from './src/api/axios'
+import { api, setApiOnlineStatus } from './src/api/axios'
 import { supabase } from './src/config/supabase'
 import RootNavigator from './src/navigation/RootNavigator'
 import { tokens, withAlpha } from './src/theme'
 import OnboardingScreen, { OnboardingStep } from './src/screens/OnboardingScreen'
 import { AppLoadingOverlay } from './src/components/ui/AppLoadingOverlay'
 import { AppToast } from './src/components/ui/AppToast'
+import {
+  configureNotifications,
+  createNotificationChannel,
+  requestNotificationPermission,
+  getExpoPushToken,
+  registerPushTokenOnServer,
+} from './src/services/NotificationService'
 
 LogBox.ignoreLogs([
   'InteractionManager has been deprecated',
@@ -194,6 +202,7 @@ function AppContent() {
   const hydrated = useAppSelector(selectAuthHydrated)
   const authLoading = useAppSelector(selectAuthLoading)
   const authLoadingContext = useAppSelector(selectAuthLoadingContext)
+  const isAuth = useAppSelector(selectIsAuth)
   const isDark = useAppSelector(selectIsDark)
   const [showLaunchSplash, setShowLaunchSplash] = React.useState(true)
   const [connectionStatus, setConnectionStatus] = React.useState<'online' | 'offline'>('online')
@@ -300,6 +309,7 @@ function AppContent() {
     const handleConnectivity = (state: { isConnected: boolean | null; isInternetReachable: boolean | null }) => {
       const isOnline = state.isConnected !== false && state.isInternetReachable !== false
       dispatch(setOnline(isOnline))
+      setApiOnlineStatus(isOnline)
 
       if (lastConnectionRef.current === null) {
         lastConnectionRef.current = isOnline
@@ -331,6 +341,29 @@ function AppContent() {
       }
     }
   }, [])
+
+  // Inicializa notificações push após auth hydration
+  useEffect(() => {
+    if (!hydrated || !isAuth) return
+
+    const initPushNotifications = async () => {
+      const pref = await AsyncStorage.getItem('petlink.notifications.enabled')
+      if (pref === 'false') return
+
+      configureNotifications()
+      await createNotificationChannel()
+
+      const granted = await requestNotificationPermission()
+      if (!granted) return
+
+      const token = await getExpoPushToken()
+      if (token) {
+        await registerPushTokenOnServer(token)
+      }
+    }
+
+    initPushNotifications()
+  }, [hydrated, isAuth])
 
   // Enquanto lê o Keychain, mostra loading (evita flash de tela de login)
   if (showLaunchSplash || !hydrated || !fontsLoaded || hasSeenOnboarding === null) {

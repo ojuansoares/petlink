@@ -10,7 +10,10 @@ import notificationsRoutes from './modules/notifications/notifications.routes'
 import locationsRoutes from './modules/locations/locations.routes'
 import walksRoutes from './modules/walks/walks.routes'
 import commentsRoutes from './modules/comments/comments.routes'
+import commentLikesRoutes from './modules/commentLikes/commentLikes.routes'
 import likesRoutes from './modules/likes/likes.routes'
+import feedingRoutes from './modules/feeding/feeding.routes'
+import consultationsRoutes from './modules/consultations/consultations.routes'
 import { swaggerSpec } from './config/swagger'
 
 const app = express()
@@ -45,7 +48,10 @@ app.use('/notifications', notificationsRoutes)
 app.use('/locations', locationsRoutes)
 app.use('/walks', walksRoutes)
 app.use('/posts', commentsRoutes)
+app.use('/posts', commentLikesRoutes)
 app.use('/posts', likesRoutes)
+app.use('/pets', feedingRoutes)
+app.use('/consultations', consultationsRoutes)
 
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error('[ERRO GLOBAL SEVIDOR]:', err)

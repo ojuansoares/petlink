@@ -100,6 +100,7 @@ export const createPetThunk = createAsyncThunk(
       await PetsRepository.upsertFromRemote(createdPet)
       return createdPet as Pet
     } catch (err: any) {
+      if (err.isOffline) return rejectWithValue('Sem internet. Conecte-se para continuar.')
       if (axios.isAxiosError(err)) {
         const message = err.response?.data?.error ?? err.response?.data?.message
         if (message) return rejectWithValue(message)
@@ -118,6 +119,7 @@ export const updatePetThunk = createAsyncThunk(
       await PetsRepository.upsertFromRemote(updatedPet)
       return updatedPet as Pet
     } catch (err: any) {
+      if (err.isOffline) return rejectWithValue('Sem internet. Conecte-se para continuar.')
       if (axios.isAxiosError(err)) {
         const message = err.response?.data?.error ?? err.response?.data?.message
         if (message) return rejectWithValue(message)
@@ -135,6 +137,7 @@ export const deletePetThunk = createAsyncThunk(
       await PetsRepository.removeById(petId)
       return petId
     } catch (err: any) {
+      if (err.isOffline) return rejectWithValue('Sem internet. Conecte-se para continuar.')
       if (axios.isAxiosError(err)) {
         const message = err.response?.data?.error ?? err.response?.data?.message
         if (message) return rejectWithValue(message)

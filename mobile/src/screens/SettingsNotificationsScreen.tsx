@@ -2,6 +2,7 @@ import React from 'react'
 import { useFocusEffect } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 import { StyleSheet, Switch, View } from 'react-native'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Heading, Text } from '../components/ui/Typography'
 import { useTheme } from '../hooks/useTheme'
 import {
@@ -10,6 +11,8 @@ import {
   isBiometricEnabled,
   setBiometricEnabled as persistBiometricEnabled,
 } from '../services/BiometricService'
+
+const NOTIF_PREF_KEY = 'petlink.notifications.enabled'
 
 export default function SettingsNotificationsScreen() {
   const { colors, withAlpha } = useTheme()
@@ -22,14 +25,20 @@ export default function SettingsNotificationsScreen() {
       let mounted = true
 
       const loadState = async () => {
-        const [available, enabled] = await Promise.all([
+        const [available, enabled, notifPref] = await Promise.all([
           isBiometricAvailable(),
           isBiometricEnabled(),
+          AsyncStorage.getItem(NOTIF_PREF_KEY),
         ])
 
         if (!mounted) return
         setBiometricAvailable(available)
         setBiometricEnabledState(enabled)
+        if (notifPref === 'false') {
+          setReceiveNotifications(false)
+        } else {
+          setReceiveNotifications(true)
+        }
       }
 
       loadState()
@@ -39,6 +48,11 @@ export default function SettingsNotificationsScreen() {
       }
     }, [])
   )
+
+  const handleNotificationToggle = async (nextValue: boolean) => {
+    await AsyncStorage.setItem(NOTIF_PREF_KEY, nextValue ? 'true' : 'false')
+    setReceiveNotifications(nextValue)
+  }
 
   const handleBiometricToggle = async (nextValue: boolean) => {
     if (!biometricAvailable) return
@@ -78,7 +92,7 @@ export default function SettingsNotificationsScreen() {
           </View>
           <Switch
             value={receiveNotifications}
-            onValueChange={setReceiveNotifications}
+            onValueChange={handleNotificationToggle}
             trackColor={{
               false: withAlpha(colors.mutedForeground, 0.35),
               true: withAlpha(colors.primary, 0.55),

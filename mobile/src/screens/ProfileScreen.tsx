@@ -45,6 +45,7 @@ import { FollowersModal } from '../components/ui/FollowersModal'
 import { AppStackParamList } from '../navigation/types'
 import { PetBubbleRing } from '../components/ui/PetBubbleRing'
 import { AppToast } from '../components/ui/AppToast'
+import { formatCount } from '../utils/formatNumber'
 
 type NavigationProp = StackNavigationProp<AppStackParamList>
 
@@ -89,6 +90,10 @@ export default function ProfileScreen() {
   const [avatarUrl, setAvatarUrl] = useState('')
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
   const [selectedPetFilter, setSelectedPetFilter] = useState('')
+
+  useEffect(() => {
+    if (pets.length <= 1) setSelectedPetFilter('')
+  }, [pets.length])
 
   // Followers modal
   const [followModalType, setFollowModalType] = useState<'followers' | 'following' | null>(null)
@@ -211,24 +216,24 @@ export default function ProfileScreen() {
 
       <View style={styles.statsRow}>
         <View style={styles.statItem}>
-          <Text size="lg" weight="800">{posts.length}</Text>
+          <Text size="lg" weight="800">{formatCount(posts.length)}</Text>
           <Text size="xs" color="mutedForeground">Posts</Text>
         </View>
         <Pressable style={styles.statItem} onPress={() => setFollowModalType('followers')}>
-          <Text size="lg" weight="800">{(profile as any)?.followers_count ?? 0}</Text>
+          <Text size="lg" weight="800">{formatCount((profile as any)?.followers_count ?? 0)}</Text>
           <Text size="xs" color="mutedForeground">Seguidores</Text>
         </Pressable>
         <Pressable style={styles.statItem} onPress={() => setFollowModalType('following')}>
-          <Text size="lg" weight="800">{(profile as any)?.following_count ?? 0}</Text>
+          <Text size="lg" weight="800">{formatCount((profile as any)?.following_count ?? 0)}</Text>
           <Text size="xs" color="mutedForeground">Seguindo</Text>
         </Pressable>
         <View style={styles.statItem}>
-          <Text size="lg" weight="800">{pets.length}</Text>
+          <Text size="lg" weight="800">{formatCount(pets.length)}</Text>
           <Text size="xs" color="mutedForeground">Pets</Text>
         </View>
       </View>
 
-      {pets.length > 0 && posts.length > 0 && (
+      {pets.length > 1 && posts.length > 0 && (
         <View style={styles.filterContainer}>
           <OptionSelect
             placeholder="Filtrar por Pet"

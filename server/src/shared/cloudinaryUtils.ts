@@ -14,7 +14,7 @@ type ImageContext = 'feed' | 'thumb' | 'avatar'
 
 const TRANSFORMS: Record<ImageContext, string> = {
   feed: 'f_auto,q_auto:good,w_800',
-  thumb: 'f_auto,q_auto:eco,w_400,h_400,c_fill',
+  thumb: 'f_auto,q_auto:good,w_800,h_800,c_fill',
   avatar: 'f_auto,q_auto:eco,w_120,h_120,c_fill',
 }
 

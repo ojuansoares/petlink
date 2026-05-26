@@ -4,6 +4,23 @@ import { petsRepository } from '../pets/pets.repository'
 import { uploadsService } from '../uploads/uploads.service'
 import { optimizePostUrls } from '../../shared/cloudinaryUtils'
 
+function groupAndShuffleByDay(posts: any[]): any[] {
+  const groups: Record<string, any[]> = {}
+  for (const post of posts) {
+    const day = post.created_at?.split('T')[0] || 'unknown'
+    if (!groups[day]) groups[day] = []
+    groups[day].push(post)
+  }
+  for (const day of Object.keys(groups)) {
+    for (let i = groups[day].length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[groups[day][i], groups[day][j]] = [groups[day][j], groups[day][i]]
+    }
+  }
+  const sortedDays = Object.keys(groups).sort((a, b) => b.localeCompare(a))
+  return sortedDays.flatMap((day) => groups[day])
+}
+
 export const postsService = {
   async create(authorId: string, payload: PostCreateInput) {
     if (!payload.image_url?.trim()) {
@@ -28,14 +45,13 @@ export const postsService = {
     return post
   },
 
-  async getFeed(page = 1, limit = 20, random = false) {
-    const result = await postsRepository.listFeed(page, limit, random)
-    // Otimiza URLs para o contexto de feed (800px, auto-format, auto-quality)
-    return { ...result, posts: optimizePostUrls(result.posts, 'feed') }
+  async getFeed(currentUserId: string, page = 1, limit = 20) {
+    const result = await postsRepository.listFeed(page, limit, currentUserId)
+    return { ...result, posts: optimizePostUrls(groupAndShuffleByDay(result.posts), 'feed') }
   },
 
-  async getByAuthor(authorId: string, page = 1, limit = 12) {
-    const result = await postsRepository.listByAuthor(authorId, page, limit)
+  async getByAuthor(targetUserId: string, page = 1, limit = 12, currentUserId?: string) {
+    const result = await postsRepository.listByAuthor(targetUserId, page, limit, currentUserId)
     // Grid de perfil usa thumbnails (400×400 crop fill) — menor payload
     return { ...result, posts: optimizePostUrls(result.posts, 'thumb') }
   },
@@ -109,7 +125,7 @@ export const postsService = {
   },
 
   async getFollowed(followerId: string, page = 1, limit = 20) {
-    const result = await postsRepository.listFollowed(followerId, page, limit)
-    return { ...result, posts: optimizePostUrls(result.posts, 'feed') }
+    const result = await postsRepository.listFollowed(followerId, page, limit, followerId)
+    return { ...result, posts: optimizePostUrls(groupAndShuffleByDay(result.posts), 'feed') }
   }
 }

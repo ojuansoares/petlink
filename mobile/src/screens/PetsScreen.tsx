@@ -62,10 +62,29 @@ const SPECIES_OPTIONS = [
   { label: 'Pássaro', value: 'bird' },
   { label: 'Outro', value: 'other' },
 ]
+const MAX_WEIGHT_BY_SPECIES: Record<string, number> = {
+  dog: 100,
+  cat: 20,
+  bird: 10,
+  fish: 50,
+  rodent: 5,
+  rabbit: 12,
+  hamster: 0.5,
+  turtle: 200,
+  horse: 1000,
+  other: 1000,
+}
+
 const SPECIES_TRANSLATION: Record<string, string> = {
   dog: 'Cachorro',
   cat: 'Gato',
   bird: 'Pássaro',
+  fish: 'Peixe',
+  rodent: 'Roedor',
+  rabbit: 'Coelho',
+  hamster: 'Hamster',
+  turtle: 'Tartaruga',
+  horse: 'Cavalo',
   other: 'Outro',
 }
 
@@ -111,6 +130,9 @@ function calculateAge(birthDate: string | null): string {
     years--
     months += 12
   }
+  if (months === 12 && now.getDate() < birth.getDate()) {
+    months = 11
+  }
   if (years > 0) {
     return `${years} ${years === 1 ? 'ano' : 'anos'}`
   }
@@ -149,6 +171,7 @@ export default function PetsScreen() {
   // Form State
   const [name, setName] = useState('')
   const [species, setSpecies] = useState('')
+  const [customSpecies, setCustomSpecies] = useState('')
   const [breed, setBreed] = useState('')
   const [birthDate, setBirthDate] = useState('')
   const [weightKg, setWeightKg] = useState('')
@@ -177,6 +200,7 @@ export default function PetsScreen() {
     setStep(0)
     setName('')
     setSpecies('')
+    setCustomSpecies('')
     setBreed('')
     setBirthDate('')
     setWeightKg('')
@@ -187,10 +211,24 @@ export default function PetsScreen() {
   }
 
    const handleNext = () => {
-     if (step === 0) {
-       if (!name.trim() || !species.trim()) return
-     } else if (step === 1) {
-       if (!breed.trim() || !birthDate.trim() || !weightKg.trim()) return
+      if (step === 0) {
+        if (!name.trim()) return
+        if (species === 'other') { if (!customSpecies.trim()) return }
+        else if (!species.trim()) return
+      } else if (step === 1) {
+        const normalizedWeight = weightKg.toString().replace(',', '.')
+        const numericWeight = parseFloat(normalizedWeight)
+        if (!breed.trim() || !birthDate.trim() || !weightKg.trim()) return
+        if (isNaN(numericWeight)) {
+          dispatch(showToast({ type: 'error', message: 'Por favor, insira um peso válido.' }))
+          return
+        }
+        const maxKg = MAX_WEIGHT_BY_SPECIES[species] ?? 1000
+        if (numericWeight < 0.01 || numericWeight > maxKg) {
+          const label = maxKg < 1 ? `${(maxKg * 1000).toFixed(0)}g` : `${maxKg}kg`
+          dispatch(showToast({ type: 'error', message: `O peso máximo para essa espécie é ${label}.` }))
+          return
+        }
      } else if (step === 2) {
        // Photo is optional, so we can always proceed to next step
      } else if (step === 3) {
@@ -209,10 +247,20 @@ export default function PetsScreen() {
         return
       }
 
+      const finalSpecies = species === 'other' ? customSpecies.trim() : species.trim()
+      if (weightKg) {
+        const maxKg = MAX_WEIGHT_BY_SPECIES[finalSpecies] ?? 1000
+        if (numericWeight < 0.01 || numericWeight > maxKg) {
+          const label = maxKg < 1 ? `${(maxKg * 1000).toFixed(0)}g` : `${maxKg}kg`
+          dispatch(showToast({ type: 'error', message: `O peso máximo para essa espécie é ${label}.` }))
+          return
+        }
+      }
+
       try {
         await dispatch(createPetThunk({
           name: name.trim(),
-          species: species.trim(),
+          species: finalSpecies,
           breed: breed.trim() || null,
           birth_date: birthDate.trim() || null,
           weight_kg: weightKg ? numericWeight : null,
@@ -242,12 +290,22 @@ export default function PetsScreen() {
         return
       }
 
+      const finalSpecies = species === 'other' ? customSpecies.trim() : species.trim()
+      if (weightKg) {
+        const maxKg = MAX_WEIGHT_BY_SPECIES[finalSpecies] ?? 1000
+        if (numericWeight < 0.01 || numericWeight > maxKg) {
+          const label = maxKg < 1 ? `${(maxKg * 1000).toFixed(0)}g` : `${maxKg}kg`
+          dispatch(showToast({ type: 'error', message: `O peso máximo para essa espécie é ${label}.` }))
+          return
+        }
+      }
+
       try {
         await dispatch(updatePetThunk({
           id: activePet.id,
           patch: {
             name: name.trim(),
-            species: species.trim(),
+            species: finalSpecies,
             breed: breed.trim() || null,
             birth_date: birthDate.trim() || null,
             weight_kg: weightKg ? numericWeight : null,
@@ -338,21 +396,18 @@ export default function PetsScreen() {
   if (pets.length === 0) {
     return (
       <View style={styles.screen}>
-        <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24 }}>
-          <Card variant="organic" style={{ alignItems: 'center', gap: 16 }}>
-            <Ionicons name="paw-outline" size={64} color={colors.primary} />
-            <Heading size="2xl" weight="800" style={{ textAlign: 'center' }}>Bem-vindo ao PetLink!</Heading>
-            <Text color="mutedForeground" style={{ textAlign: 'center' }}>
-              Você ainda não tem pets cadastrados. Vamos começar?
-            </Text>
-            <Button label="Cadastrar meu primeiro Pet" onPress={() => { resetForm(); setIsFlowOpen(true) }} />
-          </Card>
+        <ScrollView contentContainerStyle={{ alignItems: 'center', paddingTop: 80, paddingHorizontal: 24 }}>
+          <Ionicons name="paw-outline" size={64} color={colors.primary} />
+          <Heading size="2xl" weight="800" style={{ textAlign: 'center', marginTop: 16 }}>Bem-vindo ao PetLink!</Heading>
+          <Text color="mutedForeground" style={{ textAlign: 'center', marginTop: 8 }}>
+            Você ainda não tem pets cadastrados. Vamos começar?
+          </Text>
+          <Button label="Cadastrar meu primeiro Pet" onPress={() => { resetForm(); setIsFlowOpen(true) }} style={{ marginTop: 24 }} />
         </ScrollView>
         <AppModal
           visible={isFlowOpen}
           onClose={() => { resetForm(); setIsFlowOpen(false) }}
           title={STEP_TITLES[step]}
-          subtitle={`Passo ${step + 1} de ${STEP_TITLES.length}`}
           footer={
             <View style={{ flexDirection: 'row', gap: 12, paddingBottom: 12 }}>
               {step > 0 && (
@@ -366,6 +421,28 @@ export default function PetsScreen() {
             </View>
           }
         >
+          {/* Step Indicators */}
+          <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 16 }}>
+            {STEP_TITLES.map((title, index) => (
+              <View key={index} style={{
+                width: 24,
+                height: 24,
+                borderRadius: 12,
+                backgroundColor: index < step ? colors.primary : index === step ? withAlpha(colors.primary, 0.2) : withAlpha(colors.mutedForeground, 0.1),
+                justifyContent: 'center',
+                alignItems: 'center',
+                borderWidth: index === step ? 2 : 0,
+                borderColor: index === step ? colors.primary : 'transparent',
+              }}>
+                {index < step && (
+                  <Ionicons name="checkmark" size={16} color={colors.card} />
+                )}
+                {(index === step && index < STEP_TITLES.length - 1) && (
+                  <Ionicons name="chevron-forward" size={14} color={colors.primary} />
+                )}
+              </View>
+            ))}
+          </View>
           <PetCreationStepContent
             step={step}
             name={name}
@@ -380,6 +457,8 @@ export default function PetsScreen() {
             isUploadingPhoto={isUploadingPhoto}
             onNameChange={setName}
             onSpeciesChange={setSpecies}
+            customSpecies={customSpecies}
+            onCustomSpeciesChange={setCustomSpecies}
             onBreedChange={setBreed}
             onOpenBirthDatePicker={() => setShowBirthDatePicker(true)}
             onWeightKgChange={setWeightKg}
@@ -462,19 +541,21 @@ export default function PetsScreen() {
 
                <Calendar petId={activePet.id} />
 
-              <View style={styles.extraSection}>
-                <Heading size="sm" weight="800">Sobre {activePet.name}</Heading>
-                {activePet.observations && (
-                  <View style={styles.observationsBox}>
-                    <Text size="sm" color="mutedForeground">"{activePet.observations}"</Text>
-                  </View>
-                )}
-                {activePet.allergies && (
-                  <View style={[styles.tag, { backgroundColor: withAlpha(colors.destructive, 0.1), alignSelf: 'flex-start' }]}>
-                    <Text size="xs" weight="700" style={{ color: colors.destructive }}>Alergias: {activePet.allergies}</Text>
-                  </View>
-                )}
-              </View>
+              {(activePet.observations || activePet.allergies) && (
+                <View style={styles.extraSection}>
+                  <Heading size="sm" weight="800">Sobre {activePet.name}</Heading>
+                  {activePet.observations && (
+                    <View style={styles.observationsBox}>
+                      <Text size="sm" color="mutedForeground">"{activePet.observations}"</Text>
+                    </View>
+                  )}
+                  {activePet.allergies && (
+                    <View style={[styles.tag, { backgroundColor: withAlpha(colors.destructive, 0.1), alignSelf: 'flex-start' }]}>
+                      <Text size="xs" weight="700" style={{ color: colors.destructive }}>Alergias: {activePet.allergies}</Text>
+                    </View>
+                  )}
+                </View>
+              )}
             </View>
           )
         ) : activePet ? (
@@ -501,13 +582,13 @@ export default function PetsScreen() {
             />
             <ControlCard
               title="Alimentação"
-              subtitle="Dietas e horários"
+              subtitle="Refeições e horários"
               icon="restaurant-outline"
               color={mode === 'light' ? '#FFF7ED' : '#331d10'}
               borderColor={mode === 'light' ? '#FFEDD5' : '#f9731633'}
               iconColor="#F97316"
-              badge="Em breve"
-              onPress={() => dispatch(showToast({ type: 'info', message: 'Módulo de alimentação em breve!' }))}
+              badge="Diário"
+              onPress={() => navigation.navigate('FeedingPlan', { petId: activePet.id, petName: activePet.name })}
             />
           </View>
         ) : (
@@ -572,19 +653,21 @@ export default function PetsScreen() {
            observations={observations}
            isUploadingPhoto={isUploadingPhoto}
            onNameChange={setName}
-           onSpeciesChange={setSpecies}
-           onBreedChange={setBreed}
-           onOpenBirthDatePicker={() => setShowBirthDatePicker(true)}
-           onWeightKgChange={setWeightKg}
-           onAllergiesChange={setAllergies}
-           onTagsChange={setTags}
-           onObservationsChange={setObservations}
-           onPickPhoto={handlePickPhoto}
-           formatIsoToDisplay={formatIsoToDisplay}
-         />
-       </AppModal>
+            onSpeciesChange={setSpecies}
+            customSpecies={customSpecies}
+            onCustomSpeciesChange={setCustomSpecies}
+            onBreedChange={setBreed}
+            onOpenBirthDatePicker={() => setShowBirthDatePicker(true)}
+            onWeightKgChange={setWeightKg}
+            onAllergiesChange={setAllergies}
+            onTagsChange={setTags}
+            onObservationsChange={setObservations}
+            onPickPhoto={handlePickPhoto}
+            formatIsoToDisplay={formatIsoToDisplay}
+          />
+        </AppModal>
 
-       {/* Edit Modal */}
+        {/* Edit Modal */}
        <AppModal
          visible={isEditing}
          onClose={() => { resetForm(); setIsEditing(false) }}
@@ -683,14 +766,21 @@ export default function PetsScreen() {
                    </Pressable>
                  </View>
                  
-                 <Input
-                   label="Peso"
-                   placeholder="Quanto pesa? (kg)"
-                   value={weightKg}
-                   onChangeText={setWeightKg}
-                   keyboardType="numeric"
-                   leftIcon={<Ionicons name="barbell-outline" size={18} color={colors.mutedForeground} />}
-                 />
+                  {(() => {
+                    const maxKg = MAX_WEIGHT_BY_SPECIES[species] ?? 1000
+                    const maxLen = String(Math.floor(maxKg)).length + 3
+                    return (
+                      <Input
+                        label="Peso"
+                        placeholder={maxKg < 1 ? `Máx ${(maxKg * 1000).toFixed(0)}g` : `Máx ${maxKg}kg`}
+                        value={weightKg}
+                        onChangeText={setWeightKg}
+                        keyboardType="decimal-pad"
+                        maxLength={maxLen}
+                        leftIcon={<Ionicons name="barbell-outline" size={18} color={colors.mutedForeground} />}
+                      />
+                    )
+                  })()}
                </View>
                
                {/* Care Section */}
@@ -787,13 +877,20 @@ export default function PetsScreen() {
           title="Atualizar Peso"
       >
         <View style={{ padding: 20, gap: 16 }}>
-          <Input
-            placeholder="Novo peso (kg)"
-            value={weightKg}
-            onChangeText={setWeightKg}
-            keyboardType="numeric"
-            leftIcon={<Ionicons name="barbell-outline" size={18} color={colors.mutedForeground} />}
-          />
+          {(() => {
+            const maxKg = MAX_WEIGHT_BY_SPECIES[species] ?? 1000
+            const maxLen = String(Math.floor(maxKg)).length + 3
+            return (
+              <Input
+                placeholder={maxKg < 1 ? `Máx ${(maxKg * 1000).toFixed(0)}g` : `Máx ${maxKg}kg`}
+                value={weightKg}
+                onChangeText={setWeightKg}
+                keyboardType="decimal-pad"
+                maxLength={maxLen}
+                leftIcon={<Ionicons name="barbell-outline" size={18} color={colors.mutedForeground} />}
+              />
+            )
+          })()}
           <Button label="Salvar Peso" variant="primary" onPress={handleUpdatePet} loading={isUpdating} />
         </View>
       </AppModal>

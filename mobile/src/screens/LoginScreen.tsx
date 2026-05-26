@@ -4,7 +4,6 @@ import { StackScreenProps } from '@react-navigation/stack'
 import { Ionicons } from '@expo/vector-icons'
 import {
   Animated,
-  Alert,
   Easing,
   Image,
   KeyboardAvoidingView,
@@ -40,6 +39,7 @@ import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Input } from '../components/ui/Input'
 import { Heading, Text } from '../components/ui/Typography'
+import { ConfirmModal } from '../components/ui/ConfirmModal'
 
 type Props = StackScreenProps<AuthStackParamList, 'Login'>
 
@@ -61,6 +61,8 @@ export default function LoginScreen({ navigation }: Readonly<Props>) {
   const [canUseBiometric, setCanUseBiometric] = React.useState(false)
   const [showBiometricOption, setShowBiometricOption] = React.useState(false)
   const [isBiometricLoading, setIsBiometricLoading] = React.useState(false)
+  const [showBiometricAlert, setShowBiometricAlert] = React.useState(false)
+  const [showSessionAlert, setShowSessionAlert] = React.useState(false)
   const logoOpacity = React.useRef(new Animated.Value(0)).current
   const logoTranslateY = React.useRef(new Animated.Value(-20)).current
   const panelTranslateY = React.useRef(new Animated.Value(46)).current
@@ -146,24 +148,7 @@ export default function LoginScreen({ navigation }: Readonly<Props>) {
         return
       }
 
-      Alert.alert(
-        'Ativar biometria?',
-        'Use biometria para entrar mais rapido neste aparelho.',
-        [
-          { text: 'Agora nao', style: 'cancel' },
-          {
-            text: 'Ativar',
-            onPress: async () => {
-              const confirmed = await authenticateBiometric()
-              if (!confirmed) return
-
-              await setBiometricEnabled(true)
-              setCanUseBiometric(true)
-              setShowBiometricOption(true)
-            },
-          },
-        ]
-      )
+      setShowBiometricAlert(true)
     } catch {
       // erro ja tratado no estado global de auth
     }
@@ -193,10 +178,7 @@ export default function LoginScreen({ navigation }: Readonly<Props>) {
 
       const hasSession = await hasStoredAuthSession()
       if (!hasSession) {
-        Alert.alert(
-          'Sessão não encontrada',
-          'Faça login com email e senha novamente para vincular a biometria neste aparelho.'
-        )
+        setShowSessionAlert(true)
         return
       }
 
@@ -323,6 +305,33 @@ export default function LoginScreen({ navigation }: Readonly<Props>) {
           </ScrollView>
         </Animated.View>
       </KeyboardAvoidingView>
+
+      <ConfirmModal
+        visible={showBiometricAlert}
+        title="Ativar biometria?"
+        message="Use biometria para entrar mais rápido neste aparelho."
+        confirmLabel="Ativar"
+        cancelLabel="Agora não"
+        onConfirm={async () => {
+          const confirmed = await authenticateBiometric()
+          if (!confirmed) return
+          await setBiometricEnabled(true)
+          setCanUseBiometric(true)
+          setShowBiometricOption(true)
+          setShowBiometricAlert(false)
+        }}
+        onCancel={() => setShowBiometricAlert(false)}
+      />
+
+      <ConfirmModal
+        visible={showSessionAlert}
+        title="Sessão não encontrada"
+        message="Faça login com email e senha novamente para vincular a biometria neste aparelho."
+        confirmLabel="OK"
+        cancelLabel=""
+        onConfirm={() => setShowSessionAlert(false)}
+        onCancel={() => setShowSessionAlert(false)}
+      />
     </View>
   )
 }

@@ -25,9 +25,8 @@ export const postsController = {
 
       const page = parseInt(req.query.page as string, 10) || 1
       const limit = parseInt(req.query.limit as string, 10) || 20
-      const random = req.query.random === 'true'
 
-      const result = await postsService.getFeed(page, limit, random)
+      const result = await postsService.getFeed(authReq.user.id, page, limit)
       return res.status(200).json(result)
     } catch (err: any) {
       const statusCode = err instanceof AppError ? err.statusCode : err.statusCode ?? 500
@@ -46,7 +45,7 @@ export const postsController = {
       const page = parseInt(req.query.page as string, 10) || 1
       const limit = parseInt(req.query.limit as string, 10) || 20
 
-      const result = await postsService.getByAuthor(userId, page, limit)
+      const result = await postsService.getByAuthor(userId, page, limit, authReq.user.id)
       return res.status(200).json(result)
     } catch (err: any) {
       const statusCode = err instanceof AppError ? err.statusCode : err.statusCode ?? 500

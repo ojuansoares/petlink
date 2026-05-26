@@ -1,0 +1,137 @@
+import { supabaseAdmin } from '../../config/supabase'
+
+export type FeedingPlan = {
+  id: string
+  pet_id: string
+  meal_name: string
+  meal_time: string
+  quantity: string | null
+  order_index: number
+  is_active: boolean
+}
+
+export type FeedingLog = {
+  id: string
+  pet_id: string
+  meal_plan_id: string
+  meal_name: string
+  scheduled_time: string
+  quantity: string | null
+  order_index: number
+  log_date: string
+  checked_at: string | null
+}
+
+export type UpsertPlanInput = {
+  meals: {
+    id?: string
+    meal_name: string
+    meal_time: string
+    quantity?: string | null
+    order_index: number
+  }[]
+}
+
+export const feedingRepository = {
+  async listPlan(petId: string): Promise<FeedingPlan[]> {
+    const { data, error } = await supabaseAdmin
+      .from('feeding_plans')
+      .select('*')
+      .eq('pet_id', petId)
+      .eq('is_active', true)
+      .order('order_index', { ascending: true })
+
+    if (error) throw error
+    return (data ?? []) as FeedingPlan[]
+  },
+
+  async upsertPlan(petId: string, meals: UpsertPlanInput['meals']): Promise<FeedingPlan[]> {
+    const { data: existing } = await supabaseAdmin
+      .from('feeding_plans')
+      .select('id')
+      .eq('pet_id', petId)
+
+    const existingIds = new Set((existing ?? []).map((p: any) => p.id))
+    const incomingIds = new Set(meals.filter((m) => m.id).map((m) => m.id))
+
+    const toDelete = [...existingIds].filter((id) => !incomingIds.has(id))
+    if (toDelete.length > 0) {
+      await supabaseAdmin.from('feeding_plans').delete().in('id', toDelete)
+    }
+
+    for (let i = 0; i < meals.length; i++) {
+      const meal = meals[i]
+      const record = {
+        pet_id: petId,
+        meal_name: meal.meal_name,
+        meal_time: meal.meal_time,
+        quantity: meal.quantity || null,
+        order_index: i,
+      }
+
+      if (meal.id && existingIds.has(meal.id)) {
+        await supabaseAdmin.from('feeding_plans').update(record).eq('id', meal.id)
+      } else {
+        await supabaseAdmin.from('feeding_plans').insert(record)
+      }
+    }
+
+    return this.listPlan(petId)
+  },
+
+  async getOrCreateLogs(petId: string, date: string): Promise<FeedingLog[]> {
+    const { data: existingLogs } = await supabaseAdmin
+      .from('feeding_logs')
+      .select('*')
+      .eq('pet_id', petId)
+      .eq('log_date', date)
+      .order('order_index', { ascending: true })
+
+    if (existingLogs && existingLogs.length > 0) {
+      return existingLogs as FeedingLog[]
+    }
+
+    const { data: plan } = await supabaseAdmin
+      .from('feeding_plans')
+      .select('*')
+      .eq('pet_id', petId)
+      .eq('is_active', true)
+      .order('order_index', { ascending: true })
+
+    if (!plan || plan.length === 0) return []
+
+    const inserts = plan.map((meal: any) => ({
+      pet_id: petId,
+      meal_plan_id: meal.id,
+      meal_name: meal.meal_name,
+      scheduled_time: meal.meal_time,
+      quantity: meal.quantity,
+      order_index: meal.order_index,
+      log_date: date,
+    }))
+
+    const { data: newLogs, error } = await supabaseAdmin
+      .from('feeding_logs')
+      .insert(inserts)
+      .select()
+      .order('order_index', { ascending: true })
+
+    if (error) throw error
+    return (newLogs ?? []) as FeedingLog[]
+  },
+
+  async checkLog(logId: string, petId: string): Promise<FeedingLog> {
+    const now = new Date().toISOString()
+
+    const { data, error } = await supabaseAdmin
+      .from('feeding_logs')
+      .update({ checked_at: now })
+      .eq('id', logId)
+      .eq('pet_id', petId)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data as FeedingLog
+  },
+}

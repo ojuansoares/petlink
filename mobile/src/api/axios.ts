@@ -8,6 +8,11 @@ type AuthInterceptorHandlers = {
 }
 
 let authHandlers: AuthInterceptorHandlers = {}
+let _isOnline = true
+
+export const setApiOnlineStatus = (online: boolean) => {
+  _isOnline = online
+}
 
 export const API_BASE_URL =
   process.env.EXPO_PUBLIC_API_URL ??
@@ -22,8 +27,15 @@ export const api = axios.create({
   timeout: 10000,
 })
 
-// Injeta token em toda requisição
+// Bloqueia mutações quando offline
 api.interceptors.request.use(async (config) => {
+  const method = (config.method ?? 'GET').toUpperCase()
+  if (!_isOnline && method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') {
+    const error = new Error('Sem internet. Conecte-se para continuar.')
+    ;(error as any).isOffline = true
+    throw error
+  }
+  // Injeta token em toda requisição
   const tokens = await readAuthTokens()
   if (tokens?.accessToken) {
     const { accessToken } = tokens

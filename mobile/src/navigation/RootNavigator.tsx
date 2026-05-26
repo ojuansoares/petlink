@@ -15,6 +15,7 @@ import ProfileFeedScreen from '../screens/ProfileFeedScreen'
 import { AppStackParamList } from './types'
 import { VaccineScreen } from '../screens/Pets/VaccineScreen';
 import { ConsultationScreen } from '../screens/Pets/ConsultationScreen';
+import FeedingScreen from '../screens/Pets/FeedingScreen';
 import ResetPasswordScreen from '../screens/ResetPasswordScreen';
 
 const AppStack = createStackNavigator<AppStackParamList>()
@@ -115,6 +116,14 @@ function AuthenticatedNavigator() {
         component={ConsultationScreen}
         options={{
           title: 'Consultas Veterinárias',
+          headerLeft: SettingsBackButton,
+        }}
+      />
+      <AppStack.Screen
+        name="FeedingPlan"
+        component={FeedingScreen}
+        options={{
+          title: 'Alimentação',
           headerLeft: SettingsBackButton,
         }}
       />

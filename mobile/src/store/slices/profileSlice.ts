@@ -80,6 +80,7 @@ export const updateProfileThunk = createAsyncThunk(
       await ProfileOfflineRepository.replaceFromRemote(profile)
       return profile
     } catch (err: any) {
+      if (err.isOffline) return rejectWithValue('Sem internet. Conecte-se para continuar.')
       if (axios.isAxiosError(err)) {
         const message = err.response?.data?.error ?? err.response?.data?.message
         if (message) return rejectWithValue(message)
@@ -100,6 +101,7 @@ export const updateMyAvatarThunk = createAsyncThunk(
       await ProfileOfflineRepository.replaceFromRemote(profile)
       return profile
     } catch (err: any) {
+      if (err.isOffline) return rejectWithValue('Sem internet. Conecte-se para continuar.')
       if (axios.isAxiosError(err)) {
         const message = err.response?.data?.error ?? err.response?.data?.message
         if (message) return rejectWithValue(message)

@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk, createSelector } from '@reduxjs/toolkit'
 import { api } from '../../api/axios'
 import { offlinePostsRepository } from '../../data/repositories/PostsOfflineRepository'
+import { toggleLikeThunk } from './likesSlice'
 
 // ─── Types ───────────────────────────────────────────────────
 export interface Post {
@@ -11,10 +12,13 @@ export interface Post {
   caption: string | null
   location: string | null
   is_pinned: boolean
+  likes_count: number
+  comments_count: number
   created_at: string
   updated_at: string
   profiles?: { name: string; avatar_url: string | null }
   pets?: { name: string }
+  liked_by_user?: boolean
 }
 
 interface PostsState {
@@ -58,7 +62,7 @@ export const fetchFeedThunk = createAsyncThunk(
       return { posts: localPosts, hasMore: false, isOffline: true } as { posts: Post[]; hasMore: boolean; isOffline: boolean }
     }
     try {
-      const { data } = await api.get('/posts/feed?page=1&limit=20&random=true')
+      const { data } = await api.get('/posts/feed?page=1&limit=20')
       await offlinePostsRepository.saveFeedPhotos(data.posts)
       return data as { posts: Post[]; hasMore: boolean }
     } catch (err: any) {
@@ -75,7 +79,7 @@ export const fetchMoreFeedThunk = createAsyncThunk(
   'posts/fetchMoreFeed',
   async (page: number, { rejectWithValue }) => {
     try {
-      const { data } = await api.get(`/posts/feed?page=${page}&limit=20&random=true`)
+      const { data } = await api.get(`/posts/feed?page=${page}&limit=20`)
       return data as { posts: Post[]; hasMore: boolean }
     } catch (err: any) {
       return rejectWithValue(err.response?.data?.error ?? 'Erro ao carregar mais')
@@ -212,6 +216,7 @@ export const createPostThunk = createAsyncThunk(
       const { data } = await api.post('/posts', payload)
       return data.post as Post
     } catch (err: any) {
+      if (err.isOffline) return rejectWithValue('Sem internet. Conecte-se para continuar.')
       return rejectWithValue(err.response?.data?.error ?? 'Erro ao publicar')
     }
   }
@@ -227,6 +232,7 @@ export const updatePostThunk = createAsyncThunk(
       const { data } = await api.put(`/posts/${payload.postId}`, payload.patch)
       return data.post as Post
     } catch (err: any) {
+      if (err.isOffline) return rejectWithValue('Sem internet. Conecte-se para continuar.')
       return rejectWithValue(err.response?.data?.error ?? 'Erro ao atualizar publicação')
     }
   }
@@ -250,6 +256,7 @@ export const togglePinThunk = createAsyncThunk(
 
       return updatedPost
     } catch (err: any) {
+      if (err.isOffline) return rejectWithValue('Sem internet. Conecte-se para continuar.')
       return rejectWithValue(err.response?.data?.error ?? 'Erro ao fixar/desfixar post')
     }
   }
@@ -262,6 +269,7 @@ export const deletePostThunk = createAsyncThunk(
       await api.delete(`/posts/${postId}`)
       return postId
     } catch (err: any) {
+      if (err.isOffline) return rejectWithValue('Sem internet. Conecte-se para continuar.')
       return rejectWithValue(err.response?.data?.error ?? 'Erro ao deletar post')
     }
   }
@@ -508,6 +516,35 @@ const postsSlice = createSlice({
       .addCase(deletePostThunk.fulfilled, (s, a) => {
         s.feed = s.feed.filter((p) => p.id !== a.payload)
         s.myPosts = s.myPosts.filter((p) => p.id !== a.payload)
+      })
+
+    // ── toggleLike (otimista) ──
+    builder
+      .addCase(toggleLikeThunk.pending, (s, a) => {
+        const postId = a.meta.arg
+        const updatePost = (p: Post) => {
+          if (p.id === postId) {
+            p.likes_count += p.liked_by_user ? -1 : 1
+            p.liked_by_user = !p.liked_by_user
+          }
+        }
+        s.feed.forEach(updatePost)
+        s.myPosts.forEach(updatePost)
+        s.followedFeed.forEach(updatePost)
+        s.userPosts.forEach(updatePost)
+      })
+      .addCase(toggleLikeThunk.fulfilled, (s, a) => {
+        const { postId, liked, likesCount } = a.payload
+        const updatePost = (p: Post) => {
+          if (p.id === postId) {
+            p.likes_count = likesCount
+            p.liked_by_user = liked
+          }
+        }
+        s.feed.forEach(updatePost)
+        s.myPosts.forEach(updatePost)
+        s.followedFeed.forEach(updatePost)
+        s.userPosts.forEach(updatePost)
       })
   },
 })

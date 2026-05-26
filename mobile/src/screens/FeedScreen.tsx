@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react'
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { View, FlatList, RefreshControl, ActivityIndicator } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useNavigation } from '@react-navigation/native'
@@ -28,6 +28,7 @@ import {
 } from '../store/slices/postsSlice'
 import { AppStackParamList } from '../navigation/types'
 import { FeedPostItem } from './Feed/components/FeedPostItem'
+import { CommentSheet } from '../components/ui/CommentSheet'
 import { useFeedStyles } from './Feed/useFeedStyles'
 import { AppToast } from '../components/ui/AppToast'
 
@@ -56,6 +57,7 @@ export default function FeedScreen() {
 
    const [optionsModalOpen, setOptionsModalOpen] = useState(false)
    const [selectedPost, setSelectedPost] = useState<Post | null>(null)
+   const [commentPost, setCommentPost] = useState<Post | null>(null)
    const [activeTab, setActiveTab] = useState<'recommended' | 'following'>('recommended')
    const hasLoadedFollowed = useRef(false)
 
@@ -88,6 +90,10 @@ export default function FeedScreen() {
     setOptionsModalOpen(true)
   }, [])
 
+  const handleCommentPress = useCallback((post: Post) => {
+    setCommentPost(post)
+  }, [])
+
   const navigateToProfile = useCallback((authorId: string) => {
     if (authorId === currentUser?.id) {
       navigation.getParent()?.navigate('Tabs', { screen: 'Profile' })
@@ -101,8 +107,9 @@ export default function FeedScreen() {
       post={item}
       onUserPress={navigateToProfile}
       onOptionsPress={handleOpenOptions}
+      onCommentPress={handleCommentPress}
     />
-  ), [navigateToProfile, handleOpenOptions])
+  ), [navigateToProfile, handleOpenOptions, handleCommentPress])
 
   const renderHeader = () => (
     <View style={styles.tabContainer}>
@@ -124,23 +131,27 @@ export default function FeedScreen() {
     </View>
   )
 
-   const renderEmpty = () => {
-     if (activeTab === 'recommended' && isLoading) return null
-     if (activeTab === 'following' && isLoadingFollowedFeed) return null
+   const listEmpty = useMemo(() => {
+     if (isLoading || (activeTab === 'following' && isLoadingFollowedFeed)) return null
      return (
        <View style={{ padding: 40, alignItems: 'center' }}>
          <Ionicons name="newspaper-outline" size={48} color={colors.mutedForeground} />
          <Text color="mutedForeground" style={{ marginTop: 12 }}>Nenhuma postagem encontrada.</Text>
        </View>
      )
-   }
+   }, [isLoading, isLoadingFollowedFeed, activeTab])
+
+   const listData = useMemo(
+     () => activeTab === 'recommended' ? posts : followedFeed,
+     [activeTab, posts, followedFeed]
+   )
 
    return (
      <View style={styles.container}>
        {renderHeader()}
        
        <FlatList
-         data={activeTab === 'recommended' ? posts : followedFeed}
+         data={listData}
          renderItem={renderItem}
          keyExtractor={(item) => item.id}
          onEndReached={loadMore}
@@ -148,7 +159,7 @@ export default function FeedScreen() {
          refreshControl={
            <RefreshControl refreshing={activeTab === 'recommended' ? isLoading : isLoadingFollowedFeed} onRefresh={onRefresh} tintColor={colors.primary} />
          }
-         ListEmptyComponent={renderEmpty()}
+         ListEmptyComponent={listEmpty}
          showsVerticalScrollIndicator={false}
          initialNumToRender={4}
          maxToRenderPerBatch={4}
@@ -163,6 +174,14 @@ export default function FeedScreen() {
           onClose={() => setOptionsModalOpen(false)}
           post={selectedPost}
           isOwnPost={selectedPost.author_id === currentUser?.id}
+        />
+      )}
+
+      {commentPost && (
+        <CommentSheet
+          visible={!!commentPost}
+          onClose={() => setCommentPost(null)}
+          post={commentPost}
         />
       )}
       

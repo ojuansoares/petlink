@@ -37,6 +37,7 @@ export const followUserThunk = createAsyncThunk(
       await api.post(`/follows/${userId}`)
       return userId
     } catch (err: any) {
+      if (err.isOffline) return rejectWithValue('Sem internet. Conecte-se para continuar.')
       if (axios.isAxiosError(err)) {
         const message = err.response?.data?.error ?? err.response?.data?.message
         if (message) return rejectWithValue(message)
@@ -53,6 +54,7 @@ export const unfollowUserThunk = createAsyncThunk(
       await api.delete(`/follows/${userId}`)
       return userId
     } catch (err: any) {
+      if (err.isOffline) return rejectWithValue('Sem internet. Conecte-se para continuar.')
       if (axios.isAxiosError(err)) {
         const message = err.response?.data?.error ?? err.response?.data?.message
         if (message) return rejectWithValue(message)

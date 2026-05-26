@@ -6,5 +6,6 @@ const router = Router()
 
 router.post('/:postId/like',   authMiddleware, likesController.toggle)
 router.get('/:postId/like',     authMiddleware, likesController.status)
+router.get('/:postId/likes',    authMiddleware, likesController.listByPost)
 
 export default router

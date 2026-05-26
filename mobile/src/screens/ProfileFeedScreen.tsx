@@ -1,4 +1,4 @@
-import React, { useCallback, useRef } from 'react'
+import React, { useCallback, useRef, useState } from 'react'
 import { StyleSheet, View, FlatList, Pressable, useWindowDimensions } from 'react-native'
 import { Image } from 'expo-image'
 import { Ionicons } from '@expo/vector-icons'
@@ -8,8 +8,12 @@ import { StackNavigationProp } from '@react-navigation/stack'
 import { useTheme } from '../hooks/useTheme'
 import { Text } from '../components/ui/Typography'
 import { Avatar } from '../components/ui/Avatar'
+import { LikesButton } from '../components/ui/LikesButton'
+import { LikesSheet } from '../components/ui/LikesSheet'
+import { CommentSheet } from '../components/ui/CommentSheet'
 import { PostOptionsModal } from '../components/ui/PostOptionsModal'
 import { AppToast } from '../components/ui/AppToast'
+import { formatCount } from '../utils/formatNumber'
 import { useAppSelector } from '../store'
 import { selectMyPosts, selectUserPosts, Post } from '../store/slices/postsSlice'
 import { AppStackParamList } from '../navigation/types'
@@ -33,14 +37,20 @@ export default function ProfileFeedScreen() {
   const publicPosts = useAppSelector((state) => selectUserPosts(state))
   const posts = isOwnProfile ? myPosts : publicPosts
 
-  const [optionsModalOpen, setOptionsModalOpen] = React.useState(false)
-  const [selectedPost, setSelectedPost] = React.useState<Post | null>(null)
+  const [optionsModalOpen, setOptionsModalOpen] = useState(false)
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null)
+  const [commentPost, setCommentPost] = useState<Post | null>(null)
+  const [likesPost, setLikesPost] = useState<Post | null>(null)
   
   const flatListRef = useRef<FlatList>(null)
 
   const handleOpenOptions = useCallback((post: Post) => {
     setSelectedPost(post)
     setOptionsModalOpen(true)
+  }, [])
+
+  const handleCommentPress = useCallback((post: Post) => {
+    setCommentPost(post)
   }, [])
 
   const onScrollToIndexFailed = useCallback((info: { index: number; highestMeasuredFrameIndex: number; averageItemLength: number }) => {
@@ -82,6 +92,19 @@ export default function ProfileFeedScreen() {
         />
 
         <View style={styles.postFooter}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+            <LikesButton postId={post.id} likesCount={post.likes_count} initialLiked={post.liked_by_user} onCountPress={() => setLikesPost(post)} size={26} />
+            <Pressable
+              onPress={() => handleCommentPress(post)}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
+              hitSlop={8}
+            >
+              <Ionicons name="chatbubble-outline" size={26} color={colors.mutedForeground} />
+              <Text size="xs" weight="600" color="mutedForeground">
+                {formatCount(post.comments_count)}
+              </Text>
+            </Pressable>
+          </View>
           {post.caption ? (
             <Text style={styles.caption}>
               <Text weight="700" size="sm">{post.profiles?.name} </Text>
@@ -94,7 +117,7 @@ export default function ProfileFeedScreen() {
         </View>
       </View>
     )
-  }, [colors, width, handleOpenOptions])
+  }, [colors, width, handleOpenOptions, handleCommentPress])
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -122,6 +145,22 @@ export default function ProfileFeedScreen() {
           onClose={() => setOptionsModalOpen(false)}
           isOwnPost={isOwnProfile}
           context="profile"
+        />
+      )}
+
+      {commentPost && (
+        <CommentSheet
+          visible={!!commentPost}
+          onClose={() => setCommentPost(null)}
+          post={commentPost}
+        />
+      )}
+
+      {likesPost && (
+        <LikesSheet
+          visible={!!likesPost}
+          onClose={() => setLikesPost(null)}
+          post={likesPost}
         />
       )}
     </View>

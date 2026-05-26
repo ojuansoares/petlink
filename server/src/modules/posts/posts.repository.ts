@@ -1,4 +1,5 @@
 import { Post, IPost } from '../../models/Post'
+import { Like } from '../../models/Like'
 import { supabaseAdmin } from '../../config/supabase'
 import { mapId } from '../../shared/mapId'
 
@@ -12,7 +13,7 @@ export type PostCreateInput = {
 type ProfileInfo = { name: string; avatar_url: string | null }
 type PetInfo = { name: string }
 
-type EnrichedPost = {
+export type EnrichedPost = {
   id: string
   author_id: string
   pet_id: string
@@ -26,10 +27,12 @@ type EnrichedPost = {
   updated_at: string
   profiles: ProfileInfo | null
   pets: PetInfo | null
+  liked_by_user: boolean
 }
 
 async function enrichWithProfilesAndPets(
   docs: any[],
+  currentUserId?: string,
   authorField: string = 'authorId',
   petField: string = 'petId'
 ): Promise<EnrichedPost[]> {
@@ -37,6 +40,7 @@ async function enrichWithProfilesAndPets(
 
   const authorIds = [...new Set(docs.map((d) => d[authorField]))]
   const petIds = [...new Set(docs.map((d) => d[petField]))]
+  const postIds = docs.map((d) => d._id)
 
   const [profilesRes, petsRes] = await Promise.all([
     supabaseAdmin.from('profiles').select('id, name, avatar_url').in('id', authorIds),
@@ -51,6 +55,14 @@ async function enrichWithProfilesAndPets(
   const petMap = new Map<string, PetInfo>()
   for (const p of petsRes.data ?? []) {
     petMap.set(p.id, { name: p.name })
+  }
+
+  let likedSet = new Set<string>()
+  if (currentUserId) {
+    const likes = await Like.find({ postId: { $in: postIds }, userId: currentUserId }).lean()
+    for (const l of likes) {
+      likedSet.add(l.postId.toString())
+    }
   }
 
   return docs.map((doc) => {
@@ -69,6 +81,7 @@ async function enrichWithProfilesAndPets(
       updated_at: m.updatedAt instanceof Date ? m.updatedAt.toISOString() : m.updatedAt,
       profiles: profileMap.get(m.authorId) ?? null,
       pets: petMap.get(m.petId) ?? null,
+      liked_by_user: likedSet.has(m.id),
     }
   })
 }
@@ -94,34 +107,23 @@ export const postsRepository = {
     return enriched[0]
   },
 
-  async listFeed(page: number, limit: number, random = false) {
+  async listFeed(page: number, limit: number, currentUserId?: string) {
     const skip = (page - 1) * limit
+    const total = await Post.countDocuments()
+    if (total === 0) return { posts: [], hasMore: false }
 
-    if (random) {
-      const total = await Post.countDocuments()
-      if (total === 0) return { posts: [], hasMore: false }
-
-      const docs = await Post.aggregate([
-        { $sample: { size: limit } },
-        { $sort: { createdAt: -1 } },
-      ])
-
-      const hasMore = skip + limit < total
-      const posts = await enrichWithProfilesAndPets(docs)
-      return { posts, hasMore }
-    }
-
-    const [docs, total] = await Promise.all([
-      Post.find().sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
-      Post.countDocuments(),
-    ])
+    const docs = await Post.find()
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean()
 
     const hasMore = skip + limit < total
-    const posts = await enrichWithProfilesAndPets(docs)
+    const posts = await enrichWithProfilesAndPets(docs, currentUserId)
     return { posts, hasMore }
   },
 
-  async listByAuthor(authorId: string, page: number, limit: number) {
+  async listByAuthor(authorId: string, page: number, limit: number, currentUserId?: string) {
     const skip = (page - 1) * limit
 
     const [docs, total] = await Promise.all([
@@ -130,7 +132,7 @@ export const postsRepository = {
     ])
 
     const hasMore = skip + limit < total
-    const posts = await enrichWithProfilesAndPets(docs)
+    const posts = await enrichWithProfilesAndPets(docs, currentUserId)
     return { posts, hasMore }
   },
 
@@ -176,7 +178,7 @@ export const postsRepository = {
     return Post.countDocuments({ authorId, isPinned: true })
   },
 
-  async listFollowed(followerId: string, page: number, limit: number) {
+  async listFollowed(followerId: string, page: number, limit: number, currentUserId?: string) {
     const skip = (page - 1) * limit
 
     const { data: followData } = await supabaseAdmin
@@ -200,7 +202,7 @@ export const postsRepository = {
     ])
 
     const hasMore = skip + limit < total
-    const posts = await enrichWithProfilesAndPets(docs)
+    const posts = await enrichWithProfilesAndPets(docs, currentUserId)
     return { posts, hasMore }
   },
 }

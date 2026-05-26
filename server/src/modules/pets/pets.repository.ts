@@ -100,6 +100,17 @@ export const petsRepository = {
     return data
   },
 
+  async findById(petId: string) {
+    const { data, error } = await supabaseAdmin
+      .from('pets')
+      .select('*')
+      .eq('id', petId)
+      .maybeSingle()
+
+    if (error) throw error
+    return data
+  },
+
   async updateByIdAndOwner(
     ownerId: string,
     petId: string,

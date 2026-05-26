@@ -31,4 +31,13 @@ export const likesRepository = {
     const post = await Post.findById(postId).lean()
     return post?.likesCount ?? 0
   },
+
+  async listByPost(postId: string, page = 1, limit = 10) {
+    const skip = (page - 1) * limit
+    const [likes, total] = await Promise.all([
+      Like.find({ postId }).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+      Like.countDocuments({ postId }),
+    ])
+    return { data: likes.map(mapId), total }
+  },
 }

@@ -4,6 +4,7 @@ import {
   ScrollView,
   Pressable,
   ActivityIndicator,
+  RefreshControl,
   useWindowDimensions,
   Modal,
   StyleSheet,
@@ -13,6 +14,7 @@ import { useRoute, RouteProp, useNavigation } from '@react-navigation/native'
 import { StackNavigationProp } from '@react-navigation/stack'
 import { AppStackParamList } from '../navigation/types'
 import { Ionicons } from '@expo/vector-icons'
+import { OptionSelect } from '../components/ui/OptionSelect'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Heading, Text } from '../components/ui/Typography'
 import { Avatar } from '../components/ui/Avatar'
@@ -22,6 +24,7 @@ import { SegmentedTabs } from '../components/ui/SegmentedTabs'
 import { PetBubbleRing } from '../components/ui/PetBubbleRing'
 import { Card } from '../components/ui/Card'
 import { useTheme } from '../hooks/useTheme'
+import { formatCount } from '../utils/formatNumber'
 import { getBadgeConfig } from './Pets/components/PetDetailsCard'
 import { useAppDispatch, useAppSelector } from '../store'
 import { 
@@ -88,6 +91,9 @@ function calculateAge(birthDate: string | null): string {
     years--
     months += 12
   }
+  if (months === 12 && now.getDate() < birth.getDate()) {
+    months = 11
+  }
   if (years > 0) return `${years} ${years === 1 ? 'ano' : 'anos'}`
   return `${months} ${months === 1 ? 'mês' : 'meses'}`
 }
@@ -114,6 +120,23 @@ export default function PublicProfileScreen() {
   const [selectedPet, setSelectedPet] = useState<any>(null)
   const [isImageExpanded, setIsImageExpanded] = useState(false)
   const [followModalType, setFollowModalType] = useState<'followers' | 'following' | null>(null)
+  const [selectedPetFilter, setSelectedPetFilter] = useState('')
+  const [refreshing, setRefreshing] = useState(false)
+
+  useEffect(() => {
+    if (pets.length <= 1) setSelectedPetFilter('')
+  }, [pets.length])
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true)
+    await Promise.all([
+      dispatch(fetchPublicProfileThunk(userId)),
+      dispatch(fetchUserPostsThunk({ userId, isOnline })),
+      dispatch(fetchPublicPetsThunk(userId)),
+      dispatch(checkFollowStatusThunk(userId)),
+    ])
+    setRefreshing(false)
+  }, [dispatch, userId, isOnline])
   
   // Follow/unfollow state
   const userIdFromRoute = route.params.userId
@@ -162,19 +185,19 @@ export default function PublicProfileScreen() {
 
        <View style={styles.statsRow}>
           <View style={styles.statItem}>
-            <Text size="lg" weight="800">{(profile as any)?.posts_count ?? posts.length}</Text>
+            <Text size="lg" weight="800">{formatCount((profile as any)?.posts_count ?? posts.length)}</Text>
             <Text size="xs" color="mutedForeground">Posts</Text>
           </View>
           <Pressable style={styles.statItem} onPress={() => setFollowModalType('followers')}>
-            <Text size="lg" weight="800">{(profile as any)?.followers_count ?? 0}</Text>
+            <Text size="lg" weight="800">{formatCount((profile as any)?.followers_count ?? 0)}</Text>
             <Text size="xs" color="mutedForeground">Seguidores</Text>
           </Pressable>
           <Pressable style={styles.statItem} onPress={() => setFollowModalType('following')}>
-            <Text size="lg" weight="800">{(profile as any)?.following_count ?? 0}</Text>
+            <Text size="lg" weight="800">{formatCount((profile as any)?.following_count ?? 0)}</Text>
             <Text size="xs" color="mutedForeground">Seguindo</Text>
           </Pressable>
           <View style={styles.statItem}>
-            <Text size="lg" weight="800">{(profile as any)?.pets_count ?? pets.length}</Text>
+            <Text size="lg" weight="800">{formatCount((profile as any)?.pets_count ?? pets.length)}</Text>
             <Text size="xs" color="mutedForeground">Pets</Text>
           </View>
         </View>
@@ -206,14 +229,30 @@ export default function PublicProfileScreen() {
        </View>
 
        <SegmentedTabs
-        options={[
-          { id: 'posts', label: 'Posts' },
-          { id: 'pets', label: 'Pets' }
-        ]}
-        activeId={activeTab}
-        onChange={(id: any) => setActiveTab(id)}
-        style={{ width: '100%', marginBottom: 12 }}
-      />
+         options={[
+           { id: 'posts', label: 'Posts' },
+           { id: 'pets', label: 'Pets' }
+         ]}
+         activeId={activeTab}
+         onChange={(id: any) => setActiveTab(id)}
+         style={{ width: '100%', marginBottom: 12 }}
+       />
+
+      {activeTab === 'posts' && pets.length > 1 && posts.length > 0 && (
+        <View style={styles.filterContainer}>
+          <OptionSelect
+            placeholder="Filtrar por Pet"
+            value={selectedPetFilter}
+            onChange={setSelectedPetFilter}
+            options={[
+              { label: 'Todos os posts', value: '' },
+              ...pets.map(p => ({ label: p.name, value: p.id, photoUrl: p.photo_url }))
+            ]}
+            leftIconName="paw-outline"
+            showPhotos
+          />
+        </View>
+      )}
     </View>
   )
 
@@ -249,6 +288,10 @@ export default function PublicProfileScreen() {
     )
   }
 
+  const filteredPosts = selectedPetFilter
+    ? posts.filter(p => p.pet_id === selectedPetFilter)
+    : posts
+
   if (isProfileLoading && !profile) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
@@ -261,10 +304,10 @@ export default function PublicProfileScreen() {
     <View style={styles.container}>
       {activeTab === 'posts' ? (
         <ProfileGrid
-          posts={posts}
+          posts={filteredPosts}
           loading={isPostsLoading}
           onPostPress={(post) => {
-            const index = posts.findIndex(p => p.id === post.id)
+            const index = filteredPosts.findIndex(p => p.id === post.id)
             navigation.navigate('ProfileFeed', { 
               userId, 
               initialScrollIndex: index,
@@ -280,7 +323,11 @@ export default function PublicProfileScreen() {
           }
         />
       ) : (
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 100 }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        >
           {renderHeader()}
           {renderPetsList()}
         </ScrollView>

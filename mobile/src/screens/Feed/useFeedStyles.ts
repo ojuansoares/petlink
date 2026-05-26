@@ -30,7 +30,9 @@ export const useFeedStyles = makeStyles((theme) => ({
     aspectRatio: 1,
   },
   postFooter: {
-    padding: 12,
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: 12,
   },
   caption: {
     marginTop: 4,

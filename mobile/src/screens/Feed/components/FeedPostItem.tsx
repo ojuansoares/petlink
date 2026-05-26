@@ -1,10 +1,12 @@
-import React from 'react'
+import React, { useState, useCallback } from 'react'
 import { View, Pressable } from 'react-native'
 import { Image } from 'expo-image'
 import { Ionicons } from '@expo/vector-icons'
 import { Avatar } from '../../../components/ui/Avatar'
 import { Text } from '../../../components/ui/Typography'
 import { Post } from '../../../store/slices/postsSlice'
+import { LikesButton } from '../../../components/ui/LikesButton'
+import { LikesSheet } from '../../../components/ui/LikesSheet'
 import { useFeedStyles } from '../useFeedStyles'
 import { useTheme } from '../../../hooks/useTheme'
 
@@ -12,13 +14,19 @@ interface FeedPostItemProps {
   post: Post
   onUserPress: (userId: string) => void
   onOptionsPress: (post: Post) => void
+  onCommentPress: (post: Post) => void
 }
 
 import { getRelativeTime } from '../../../utils/dateUtils'
+import { formatCount } from '../../../utils/formatNumber'
 
-export const FeedPostItem = React.memo(({ post, onUserPress, onOptionsPress }: FeedPostItemProps) => {
+export const FeedPostItem = React.memo(({ post, onUserPress, onOptionsPress, onCommentPress }: FeedPostItemProps) => {
   const styles = useFeedStyles()
   const { colors } = useTheme()
+  const [likesSheetVisible, setLikesSheetVisible] = useState(false)
+
+  const openLikesSheet = useCallback(() => setLikesSheetVisible(true), [])
+  const closeLikesSheet = useCallback(() => setLikesSheetVisible(false), [])
 
   return (
     <View style={styles.postContainer}>
@@ -48,7 +56,20 @@ export const FeedPostItem = React.memo(({ post, onUserPress, onOptionsPress }: F
       />
 
       <View style={styles.postFooter}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+          <LikesButton postId={post.id} likesCount={post.likes_count} initialLiked={post.liked_by_user} onCountPress={openLikesSheet} size={26} />
+          <Pressable
+            onPress={() => onCommentPress(post)}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
+            hitSlop={8}
+          >
+            <Ionicons name="chatbubble-outline" size={26} color={colors.mutedForeground} />
+            <Text size="xs" weight="600" color="mutedForeground">
+              {formatCount(post.comments_count)}
+            </Text>
+          </Pressable>
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
            <Text weight="800" size="sm" color="primary">{post.pets?.name}</Text>
            <Text size="sm" color="mutedForeground">• {post.profiles?.name}</Text>
         </View>
@@ -57,6 +78,8 @@ export const FeedPostItem = React.memo(({ post, onUserPress, onOptionsPress }: F
         )}
         <Text size="xs" color="mutedForeground" style={styles.date}>{getRelativeTime(post.created_at)}</Text>
       </View>
+
+      <LikesSheet visible={likesSheetVisible} onClose={closeLikesSheet} post={post} />
     </View>
   )
 })

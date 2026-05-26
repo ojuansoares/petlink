@@ -27,9 +27,9 @@ Desenvolvido como projeto acadêmico de conclusão de semestre, aplicando uma st
 | **Perfil & Pets** | Cadastro de tutor, múltiplos pets por conta, galeria de fotos |
 | **Saúde** | Vacinas e vermífugos com alertas de dose, histórico de peso com gráfico, consultas veterinárias com anexos, lembretes de medicação |
 | **Atividade** | Monitoramento de passeios com GPS em background, contagem de passos via acelerômetro, estatísticas semanais |
-| **Social** | Feed com posts e check-ins, seguir tutores, curtidas e comentários, grupos por raça ou região |
+| **Social** | Feed com posts e check-ins, seguir tutores, curtidas e comentários (com edição, pin, perfil enrich), grupos por raça ou região |
 | **Mapa** | Locais pet-friendly com avaliações, busca por categoria, geofencing para eventos próximos |
-| **App** | Dark mode automático via sensor de luz, modo offline com sincronização, backup no Google Drive, login com biometria |
+| **App** | Dark mode automático via sensor de luz, modo offline com sincronização, backup no Google Drive, login com biometria, ConfirmModal customizado |
 
 ---
 
@@ -47,7 +47,7 @@ petlink/
 │       ├── screens/     # Home, Pets, Feed, Profile...
 │       ├── services/    # Biometria, GPS, sensores, notificações
 │       ├── store/       # Redux Toolkit
-│       │   └── slices/  # auth, pets, posts, locations, walks, ui
+│       │   └── slices/  # auth, pets, posts, locations, walks, ui, comments, likes, commentLikes
 │       └── theme/       # Tokens de design (light/dark)
 │
 └── server/          # Node.js + Express (BFF)
@@ -106,12 +106,13 @@ notifications     → log de notificações enviadas
 Dados de alto volume e schema flexível.
 
 ```
-posts      → feed social (fotos, check-ins, dicas)
-comments   → comentários nos posts
-likes      → curtidas
-locations  → locais pet-friendly com índice geoespacial 2dsphere
-reviews    → avaliações de locais
-checkins   → check-ins em locais
+posts         → feed social (fotos, check-ins, dicas)
+comments      → comentários nos posts (com isPinned, likesCount)
+likes         → curtidas nos posts
+comment_likes → curtidas em comentários
+locations     → locais pet-friendly com índice geoespacial 2dsphere
+reviews       → avaliações de locais
+checkins      → check-ins em locais
 ```
 
 ### Arquitetura do banco

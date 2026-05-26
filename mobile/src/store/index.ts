@@ -11,6 +11,10 @@ import walksReducer      from './slices/walksSlices'
 import notificationsReducer from './slices/notificationsSlice'
 import uiReducer         from './slices/uiSlice'
 import followsReducer    from './slices/followsSlice'
+import likesReducer      from './slices/likesSlice'
+import commentsReducer   from './slices/commentsSlice'
+import commentLikesReducer from './slices/commentLikesSlice'
+import feedingReducer from './slices/feedingSlice'
 
 export const store = configureStore({
   reducer: {
@@ -23,6 +27,10 @@ export const store = configureStore({
     notifications: notificationsReducer,
     ui:            uiReducer,
     follows:       followsReducer,
+    likes:         likesReducer,
+    comments:      commentsReducer,
+    commentLikes:  commentLikesReducer,
+    feeding:       feedingReducer,
   },
 })
 
