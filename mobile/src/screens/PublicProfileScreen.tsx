@@ -48,6 +48,7 @@ import {
 } from '../store/slices/followsSlice'
 import { useProfileStyles } from './Profile/useProfileStyles'
 import { useNetworkCheck } from '../hooks/useNetworkCheck'
+import { FollowersModal } from '../components/ui/FollowersModal'
 import { AppToast } from '../components/ui/AppToast'
 
 type NavigationProp = StackNavigationProp<AppStackParamList>
@@ -112,6 +113,7 @@ export default function PublicProfileScreen() {
   const [activeTab, setActiveTab] = useState<'posts' | 'pets'>('posts')
   const [selectedPet, setSelectedPet] = useState<any>(null)
   const [isImageExpanded, setIsImageExpanded] = useState(false)
+  const [followModalType, setFollowModalType] = useState<'followers' | 'following' | null>(null)
   
   // Follow/unfollow state
   const userIdFromRoute = route.params.userId
@@ -159,19 +161,23 @@ export default function PublicProfileScreen() {
       )}
 
        <View style={styles.statsRow}>
-         <View style={styles.statItem}>
-           <Text size="lg" weight="800">{(profile as any)?.posts_count ?? posts.length}</Text>
-           <Text size="xs" color="mutedForeground">Posts</Text>
-         </View>
-         <View style={styles.statItem}>
-           <Text size="lg" weight="800">{(profile as any)?.followers_count ?? 0}</Text>
-           <Text size="xs" color="mutedForeground">Seguidores</Text>
-         </View>
-         <View style={styles.statItem}>
-           <Text size="lg" weight="800">{(profile as any)?.pets_count ?? pets.length}</Text>
-           <Text size="xs" color="mutedForeground">Pets</Text>
-         </View>
-       </View>
+          <View style={styles.statItem}>
+            <Text size="lg" weight="800">{(profile as any)?.posts_count ?? posts.length}</Text>
+            <Text size="xs" color="mutedForeground">Posts</Text>
+          </View>
+          <Pressable style={styles.statItem} onPress={() => setFollowModalType('followers')}>
+            <Text size="lg" weight="800">{(profile as any)?.followers_count ?? 0}</Text>
+            <Text size="xs" color="mutedForeground">Seguidores</Text>
+          </Pressable>
+          <Pressable style={styles.statItem} onPress={() => setFollowModalType('following')}>
+            <Text size="lg" weight="800">{(profile as any)?.following_count ?? 0}</Text>
+            <Text size="xs" color="mutedForeground">Seguindo</Text>
+          </Pressable>
+          <View style={styles.statItem}>
+            <Text size="lg" weight="800">{(profile as any)?.pets_count ?? pets.length}</Text>
+            <Text size="xs" color="mutedForeground">Pets</Text>
+          </View>
+        </View>
 
        {/* Follow button */}
        <View style={styles.followButtonContainer}>
@@ -354,6 +360,19 @@ export default function PublicProfileScreen() {
         </View>
       </Modal>
 
+      <FollowersModal
+        visible={followModalType === 'followers'}
+        onClose={() => setFollowModalType(null)}
+        userId={userIdFromRoute}
+        type="followers"
+      />
+      <FollowersModal
+        visible={followModalType === 'following'}
+        onClose={() => setFollowModalType(null)}
+        userId={userIdFromRoute}
+        type="following"
+        title="Seguindo"
+      />
       <AppToast />
     </View>
   )

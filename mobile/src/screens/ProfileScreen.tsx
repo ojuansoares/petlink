@@ -41,6 +41,7 @@ import { useNetworkCheck } from '../hooks/useNetworkCheck'
 import { useLocation } from '../hooks/useLocation'
 import { uploadImageWithRetry } from '../api/uploadWithRetry'
 import { CreatePostModal } from '../components/ui/CreatePostModal'
+import { FollowersModal } from '../components/ui/FollowersModal'
 import { AppStackParamList } from '../navigation/types'
 import { PetBubbleRing } from '../components/ui/PetBubbleRing'
 import { AppToast } from '../components/ui/AppToast'
@@ -88,6 +89,9 @@ export default function ProfileScreen() {
   const [avatarUrl, setAvatarUrl] = useState('')
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
   const [selectedPetFilter, setSelectedPetFilter] = useState('')
+
+  // Followers modal
+  const [followModalType, setFollowModalType] = useState<'followers' | 'following' | null>(null)
 
   useEffect(() => {
     if (currentUser?.id) {
@@ -210,10 +214,14 @@ export default function ProfileScreen() {
           <Text size="lg" weight="800">{posts.length}</Text>
           <Text size="xs" color="mutedForeground">Posts</Text>
         </View>
-        <View style={styles.statItem}>
+        <Pressable style={styles.statItem} onPress={() => setFollowModalType('followers')}>
           <Text size="lg" weight="800">{(profile as any)?.followers_count ?? 0}</Text>
           <Text size="xs" color="mutedForeground">Seguidores</Text>
-        </View>
+        </Pressable>
+        <Pressable style={styles.statItem} onPress={() => setFollowModalType('following')}>
+          <Text size="lg" weight="800">{(profile as any)?.following_count ?? 0}</Text>
+          <Text size="xs" color="mutedForeground">Seguindo</Text>
+        </Pressable>
         <View style={styles.statItem}>
           <Text size="lg" weight="800">{pets.length}</Text>
           <Text size="xs" color="mutedForeground">Pets</Text>
@@ -353,6 +361,19 @@ export default function ProfileScreen() {
         </View>
       </Modal>
 
+      <FollowersModal
+        visible={followModalType === 'followers'}
+        onClose={() => setFollowModalType(null)}
+        userId={currentUser?.id ?? ''}
+        type="followers"
+      />
+      <FollowersModal
+        visible={followModalType === 'following'}
+        onClose={() => setFollowModalType(null)}
+        userId={currentUser?.id ?? ''}
+        type="following"
+        title="Seguindo"
+      />
       <AppToast />
     </View>
   )

@@ -1,4 +1,6 @@
+import { Post, IPost } from '../../models/Post'
 import { supabaseAdmin } from '../../config/supabase'
+import { mapId } from '../../shared/mapId'
 
 export type PostCreateInput = {
   pet_id: string
@@ -7,173 +9,198 @@ export type PostCreateInput = {
   location?: string | null
 }
 
+type ProfileInfo = { name: string; avatar_url: string | null }
+type PetInfo = { name: string }
+
+type EnrichedPost = {
+  id: string
+  author_id: string
+  pet_id: string
+  image_url: string
+  caption: string | null
+  location: string | null
+  is_pinned: boolean
+  likes_count: number
+  comments_count: number
+  created_at: string
+  updated_at: string
+  profiles: ProfileInfo | null
+  pets: PetInfo | null
+}
+
+async function enrichWithProfilesAndPets(
+  docs: any[],
+  authorField: string = 'authorId',
+  petField: string = 'petId'
+): Promise<EnrichedPost[]> {
+  if (docs.length === 0) return []
+
+  const authorIds = [...new Set(docs.map((d) => d[authorField]))]
+  const petIds = [...new Set(docs.map((d) => d[petField]))]
+
+  const [profilesRes, petsRes] = await Promise.all([
+    supabaseAdmin.from('profiles').select('id, name, avatar_url').in('id', authorIds),
+    supabaseAdmin.from('pets').select('id, name').in('id', petIds),
+  ])
+
+  const profileMap = new Map<string, ProfileInfo>()
+  for (const p of profilesRes.data ?? []) {
+    profileMap.set(p.id, { name: p.name, avatar_url: p.avatar_url })
+  }
+
+  const petMap = new Map<string, PetInfo>()
+  for (const p of petsRes.data ?? []) {
+    petMap.set(p.id, { name: p.name })
+  }
+
+  return docs.map((doc) => {
+    const m = mapId(doc)
+    return {
+      id: m.id,
+      author_id: m.authorId,
+      pet_id: m.petId,
+      image_url: m.imageUrl,
+      caption: m.caption,
+      location: m.location,
+      is_pinned: m.isPinned,
+      likes_count: m.likesCount ?? 0,
+      comments_count: m.commentsCount ?? 0,
+      created_at: m.createdAt instanceof Date ? m.createdAt.toISOString() : m.createdAt,
+      updated_at: m.updatedAt instanceof Date ? m.updatedAt.toISOString() : m.updatedAt,
+      profiles: profileMap.get(m.authorId) ?? null,
+      pets: petMap.get(m.petId) ?? null,
+    }
+  })
+}
+
 export const postsRepository = {
   async create(authorId: string, input: PostCreateInput) {
-    const { data: post, error } = await supabaseAdmin
-      .from('posts')
-      .insert({
-        author_id: authorId,
-        pet_id: input.pet_id,
-        image_url: input.image_url,
-        caption: input.caption ?? null,
-        location: input.location ?? null,
-      })
-      .select(`
-        *,
-        profiles:author_id (name, avatar_url),
-        pets:pet_id (name)
-      `)
-      .single()
+    const post = await Post.create({
+      authorId,
+      petId: input.pet_id,
+      imageUrl: input.image_url,
+      caption: input.caption ?? null,
+      location: input.location ?? null,
+    })
 
-    if (error) throw error
-    return post
+    const enriched = await enrichWithProfilesAndPets([post.toJSON()])
+    return enriched[0]
   },
 
-  async findById(postId: string) {
-    const { data, error } = await supabaseAdmin
-      .from('posts')
-      .select(`
-        *,
-        profiles:author_id (name, avatar_url),
-        pets:pet_id (name)
-      `)
-      .eq('id', postId)
-      .maybeSingle()
-
-    if (error) throw error
-    return data
+  async findById(postId: string): Promise<EnrichedPost | null> {
+    const doc = await Post.findById(postId).lean()
+    if (!doc) return null
+    const enriched = await enrichWithProfilesAndPets([doc])
+    return enriched[0]
   },
 
   async listFeed(page: number, limit: number, random = false) {
-    const offset = (page - 1) * limit
-    const query = supabaseAdmin
-      .from('posts')
-      .select(`
-        *,
-        profiles:author_id (name, avatar_url),
-        pets:pet_id (name)
-      `, { count: 'exact' })
+    const skip = (page - 1) * limit
 
     if (random) {
-      query.order('created_at', { ascending: false })
-      const { data: shuffled, error } = await query
+      const total = await Post.countDocuments()
+      if (total === 0) return { posts: [], hasMore: false }
 
-      if (error) throw error
+      const docs = await Post.aggregate([
+        { $sample: { size: limit } },
+        { $sort: { createdAt: -1 } },
+      ])
 
-      const shuffledPosts = shuffled ? shuffled.sort(() => Math.random() - 0.5) : []
-      
-      const paginatedPosts = shuffledPosts.slice(offset, offset + limit)
-      const hasMore = offset + limit < shuffledPosts.length
-      
-      return { posts: paginatedPosts, hasMore }
+      const hasMore = skip + limit < total
+      const posts = await enrichWithProfilesAndPets(docs)
+      return { posts, hasMore }
     }
 
-    query.order('created_at', { ascending: false })
-    const { data, error, count } = await query.range(offset, offset + limit - 1)
+    const [docs, total] = await Promise.all([
+      Post.find().sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+      Post.countDocuments(),
+    ])
 
-    if (error) throw error
-    const hasMore = count !== null ? offset + limit < count : (data?.length === limit)
-    return { posts: data || [], hasMore }
+    const hasMore = skip + limit < total
+    const posts = await enrichWithProfilesAndPets(docs)
+    return { posts, hasMore }
   },
 
   async listByAuthor(authorId: string, page: number, limit: number) {
-    const offset = (page - 1) * limit
-    const { data, error, count } = await supabaseAdmin
-      .from('posts')
-      .select(`
-        *,
-        profiles:author_id (name, avatar_url),
-        pets:pet_id (name)
-      `, { count: 'exact' })
-      .eq('author_id', authorId)
-      .order('is_pinned', { ascending: false })
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1)
+    const skip = (page - 1) * limit
 
-    if (error) throw error
-    const hasMore = count !== null ? offset + limit < count : (data?.length === limit)
-    return { posts: data || [], hasMore }
+    const [docs, total] = await Promise.all([
+      Post.find({ authorId }).sort({ isPinned: -1, createdAt: -1 }).skip(skip).limit(limit).lean(),
+      Post.countDocuments({ authorId }),
+    ])
+
+    const hasMore = skip + limit < total
+    const posts = await enrichWithProfilesAndPets(docs)
+    return { posts, hasMore }
   },
 
   async findByIdAndAuthor(authorId: string, postId: string) {
-    const { data, error } = await supabaseAdmin
-      .from('posts')
-      .select('*')
-      .eq('id', postId)
-      .eq('author_id', authorId)
-      .maybeSingle()
-
-    if (error) throw error
-    return data
+    const doc = await Post.findOne({ _id: postId, authorId }).lean()
+    if (!doc) return null
+    const enriched = await enrichWithProfilesAndPets([doc])
+    return enriched[0]
   },
 
-  async updateByIdAndAuthor(authorId: string, postId: string, patch: Partial<{ image_url: string; caption: string | null; location: string | null; is_pinned: boolean }>) {
-    const { data, error } = await supabaseAdmin
-      .from('posts')
-      .update(patch)
-      .eq('id', postId)
-      .eq('author_id', authorId)
-      .select(`
-        *,
-        profiles:author_id (name, avatar_url),
-        pets:pet_id (name)
-      `)
-      .single()
+  async updateByIdAndAuthor(
+    authorId: string,
+    postId: string,
+    patch: Partial<{
+      image_url: string
+      caption: string | null
+      location: string | null
+      is_pinned: boolean
+    }>
+  ) {
+    const mongoPatch: Record<string, any> = {}
+    if (patch.image_url !== undefined) mongoPatch.imageUrl = patch.image_url
+    if (patch.caption !== undefined) mongoPatch.caption = patch.caption
+    if (patch.location !== undefined) mongoPatch.location = patch.location
+    if (patch.is_pinned !== undefined) mongoPatch.isPinned = patch.is_pinned
 
-    if (error) throw error
-    return data
+    const doc = await Post.findOneAndUpdate(
+      { _id: postId, authorId },
+      { $set: mongoPatch },
+      { new: true }
+    ).lean()
+
+    if (!doc) return null
+    const enriched = await enrichWithProfilesAndPets([doc])
+    return enriched[0]
   },
 
   async deleteByIdAndAuthor(authorId: string, postId: string) {
-    const { error } = await supabaseAdmin
-      .from('posts')
-      .delete()
-      .eq('id', postId)
-      .eq('author_id', authorId)
-
-    if (error) throw error
+    await Post.findOneAndDelete({ _id: postId, authorId })
   },
 
-  async countPinnedByAuthor(authorId: string) {
-    const { count, error } = await supabaseAdmin
-      .from('posts')
-      .select('*', { count: 'exact', head: true })
-      .eq('author_id', authorId)
-      .eq('is_pinned', true)
-
-    if (error) throw error
-    return count ?? 0
+  async countPinnedByAuthor(authorId: string): Promise<number> {
+    return Post.countDocuments({ authorId, isPinned: true })
   },
 
   async listFollowed(followerId: string, page: number, limit: number) {
-    const offset = (page - 1) * limit
+    const skip = (page - 1) * limit
 
-    const { data: followData, error: followError } = await supabaseAdmin
+    const { data: followData } = await supabaseAdmin
       .from('follows')
       .select('following_id')
       .eq('follower_id', followerId)
 
-    if (followError) throw followError
-
-    const followedIds = followData?.map(f => f.following_id) || []
+    const followedIds = followData?.map((f) => f.following_id) || []
 
     if (followedIds.length === 0) {
       return { posts: [], hasMore: false }
     }
 
-    const { data, error, count } = await supabaseAdmin
-      .from('posts')
-      .select(`
-        *,
-        profiles:author_id (name, avatar_url),
-        pets:pet_id (name)
-      `, { count: 'exact' })
-      .in('author_id', followedIds)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1)
+    const [docs, total] = await Promise.all([
+      Post.find({ authorId: { $in: followedIds } })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Post.countDocuments({ authorId: { $in: followedIds } }),
+    ])
 
-    if (error) throw error
-    const hasMore = count !== null ? offset + limit < count : (data?.length === limit)
-    return { posts: data || [], hasMore }
-  }
+    const hasMore = skip + limit < total
+    const posts = await enrichWithProfilesAndPets(docs)
+    return { posts, hasMore }
+  },
 }

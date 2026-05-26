@@ -12,6 +12,7 @@ const envSchema = z.object({
   HOST: z.string().default('0.0.0.0'),
   PORT: z.string().default('3000'),
   API_URL: z.string().url().default('http://localhost:3000'),
+  MONGODB_URI: z.string().min(1),
 })
 
 export const env = envSchema.parse(process.env)
