@@ -80,9 +80,9 @@ export const fetchFeedingLogsThunk = createAsyncThunk(
 
 export const checkMealThunk = createAsyncThunk(
   'feeding/checkMeal',
-  async ({ petId, logId }: { petId: string; logId: string }, { rejectWithValue }) => {
+  async ({ petId, logId, checked }: { petId: string; logId: string; checked: boolean }, { rejectWithValue }) => {
     try {
-      const { data } = await api.post(`/pets/${petId}/feeding/logs/${logId}/check`)
+      const { data } = await api.post(`/pets/${petId}/feeding/logs/${logId}/check`, { checked })
       return data as FeedingLog
     } catch (err: any) {
       return rejectWithValue(err.response?.data?.error ?? 'Erro')
@@ -124,6 +124,7 @@ export const { clearFeeding } = feedingSlice.actions
 export default feedingSlice.reducer
 
 export const selectFeedingPlan = (s: any): FeedingPlan[] => s.feeding.plan
+export const selectFeedingPlanLoading = (s: any): boolean => s.feeding.isLoadingPlan
 export const selectFeedingLogs = (s: any): FeedingLog[] => s.feeding.logs
 export const selectFeedingLoading = (s: any): boolean => s.feeding.isLoadingLogs
 export const selectFeedingSaving = (s: any): boolean => s.feeding.isSaving

@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   FlatList,
 } from 'react-native'
+import { Image } from 'expo-image'
 import { Ionicons } from '@expo/vector-icons'
 import { useFocusEffect } from '@react-navigation/native'
 import {
@@ -30,6 +31,8 @@ import { Heading, Text } from '../../../components/ui/Typography'
 import { AppModal } from '../../../components/ui/AppModal'
 import { getVaccinesByPetId, updateVaccine } from '../../../api/vaccine.api'
 import { getConsultationsByPetId } from '../../../api/consultation.api'
+import { fetchBatchMedia } from '../../../api/consultationMedia.api'
+import type { ConsultationMedia } from '../../../api/consultationMedia.api'
 import { Vaccine, VaccineDose, Consultation } from '../../../data/models'
 
 interface CalendarProps {
@@ -48,6 +51,7 @@ export function Calendar({ petId }: CalendarProps) {
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [loading, setLoading] = useState(true)
   const [events, setEvents] = useState<CalendarEvent[]>([])
+  const [mediaMap, setMediaMap] = useState<Record<string, ConsultationMedia>>({})
   
   // Detail Modal State
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null)
@@ -65,6 +69,14 @@ export function Calendar({ petId }: CalendarProps) {
         getVaccinesByPetId(petId),
         getConsultationsByPetId(petId),
       ])
+
+      const consultationIds = consultationsData.filter(c => c.consulted_at).map(c => c.id)
+      if (consultationIds.length > 0) {
+        const mediaList = await fetchBatchMedia(consultationIds)
+        const map: Record<string, ConsultationMedia> = {}
+        mediaList.forEach((m) => { map[m.consultationId] = m })
+        setMediaMap(map)
+      }
 
       const mappedEvents: CalendarEvent[] = []
 
@@ -287,9 +299,16 @@ export function Calendar({ petId }: CalendarProps) {
 
     if (selectedEvent.type === 'consultation') {
       const c = selectedEvent.original
+      const media = mediaMap[c.id]
 
       return (
         <View style={styles.modalContent}>
+          {media?.type === 'photo' ? (
+            <Image source={{ uri: media.value }} style={styles.detailPhoto} contentFit="cover" />
+          ) : media?.type === 'color' ? (
+            <View style={[styles.detailColorBanner, { backgroundColor: media.value }]} />
+          ) : null}
+
           <View style={[styles.detailSection, { borderLeftColor: colors.info }]}>
             <Text size="xs" color="mutedForeground" weight="800">
               TIPO DE REGISTRO
@@ -659,5 +678,17 @@ const styles = StyleSheet.create({
   rowGrid: {
     flexDirection: 'row',
     gap: 16,
+  },
+  detailPhoto: {
+    width: '100%',
+    height: 220,
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  detailColorBanner: {
+    width: '100%',
+    height: 120,
+    borderRadius: 12,
+    marginBottom: 8,
   },
 })

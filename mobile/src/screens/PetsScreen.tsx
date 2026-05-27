@@ -584,11 +584,21 @@ export default function PetsScreen() {
               title="Alimentação"
               subtitle="Refeições e horários"
               icon="restaurant-outline"
-              color={mode === 'light' ? '#FFF7ED' : '#331d10'}
-              borderColor={mode === 'light' ? '#FFEDD5' : '#f9731633'}
+              color={colors.card}
+              borderColor="#F97316"
               iconColor="#F97316"
               badge="Diário"
               onPress={() => navigation.navigate('FeedingPlan', { petId: activePet.id, petName: activePet.name })}
+            />
+            <ControlCard
+              title="Passeios"
+              subtitle="Em breve"
+              icon="walk-outline"
+              color={colors.muted}
+              borderColor={colors.mutedForeground}
+              iconColor={colors.mutedForeground}
+              badge="Em breve"
+              onPress={() => dispatch(showToast({ type: 'info', message: 'Passeios em breve!' }))}
             />
           </View>
         ) : (

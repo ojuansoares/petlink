@@ -19,9 +19,9 @@ export const feedingService = {
     return feedingRepository.getOrCreateLogs(petId, date)
   },
 
-  async checkMeal(logId: string, petId: string, userId: string) {
+  async checkMeal(logId: string, petId: string, userId: string, checked: boolean) {
     await this.verifyOwnership(petId, userId)
-    return feedingRepository.checkLog(logId, petId)
+    return feedingRepository.checkLog(logId, petId, checked)
   },
 
   async verifyOwnership(petId: string, userId: string) {

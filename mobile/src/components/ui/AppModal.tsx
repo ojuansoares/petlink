@@ -6,6 +6,7 @@ import {
   Pressable,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   ViewStyle,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
@@ -90,9 +91,9 @@ export function AppModal({
             </View>
           )}
 
-          <View style={styles.content}>
+          <ScrollView style={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             {children}
-          </View>
+          </ScrollView>
 
           {footer && <View style={styles.footer}>{footer}</View>}
         </View>
@@ -136,7 +137,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(150,150,150,0.1)',
   },
   content: {
-    flexShrink: 1,
     paddingHorizontal: 24,
   },
   footer: {

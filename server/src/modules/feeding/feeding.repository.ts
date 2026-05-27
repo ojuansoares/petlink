@@ -120,8 +120,8 @@ export const feedingRepository = {
     return (newLogs ?? []) as FeedingLog[]
   },
 
-  async checkLog(logId: string, petId: string): Promise<FeedingLog> {
-    const now = new Date().toISOString()
+  async checkLog(logId: string, petId: string, checked: boolean): Promise<FeedingLog> {
+    const now = checked ? new Date().toISOString() : null
 
     const { data, error } = await supabaseAdmin
       .from('feeding_logs')

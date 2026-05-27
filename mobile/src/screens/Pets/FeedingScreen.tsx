@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react'
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import {
   View, StyleSheet, ScrollView, Pressable, TextInput, Alert, Animated, Modal, ActivityIndicator,
 } from 'react-native'
@@ -8,7 +8,7 @@ import { useAppDispatch, useAppSelector } from '../../store'
 import {
   fetchFeedingPlanThunk, saveFeedingPlanThunk,
   fetchFeedingLogsThunk, checkMealThunk,
-  selectFeedingPlan, selectFeedingLogs, selectFeedingSaving, selectFeedingLoading,
+  selectFeedingPlan, selectFeedingPlanLoading, selectFeedingLogs, selectFeedingSaving, selectFeedingLoading,
   type FeedingPlan, type FeedingLog,
 } from '../../store/slices/feedingSlice'
 import { useTheme } from '../../hooks/useTheme'
@@ -16,6 +16,7 @@ import { Heading, Text } from '../../components/ui/Typography'
 import { Button } from '../../components/ui/Button'
 import { showToast } from '../../store/slices/uiSlice'
 import { AppToast } from '../../components/ui/AppToast'
+import { scheduleFeedingNotifications } from '../../services/NotificationService'
 
 type MealForm = {
   id?: string
@@ -28,6 +29,7 @@ export default function FeedingScreen({ route }: any) {
   const { petId, petName } = route.params
   const dispatch = useAppDispatch()
   const plan = useAppSelector(selectFeedingPlan)
+  const isLoadingPlan = useAppSelector(selectFeedingPlanLoading)
   const logs = useAppSelector(selectFeedingLogs)
   const isSaving = useAppSelector(selectFeedingSaving)
   const isLoadingLogs = useAppSelector(selectFeedingLoading)
@@ -37,6 +39,7 @@ export default function FeedingScreen({ route }: any) {
   const [showTimePicker, setShowTimePicker] = useState<number | null>(null)
   const [mode, setMode] = useState<'loading' | 'create' | 'check'>('loading')
   const [showCelebration, setShowCelebration] = useState(false)
+  const [checkingId, setCheckingId] = useState<string | null>(null)
   const celebrationScale = useRef(new Animated.Value(0)).current
   const celebrationOpacity = useRef(new Animated.Value(0)).current
   const today = new Date().toISOString().split('T')[0]
@@ -48,14 +51,15 @@ export default function FeedingScreen({ route }: any) {
   }, [dispatch, petId])
 
   useEffect(() => {
-    if (plan.length > 0 && mode === 'loading') {
+    if (isLoadingPlan || mode !== 'loading') return
+    if (plan.length > 0) {
       setMode('check')
       dispatch(fetchFeedingLogsThunk({ petId, date: today }))
-    } else if (plan.length === 0 && mode === 'loading') {
+    } else {
       setMode('create')
       setMeals([{ meal_name: 'Refeição 1', meal_time: (() => { const d = new Date(); d.setHours(8, 0, 0, 0); return d })(), quantity: '' }])
     }
-  }, [plan, mode, dispatch, petId, today])
+  }, [plan, isLoadingPlan, mode, dispatch, petId, today])
 
   useEffect(() => {
     if (allChecked && logs.length > 0) {
@@ -72,6 +76,30 @@ export default function FeedingScreen({ route }: any) {
 
   function formatTime(date: Date): string {
     return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', hour12: false })
+  }
+
+  function timeToMinutes(date: Date): number {
+    return date.getHours() * 60 + date.getMinutes()
+  }
+
+  function validateTimeProgression(index: number, newTime: Date, allMeals: MealForm[]): string | null {
+    const newMin = timeToMinutes(newTime)
+
+    if (index > 0) {
+      const prevMin = timeToMinutes(allMeals[index - 1].meal_time)
+      if (newMin <= prevMin) {
+        return `O horário deve ser após ${formatTime(allMeals[index - 1].meal_time)}`
+      }
+    }
+
+    if (index < allMeals.length - 1) {
+      const nextMin = timeToMinutes(allMeals[index + 1].meal_time)
+      if (newMin >= nextMin) {
+        return `O horário deve ser antes de ${formatTime(allMeals[index + 1].meal_time)}`
+      }
+    }
+
+    return null
   }
 
   const addMeal = useCallback(() => {
@@ -96,6 +124,15 @@ export default function FeedingScreen({ route }: any) {
 
   const handleSave = async () => {
     if (meals.length === 0) { Alert.alert('Atenção', 'Adicione pelo menos uma refeição.'); return }
+
+    for (let i = 1; i < meals.length; i++) {
+      const err = validateTimeProgression(i, meals[i].meal_time, meals)
+      if (err) {
+        Alert.alert('Horários fora de ordem', err)
+        return
+      }
+    }
+
     const result = await dispatch(saveFeedingPlanThunk({
       petId,
       meals: meals.map((m) => ({
@@ -106,11 +143,30 @@ export default function FeedingScreen({ route }: any) {
       dispatch(showToast({ type: 'success', message: 'Plano alimentar salvo!' }))
       setMode('check')
       dispatch(fetchFeedingLogsThunk({ petId, date: today }))
+      scheduleFeedingNotifications(petId, petName, meals.map((m) => ({ meal_name: m.meal_name, meal_time: formatTime(m.meal_time) })))
     }
   }
 
-  const handleCheck = async (logId: string) => {
-    await dispatch(checkMealThunk({ petId, logId }))
+  const sortedLogs = useMemo(() =>
+    [...logs].sort((a, b) => a.order_index - b.order_index),
+  [logs])
+
+  const handleCheck = async (log: FeedingLog) => {
+    const willCheck = !log.checked_at
+
+    if (willCheck) {
+      const prevUnchecked = sortedLogs.find(
+        (l) => l.order_index < log.order_index && !l.checked_at
+      )
+      if (prevUnchecked) {
+        Alert.alert('Ordem obrigatória', `Marque "${prevUnchecked.meal_name}" primeiro.`)
+        return
+      }
+    }
+
+    setCheckingId(log.id)
+    await dispatch(checkMealThunk({ petId, logId: log.id, checked: willCheck }))
+    setCheckingId(null)
   }
 
   const startCelebration = () => {
@@ -175,7 +231,14 @@ export default function FeedingScreen({ route }: any) {
               </View>
               {showTimePicker === index && (
                 <DateTimePicker value={meal.meal_time} mode="time" is24Hour onChange={(_: DateTimePickerEvent, date?: Date) => {
-                  setShowTimePicker(null); if (date) updateMeal(index, 'meal_time', date)
+                  setShowTimePicker(null)
+                  if (!date) return
+                  const error = validateTimeProgression(index, date, meals)
+                  if (error) {
+                    Alert.alert('Horário inválido', error)
+                    return
+                  }
+                  updateMeal(index, 'meal_time', date)
                 }} />
               )}
             </View>
@@ -214,8 +277,9 @@ export default function FeedingScreen({ route }: any) {
         {isLoadingLogs ? (
           <ActivityIndicator color={colors.primary} style={{ marginTop: 20 }} />
         ) : (
-          logs.map((log) => {
+          sortedLogs.map((log) => {
             const isChecked = !!log.checked_at
+            const isLoading = checkingId === log.id
             return (
               <Pressable
                 key={log.id}
@@ -223,11 +287,14 @@ export default function FeedingScreen({ route }: any) {
                   backgroundColor: isChecked ? withAlpha('#22C55E', 0.08) : colors.card,
                   borderColor: isChecked ? withAlpha('#22C55E', 0.3) : withAlpha(colors.border, 0.8),
                 }]}
-                onPress={() => !isChecked && handleCheck(log.id)}
-                disabled={isChecked}
-              >
+                onPress={() => handleCheck(log)}
+                disabled={isLoading}>
                 <View style={styles.logLeft}>
-                  <Ionicons name={isChecked ? 'checkmark-circle' : 'ellipse-outline'} size={26} color={isChecked ? '#22C55E' : colors.mutedForeground} />
+                  {isLoading ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  ) : (
+                    <Ionicons name={isChecked ? 'checkmark-circle' : 'ellipse-outline'} size={26} color={isChecked ? '#22C55E' : colors.mutedForeground} />
+                  )}
                   <View>
                     <Text weight="700">{log.meal_name}</Text>
                     <Text size="xs" color="mutedForeground">
@@ -235,7 +302,7 @@ export default function FeedingScreen({ route }: any) {
                     </Text>
                   </View>
                 </View>
-                {isChecked && (
+                {!isLoading && isChecked && (
                   <View style={[styles.checkedBadge, { backgroundColor: withAlpha('#22C55E', 0.15) }]}>
                     <Text size="xs" weight="700" color="primary">Feito</Text>
                   </View>

@@ -454,6 +454,36 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=
 
 ---
 
+### Firebase FCM — passo a passo
+
+1. Acessar [console.firebase.google.com](https://console.firebase.google.com) e criar/entrar no projeto
+2. Adicionar um **app Android** com package name `com.petlink.app`
+3. Baixar o arquivo **`google-services.json`** e colocar em `mobile/google-services.json`
+4. No `app.json`, dentro de `plugins`, adicionar:
+   ```json
+   ["expo-notifications", { "androidMode": "default" }]
+   ```
+5. Rebuildar o dev client:
+   ```bash
+   cd mobile && npx expo run:android
+   ```
+6. Após o build, `getExpoPushTokenAsync()` passa a funcionar e o token é registrado automaticamente no servidor via `registerPushTokenOnServer()` em `App.tsx:359`
+
+**Resultado:** push notifications do servidor passam a funcionar (lembretes de alimentação, posts, vacinas).
+
+---
+
+### Onboarding / Tutorial
+- Refatorar `OnboardingScreen.tsx` com:
+  - Ilustrações/imagens reais em vez de só texto
+  - Animações de transição entre passos (fade, slide)
+  - Splash screen personalizada com logo + animação inicial
+  - Design mais criativo e envolvente (cores, ícones grandes, progresso visual)
+  - Botão "Pular" no canto superior
+- **Status:** ⏳ (pendente)
+
+---
+
 ## Decisões de arquitetura
 
 ### O que vai em cada banco

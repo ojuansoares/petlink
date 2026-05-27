@@ -46,7 +46,8 @@ export const feedingController = {
       const authReq = req as AuthRequest
       if (!authReq.user) return res.status(401).json({ error: 'Não autenticado' })
       const { petId, logId } = req.params as { petId: string; logId: string }
-      const log = await feedingService.checkMeal(logId, petId, authReq.user.id)
+      const checked = req.body?.checked !== false
+      const log = await feedingService.checkMeal(logId, petId, authReq.user.id, checked)
       return res.json(log)
     } catch (err: any) {
       return res.status(err.statusCode ?? 500).json({ error: err.message ?? 'Erro' })

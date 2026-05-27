@@ -11,6 +11,7 @@ export type AppStackParamList = {
   SettingsMenu: undefined
   SettingsTheme: undefined
   SettingsNotifications: undefined
+  SettingsSecurity: undefined
   SettingsDangerZone: undefined
   PublicProfile: { userId: string }
   ProfileFeed: { userId: string; initialScrollIndex: number; title: string }

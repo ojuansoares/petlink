@@ -96,6 +96,14 @@ function AuthenticatedNavigator() {
         }}
       />
       <AppStack.Screen
+        name="SettingsSecurity"
+        component={require('../screens/SettingsSecurityScreen').default}
+        options={{
+          title: 'Segurança',
+          headerLeft: SettingsBackButton,
+        }}
+      />
+      <AppStack.Screen
         name="SettingsDangerZone"
         component={require('../screens/SettingsDangerZoneScreen').default}
         options={{

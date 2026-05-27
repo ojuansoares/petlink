@@ -2,6 +2,7 @@ import React from 'react'
 import { View, ViewStyle, StyleSheet } from 'react-native'
 import { Avatar } from './Avatar'
 import { Pet } from '../../store/slices/petsSlice'
+import { useTheme } from '../../hooks/useTheme'
 
 interface PetBubbleRingProps {
   pets: Pet[]
@@ -17,6 +18,7 @@ interface PetBubbleRingProps {
  * arc (bottom-right area) so they don't overlap the main avatar.
  */
 export function PetBubbleRing({ pets, avatarSize, bubbleSize = 38, style, children }: PetBubbleRingProps) {
+  const { colors } = useTheme()
   const visiblePets = pets.slice(0, 6)
   const count = visiblePets.length
 
@@ -66,6 +68,7 @@ export function PetBubbleRing({ pets, avatarSize, bubbleSize = 38, style, childr
                 position: 'absolute',
                 left: x,
                 top: y,
+                backgroundColor: colors.card,
               },
             ]}
           >

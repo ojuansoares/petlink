@@ -91,6 +91,23 @@ export default function SettingsMenuScreen({ navigation }: Readonly<{ navigation
           <Ionicons name="chevron-forward" size={20} color={colors.mutedForeground} style={styles.chevron} />
         </Pressable>
 
+        <Pressable
+          onPress={() => navigation.navigate('SettingsSecurity')}
+          style={({ pressed }) => [
+            styles.item,
+            {
+              borderColor: withAlpha(colors.border, 0.8),
+              backgroundColor: pressed ? withAlpha(colors.primary, 0.1) : colors.card,
+            },
+          ]}
+        >
+          <View style={[styles.iconWrap, { backgroundColor: withAlpha(colors.primary, 0.14) }]}>
+            <Ionicons name="finger-print-outline" size={20} color={colors.primary} />
+          </View>
+          <Text weight="700" size="lg">Segurança</Text>
+          <Ionicons name="chevron-forward" size={20} color={colors.mutedForeground} style={styles.chevron} />
+        </Pressable>
+
         <View style={styles.items}>
           {MENU_ITEMS.map((item) => (
             <Pressable
