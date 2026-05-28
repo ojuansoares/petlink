@@ -109,7 +109,7 @@ export function CreatePostModal({ visible, onClose }: Readonly<CreatePostModalPr
 
   const requireOnline = (action: () => void) => {
     if (!isOnline) {
-      dispatch(showToast({ type: 'error', message: 'Sem internet. Conecte-se para continuar.' }))
+      dispatch(showToast({ type: 'error', title: 'Sem conexão', message: 'Sem internet. Conecte-se para continuar.' }))
       return
     }
     action()
@@ -123,7 +123,7 @@ export function CreatePostModal({ visible, onClose }: Readonly<CreatePostModalPr
 
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync()
       if (permission.status !== 'granted') {
-        dispatch(showToast({ type: 'error', message: 'Permissão necessária para acessar a galeria' }))
+        dispatch(showToast({ type: 'error', title: 'Post', message: 'Permissão necessária para acessar a galeria' }))
         return
       }
 
@@ -158,7 +158,7 @@ export function CreatePostModal({ visible, onClose }: Readonly<CreatePostModalPr
       const uploadedUrl = data?.url as string | undefined
       if (uploadedUrl) setPhotoUrl(uploadedUrl)
     } catch {
-      dispatch(showToast({ type: 'error', message: 'Erro ao enviar imagem após várias tentativas' }))
+      dispatch(showToast({ type: 'error', title: 'Upload', message: 'Erro ao enviar imagem após várias tentativas' }))
     } finally {
       setIsUploadingPhoto(false)
     }
@@ -167,17 +167,17 @@ export function CreatePostModal({ visible, onClose }: Readonly<CreatePostModalPr
   const handleCreatePost = async () => {
     requireOnline(async () => {
       if (!petId) {
-        dispatch(showToast({ type: 'error', message: 'Selecione um pet' }))
+        dispatch(showToast({ type: 'error', title: 'Post', message: 'Selecione um pet' }))
         return
       }
       if (!photoUrl) {
-        dispatch(showToast({ type: 'error', message: 'Escolha uma foto' }))
+        dispatch(showToast({ type: 'error', title: 'Post', message: 'Escolha uma foto' }))
         return
       }
 
       try {
         await dispatch(createPostThunk({ pet_id: petId, image_url: photoUrl, caption, location })).unwrap()
-        dispatch(showToast({ type: 'success', message: 'Post publicado com sucesso!' }))
+        dispatch(showToast({ type: 'success', title: 'Post criado', message: 'Post publicado com sucesso!' }))
         handleClose()
       } catch {
         // erro tratado no slice

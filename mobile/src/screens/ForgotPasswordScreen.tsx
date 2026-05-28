@@ -66,7 +66,7 @@ export default function ForgotPasswordScreen({ navigation }: Readonly<Props>) {
     if (!email.trim()) return
     try {
       await dispatch(forgotPasswordThunk(email.trim())).unwrap()
-      dispatch(showToast({ type: 'success', message: 'Email de recuperação enviado! Verifique sua caixa de entrada.' }))
+      dispatch(showToast({ type: 'success', title: 'Recuperação', message: 'Email de recuperação enviado! Verifique sua caixa de entrada.' }))
       navigation.goBack()
     } catch {
       // erro tratado pelo toast do effect acima

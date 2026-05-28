@@ -39,6 +39,11 @@ import {
   requestNotificationPermission,
   getExpoPushToken,
   registerPushTokenOnServer,
+  restoreScheduledNotifications,
+  setupNotificationCategories,
+  addNotificationResponseReceivedListener,
+  handleVaccineNotificationAction,
+  handleFeedingNotificationAction,
 } from './src/services/NotificationService'
 
 LogBox.ignoreLogs([
@@ -142,7 +147,7 @@ async function handleDeepLink(
         return
       }
       dispatch(setPasswordResetFlow(true))
-      dispatch(showToast({ type: 'success', message: 'Token de recuperação validado. Defina sua nova senha.' }))
+      dispatch(showToast({ type: 'success', title: 'Recuperação', message: 'Token de recuperação validado. Defina sua nova senha.' }))
     } catch (err) {
       console.log('Erro ao buscar sessao recovery:', err)
     }
@@ -183,13 +188,13 @@ async function handleDeepLink(
       }
 
       if (isEmailConfirmation) {
-        dispatch(showToast({ type: 'success', message: 'Email confirmado com sucesso! Agora voce ja pode usar o app.' }))
+        dispatch(showToast({ type: 'success', title: 'Email confirmado', message: 'Email confirmado com sucesso! Agora voce ja pode usar o app.' }))
         dispatch(hydrateAuthThunk())
       }
 
       if (isRecovery) {
         dispatch(setPasswordResetFlow(true))
-        dispatch(showToast({ type: 'success', message: 'Token de recuperação validado. Defina sua nova senha.' }))
+        dispatch(showToast({ type: 'success', title: 'Recuperação', message: 'Token de recuperação validado. Defina sua nova senha.' }))
       }
     })
 }
@@ -352,6 +357,7 @@ function AppContent() {
 
       configureNotifications()
       await createNotificationChannel()
+      await setupNotificationCategories()
 
       const granted = await requestNotificationPermission()
       if (!granted) return
@@ -360,9 +366,22 @@ function AppContent() {
       if (token) {
         await registerPushTokenOnServer(token)
       }
+
+      await restoreScheduledNotifications()
     }
 
     initPushNotifications()
+
+    const sub = addNotificationResponseReceivedListener((data, actionId, notificationId) => {
+      if (!actionId) return
+      if (data.type === 'vaccine') {
+        handleVaccineNotificationAction(actionId, data as Record<string, unknown>, notificationId)
+      } else if (data.type === 'feeding') {
+        handleFeedingNotificationAction(actionId, data as Record<string, unknown>, notificationId)
+      }
+    })
+
+    return () => sub.remove()
   }, [hydrated, isAuth])
 
   // Enquanto lê o Keychain, mostra loading (evita flash de tela de login)

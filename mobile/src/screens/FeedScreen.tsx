@@ -31,6 +31,7 @@ import { FeedPostItem } from './Feed/components/FeedPostItem'
 import { CommentSheet } from '../components/ui/CommentSheet'
 import { useFeedStyles } from './Feed/useFeedStyles'
 import { AppToast } from '../components/ui/AppToast'
+import { CreatePostFAB } from '../components/ui/CreatePostFAB'
 
 type NavigationProp = StackNavigationProp<AppStackParamList>
 
@@ -186,6 +187,7 @@ export default function FeedScreen() {
       )}
       
       <AppToast />
+      <CreatePostFAB />
     </View>
   )
 }

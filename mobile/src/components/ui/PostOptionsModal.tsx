@@ -42,7 +42,7 @@ export function PostOptionsModal({ post, visible, onClose, isOwnPost, context = 
 
   const requireOnline = (action: () => void) => {
     if (!isOnline) {
-      dispatch(showToast({ type: 'error', message: 'Sem internet. Conecte-se para continuar.' }))
+      dispatch(showToast({ type: 'error', title: 'Sem conexão', message: 'Sem internet. Conecte-se para continuar.' }))
       return
     }
     action()
@@ -68,7 +68,7 @@ export function PostOptionsModal({ post, visible, onClose, isOwnPost, context = 
       await Share.share({ message: `Olha esse post de ${post.pets?.name || 'um pet'}: ${post.image_url}` })
       onClose()
     } catch {
-      dispatch(showToast({ type: 'error', message: 'Erro ao compartilhar' }))
+      dispatch(showToast({ type: 'error', title: 'Compartilhar', message: 'Erro ao compartilhar' }))
     }
   }
 
@@ -77,18 +77,18 @@ export function PostOptionsModal({ post, visible, onClose, isOwnPost, context = 
       setIsDownloading(true)
       const { status } = await MediaLibrary.requestPermissionsAsync()
       if (status !== 'granted') {
-        dispatch(showToast({ type: 'error', message: 'Permissão necessária para salvar na galeria' }))
+        dispatch(showToast({ type: 'error', title: 'Permissão', message: 'Permissão necessária para salvar na galeria' }))
         return
       }
-      dispatch(showToast({ type: 'info', message: 'Salvando imagem...' }))
+      dispatch(showToast({ type: 'info', title: 'Download', message: 'Salvando imagem...' }))
       const dest = new File(Paths.cache, `petlink-post-${post.id}.jpg`)
       const file = await File.downloadFileAsync(post.image_url, dest)
       await MediaLibrary.createAssetAsync(file.uri)
-      dispatch(showToast({ type: 'success', message: 'Imagem salva na galeria!' }))
+      dispatch(showToast({ type: 'success', title: 'Download', message: 'Imagem salva na galeria!' }))
       onClose()
     } catch (error: any) {
       console.error('[handleDownload] Error:', error)
-      dispatch(showToast({ type: 'error', message: 'Erro ao baixar imagem' }))
+      dispatch(showToast({ type: 'error', title: 'Download', message: 'Erro ao baixar imagem' }))
     } finally {
       setIsDownloading(false)
     }
@@ -99,11 +99,11 @@ export function PostOptionsModal({ post, visible, onClose, isOwnPost, context = 
       try {
         setIsPinning(true)
         await dispatch(togglePinThunk(post.id)).unwrap()
-        dispatch(showToast({ type: 'success', message: post.is_pinned ? 'Post desfixado' : 'Post fixado com sucesso' }))
+        dispatch(showToast({ type: 'success', title: 'Fixar', message: post.is_pinned ? 'Post desfixado' : 'Post fixado com sucesso' }))
         onClose()
       } catch (error: any) {
         console.error('[handleTogglePin] Error:', error)
-        dispatch(showToast({ type: 'error', message: 'Não foi possível fixar o post no momento' }))
+        dispatch(showToast({ type: 'error', title: 'Fixar', message: 'Não foi possível fixar o post no momento' }))
       } finally {
         setIsPinning(false)
       }
@@ -114,12 +114,12 @@ export function PostOptionsModal({ post, visible, onClose, isOwnPost, context = 
     requireOnline(async () => {
       try {
         await dispatch(deletePostThunk(post.id)).unwrap()
-        dispatch(showToast({ type: 'success', message: 'Post excluído' }))
+        dispatch(showToast({ type: 'success', title: 'Exclusão', message: 'Post excluído' }))
         setDeleteConfirmOpen(false)
         onClose()
       } catch (error: any) {
         console.error('[handleDelete] Error:', error)
-        dispatch(showToast({ type: 'error', message: 'Erro ao excluir publicação' }))
+        dispatch(showToast({ type: 'error', title: 'Exclusão', message: 'Erro ao excluir publicação' }))
       }
     })
   }
@@ -129,12 +129,12 @@ export function PostOptionsModal({ post, visible, onClose, isOwnPost, context = 
       try {
         setIsUpdating(true)
         await dispatch(updatePostThunk({ postId: post.id, patch: { caption, location } })).unwrap()
-        dispatch(showToast({ type: 'success', message: 'Post atualizado' }))
+        dispatch(showToast({ type: 'success', title: 'Edição', message: 'Post atualizado' }))
         setEditOpen(false)
         onClose()
       } catch (error: any) {
         console.error('[handleUpdate] Error:', error)
-        dispatch(showToast({ type: 'error', message: 'Não foi possível atualizar a publicação' }))
+        dispatch(showToast({ type: 'error', title: 'Edição', message: 'Não foi possível atualizar a publicação' }))
       } finally {
         setIsUpdating(false)
       }

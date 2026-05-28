@@ -52,6 +52,11 @@ export const petsService = {
     return petsRepository.listPublicByOwner(ownerId)
   },
 
+  async searchByName(query: string) {
+    if (!query || query.trim().length < 2) return []
+    return petsRepository.searchByName(query.trim())
+  },
+
   async getForOwner(ownerId: string, petId: string) {
     const pet = await petsRepository.findByIdAndOwner(ownerId, petId)
     if (!pet) throw new AppError('Pet não encontrado', 404)

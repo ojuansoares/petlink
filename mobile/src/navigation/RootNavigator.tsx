@@ -12,6 +12,7 @@ import AppTabs from './AppTabs'
 import SettingsMenuScreen from '../screens/SettingsMenuScreen'
 import PublicProfileScreen from '../screens/PublicProfileScreen'
 import ProfileFeedScreen from '../screens/ProfileFeedScreen'
+import SearchScreen from '../screens/SearchScreen'
 import { AppStackParamList } from './types'
 import { VaccineScreen } from '../screens/Pets/VaccineScreen';
 import { ConsultationScreen } from '../screens/Pets/ConsultationScreen';
@@ -70,6 +71,14 @@ function AuthenticatedNavigator() {
         name="Tabs"
         component={AppTabs}
         options={{ headerShown: false }}
+      />
+      <AppStack.Screen
+        name="Search"
+        component={SearchScreen}
+        options={{
+          title: 'Pesquisar',
+          headerLeft: PublicProfileBackButton,
+        }}
       />
       <AppStack.Screen
         name="SettingsMenu"

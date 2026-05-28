@@ -125,7 +125,7 @@ export default function ProfileFeedScreen() {
       <FlatList
         ref={flatListRef}
         data={posts}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item, index) => item?.id ?? `post-${index}`}
         renderItem={renderItem}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}

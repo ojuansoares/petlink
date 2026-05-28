@@ -11,6 +11,7 @@ import { useRoute, RouteProp } from '@react-navigation/native';
 import { AppStackParamList } from '../../navigation/types';
 import { Vaccine, VaccineDose } from '../../data/models';
 import { getVaccinesByPetId, createVaccine, updateVaccine, deleteVaccine } from '../../api/vaccine.api';
+import { scheduleVaccineNotifications, cancelVaccineNotifications } from '../../services/NotificationService';
 import { format, parseISO, startOfDay, addDays, isBefore } from 'date-fns';
 import { DateInput } from '../../components/ui/DateInput';
 import { useSelector } from 'react-redux';
@@ -149,11 +150,21 @@ export function VaccineScreen() {
     try {
         if (isEditMode && currentItem) {
             await updateVaccine(currentItem.id, vaccineData);
+            await cancelVaccineNotifications(currentItem.id);
         } else {
             await createVaccine(vaccineData);
         }
         fetchItems();
         setModalVisible(false);
+
+        // reagenda notificações desse pet
+        const allVaccines = await getVaccinesByPetId(petId);
+        await scheduleVaccineNotifications(petName, allVaccines.map(v => ({
+          id: v.id,
+          name: v.name,
+          type: v.type,
+          doses: (v.doses && v.doses.length > 0) ? v.doses : [{ date: v.applied_at, applied: v.is_completed }],
+        })), petId);
     } catch (error) {
         console.error("Failed to save item:", error);
     }
@@ -162,6 +173,7 @@ export function VaccineScreen() {
   const handleDeleteItem = async (id: string) => {
     try {
       await deleteVaccine(id);
+      await cancelVaccineNotifications(id);
       fetchItems();
     } catch (error) {
       console.error("Failed to delete item:", error);
@@ -190,6 +202,15 @@ export function VaccineScreen() {
       })
       setDetailItem(updated)
       fetchItems()
+
+      // reagenda notificações
+      const allVaccines = await getVaccinesByPetId(petId)
+      await scheduleVaccineNotifications(petName, allVaccines.map(v => ({
+        id: v.id,
+        name: v.name,
+        type: v.type,
+        doses: (v.doses && v.doses.length > 0) ? v.doses : [{ date: v.applied_at, applied: v.is_completed }],
+      })), petId)
     } catch (error) {
       console.error('Error toggling dose', error)
     } finally {

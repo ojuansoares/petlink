@@ -16,6 +16,21 @@ export const getVaccinesByPetId = async (petId: string): Promise<Vaccine[]> => {
   return data as Vaccine[];
 };
 
+export const getVaccineById = async (vaccineId: string): Promise<Vaccine | null> => {
+  const { data, error } = await supabase
+    .from('vaccines')
+    .select('*')
+    .eq('id', vaccineId)
+    .single();
+
+  if (error) {
+    console.error('Error fetching vaccine:', error);
+    return null;
+  }
+
+  return data as Vaccine;
+};
+
 export const createVaccine = async (vaccineData: Omit<Vaccine, 'id' | 'created_at'>): Promise<Vaccine> => {
   const { data, error } = await supabase
     .from('vaccines')

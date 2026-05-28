@@ -20,7 +20,7 @@ export function useLocation() {
       const { status } = await ExpoLocation.requestForegroundPermissionsAsync()
 
       if (status !== 'granted') {
-        dispatch(showToast({ type: 'info', message: 'Permissão de localização negada. Selecione manualmente.' }))
+        dispatch(showToast({ type: 'info', title: 'Localização', message: 'Permissão de localização negada. Selecione manualmente.' }))
         return null
       }
 
@@ -60,7 +60,7 @@ export function useLocation() {
         null
 
       if (!city) {
-        dispatch(showToast({ type: 'info', message: 'Não foi possível identificar a cidade. Selecione manualmente.' }))
+        dispatch(showToast({ type: 'info', title: 'Localização', message: 'Não foi possível identificar a cidade. Selecione manualmente.' }))
         return null
       }
 
@@ -76,7 +76,7 @@ export function useLocation() {
     } catch (error) {
       const isNetworkError = error instanceof TypeError && error.message.includes('Network')
       dispatch(showToast({
-        type: 'error',
+        type: 'error', title: 'Localização',
         message: isNetworkError
           ? 'Sem conexão para buscar localização.'
           : 'Erro ao buscar localização.',

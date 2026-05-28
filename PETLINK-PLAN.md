@@ -218,7 +218,7 @@ server/src/
 | 23 | Reescrever `posts.repository.ts` (Supabase → Mongoose Post + enrich) | ✅ |
 | 24 | Feed → sort `createdAt: -1` com day-grouped + random-within-day (ambos os feeds) | ✅ |
 | 25 | Script `src/scripts/migrate-posts-to-mongo.ts` | ✅ (11 posts migrados) |
-| 26 | Remover tabela `posts` do Supabase (após validar) | ⏳ |
+| 26 | Remover tabela `posts` do Supabase (após validar) | ✅ |
 
 #### 2.5 — Mobile: slices
 | # | Tarefa | Status |
@@ -436,21 +436,20 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=
 | F2 | Módulo `feeding/` server (CRUD plano + check logs) | ✅ |
 | F3 | Mobile: FeedingScreen (criação do plano + check diário) | ✅ |
 | F4 | Mobile: animação de conclusão (modal colorido) | ✅ |
-| F5 | Notificação push de lembrete de refeição | ⏳ (pendente) |
+| F5 | Notificação local de lembrete de refeição | ✅ (local, sem Firebase) |
+| F6 | Ação "Já alimentei" na notificação | ✅ |
 
 ---
 
 ## Próximos passos (prioritário)
 
-### Fase atual — Fase 3 (FCM / EAS Build)
+### Fase atual — Home Screen (H1 a H8)
 
-**Fase 3 — FCM / EAS Build (itens 51 a 54)**
-1. Configurar FCM no Firebase Console
-2. Baixar google-services.json / GoogleService-Info.plist
-3. Configurar EAS Build
+**Fase 3 — FCM / EAS Build (itens 51 a 54) - ✅ CONCLUÍDO**
 
-**Home Screen (H1 a H8 — adiado)**
-4. Voltar depois da Fase 3
+**Home Screen (H1 a H8)**
+1. H1 — Header com saudação e avatar
+2. H2 — Barra de pesquisa
 
 ---
 
@@ -467,9 +466,61 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=
    ```bash
    cd mobile && npx expo run:android
    ```
-6. Após o build, `getExpoPushTokenAsync()` passa a funcionar e o token é registrado automaticamente no servidor via `registerPushTokenOnServer()` em `App.tsx:359`
+6. Subir a **chave FCM** via EAS (necessário uma vez):
+   ```bash
+   # Baixar service account key no Firebase:
+   #   Firebase Console → Configurações → Contas de serviço → Gerar chave privada
+   # Depois:
+   npx eas credentials --platform android
+   #   → Push Notifications (FCM V1)
+   #   → Upload a Google Service Account Key
+   #   → Selecionar o JSON baixado
+   #   → Assign to app
+   ```
+7. Após o build, `getExpoPushTokenAsync()` passa a funcionar e o token é registrado automaticamente no servidor via `registerPushTokenOnServer()` em `App.tsx:359`
 
-**Resultado:** push notifications do servidor passam a funcionar (lembretes de alimentação, posts, vacinas).
+**Resultado:** push notifications do servidor passam a funcionar (likes, comentários, seguidores, lembretes).
+
+---
+
+### Notificações de Vacinas e Vermífugos
+
+**Regras por tipo:**
+
+| Milestone | Vacina | Vermífugo |
+|-----------|--------|-----------|
+| Lembrete antecipado | 30 dias antes | — |
+| Lembrete próximo | 7 dias antes | 7 dias antes |
+| Véspera | 1 dia antes | 1 dia antes |
+| Dia da dose | No dia (09:00) | No dia (09:00) |
+| Atraso inicial | 3 dias depois | 3 dias depois |
+| Atraso recorrente | A cada 7 dias | — |
+
+**Regras de negócio:**
+- Notificar para cada dose **não aplicada** (`dose.applied === false`)
+- Cancelar todas as notificações quando a dose for marcada como aplicada
+- Cancelar quando o registro de vacina/vermífugo for **excluído**
+- **Anti-spam:** máximo 1 notificação por dia por vacina (dedup por `vaccineId-targetDate`)
+- Agendar todas às **09:00**
+- **Backup automático** no AsyncStorage (`petlink.vaccine.plans_backup`) + **restore** automático ao iniciar o app
+- **Implementado:** `scheduleVaccineNotifications()`, `cancelVaccineNotifications()`, `cancelAllVaccineNotifications()`, `restoreScheduledNotifications()`
+
+**Integração (já aplicada):**
+- `VaccineScreen.tsx` — criar/editar (reschedule), excluir (cancel), toggle dose (reschedule)
+- `Calendar.tsx` — toggle dose (reschedule)
+- `App.tsx` — restore automático no startup
+
+**Status:** ✅ (implementado)
+
+---
+
+### Melhorias futuras — Vacinas/Vermífugos (⚠️ posterior)
+
+- [x] **Ações nas notificações:** "Marcar como aplicada", "Lembrar amanhã"
+  - Usar `Notifications.setNotificationCategoryAsync()` para criar categorias com botões de ação
+  - Tratar o tap no listener `addNotificationResponseReceivedListener()`
+  - "Marcar como aplicada" → chamar `updateVaccine()` para toggle da dose
+  - "Lembrar amanhã" → cancelar notificações da vacina
 
 ---
 
@@ -507,6 +558,75 @@ server/src/modules/<nome>/
 3. Validar
 4. Trocar rota oficial
 5. Remover tabela do Supabase
+
+---
+
+## Setup FCM / Firebase (Fase 3 — concluído)
+
+### Arquivos alterados
+
+| Arquivo | O que foi feito |
+|---------|----------------|
+| `mobile/app.json` | Plugin `expo-notifications` trocado de string para `["expo-notifications", { "androidMode": "default" }]` |
+| `mobile/google-services.json` | Baixado do Firebase Console e copiado para `mobile/` e `android/app/` |
+| `android/build.gradle` | Adicionado `classpath('com.google.gms:google-services:4.4.4')` |
+| `android/app/build.gradle` | Adicionado `apply plugin: "com.google.gms.google-services"` + dependências `firebase-bom:34.13.0` e `firebase-analytics` |
+| `android/gradle/wrapper/gradle-wrapper.properties` | `distributionUrl` → `gradle-8.13-bin.zip`; `networkTimeout=300000` |
+| `android/gradle.properties` | Removido `android.ndkVersion` override (NDK 27 baixado com sucesso na rede rápida) |
+
+### Chave FCM enviada via EAS
+
+```bash
+npx eas credentials --platform android
+#   → Push Notifications (FCM V1)
+#   → Upload a Google Service Account Key
+#   → Selecionar o JSON do Firebase (petlink-b90a4-firebase-adminsdk-....json)
+#   → Assign to app
+```
+
+### Problemas conhecidos
+
+**ADB (Android Debug Bridge):** A porta 5037 padrão está quebrada no sistema (não foi possível diagnosticar a causa). Solução: rodar ADB em porta alternativa:
+```bash
+export ANDROID_ADB_SERVER_PORT=5040
+adb -P 5040 nodaemon server &
+npx expo run:android  # precisa do ANDROID_ADB_SERVER_PORT=5040
+```
+
+**Gradle:** Versão 8.13 é exigida pelo AGP atual. Já está cacheado em `~/.gradle/wrapper/dists/gradle-8.13-bin/`.
+
+**Toast titles:** Os toasts in-app usavam título genérico "Notificação" / "Aviso". Foram substituídos por títulos contextuais (ex: "Post criado", "Pet", "Perfil") em todos os callers.
+
+### Para rebuildar em outro PC
+
+```bash
+# 1. Colocar google-services.json em mobile/
+# 2. Rodar:
+cd mobile
+npx expo run:android
+```
+
+Se o ADB estiver quebrado:
+```bash
+ANDROID_ADB_SERVER_PORT=5040 adb -P 5040 nodaemon server &
+ANDROID_ADB_SERVER_PORT=5040 npx expo run:android
+```
+
+### Testar push notifications
+
+1. Buildar e instalar o APK
+2. Logar no app (o token é registrado automaticamente)
+3. Disparar push de teste:
+   ```bash
+   curl -X POST https://exp.host/--/api/v2/push/send \
+     -H "Content-Type: application/json" \
+     -d '{
+       "to": "ExponentPushToken[...]",
+       "title": "Teste",
+       "body": "Push funcionou!"
+     }'
+   ```
+4. Ou usar outra conta para curtir/seguir/comentar — o servidor dispara push automaticamente
 
 ---
 

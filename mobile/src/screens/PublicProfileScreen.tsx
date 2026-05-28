@@ -119,6 +119,7 @@ export default function PublicProfileScreen() {
   const [activeTab, setActiveTab] = useState<'posts' | 'pets'>('posts')
   const [selectedPet, setSelectedPet] = useState<any>(null)
   const [isImageExpanded, setIsImageExpanded] = useState(false)
+  const [isPetImageExpanded, setIsPetImageExpanded] = useState(false)
   const [followModalType, setFollowModalType] = useState<'followers' | 'following' | null>(null)
   const [selectedPetFilter, setSelectedPetFilter] = useState('')
   const [refreshing, setRefreshing] = useState(false)
@@ -321,6 +322,8 @@ export default function PublicProfileScreen() {
               <Text color="mutedForeground" style={{ marginTop: 12 }}>Ainda não há posts.</Text>
             </View>
           }
+          refreshing={refreshing}
+          onRefresh={onRefresh}
         />
       ) : (
         <ScrollView
@@ -341,7 +344,7 @@ export default function PublicProfileScreen() {
           subtitle={SPECIES_TRANSLATION[selectedPet.species.toLowerCase()] || selectedPet.species}
         >
           <View style={{ padding: 20, alignItems: 'center', gap: 16 }}>
-            <View>
+            <Pressable onPress={() => setIsPetImageExpanded(true)}>
               <Avatar size={120} name={selectedPet.name} source={selectedPet.photo_url ? { uri: selectedPet.photo_url } : undefined} />
               {selectedPet.tags && selectedPet.tags.length > 0 && (
                 <View style={{
@@ -373,7 +376,7 @@ export default function PublicProfileScreen() {
                   })}
                 </View>
               )}
-            </View>
+            </Pressable>
             <View style={{ width: '100%', gap: 8 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                 <Text weight="700">Idade:</Text>
@@ -387,6 +390,25 @@ export default function PublicProfileScreen() {
           </View>
         </AppModal>
       )}
+
+      <Modal visible={isPetImageExpanded} transparent animationType="fade" statusBarTranslucent>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', justifyContent: 'center', alignItems: 'center' }}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setIsPetImageExpanded(false)} />
+          <View style={{ width: '90%', height: '70%', borderRadius: 20, overflow: 'hidden' }}>
+            <Image
+              source={selectedPet?.photo_url ? { uri: selectedPet.photo_url } : undefined}
+              style={{ width: '100%', height: '100%' }}
+              contentFit="contain"
+            />
+          </View>
+          <Pressable 
+            onPress={() => setIsPetImageExpanded(false)} 
+            style={{ position: 'absolute', top: Math.max(insets.top, 20), right: 20, padding: 10 }}
+          >
+            <Ionicons name="close" size={32} color="white" />
+          </Pressable>
+        </View>
+      </Modal>
 
       <Modal visible={isImageExpanded} transparent animationType="fade" statusBarTranslucent>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', justifyContent: 'center', alignItems: 'center' }}>

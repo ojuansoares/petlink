@@ -35,10 +35,10 @@ export default function SettingsDangerZoneScreen() {
       await setBiometricEnabled(false)
 
       dispatch(logout())
-      dispatch(showToast({ type: 'success', message: 'Conta excluida com sucesso.' }))
+      dispatch(showToast({ type: 'success', title: 'Exclusão', message: 'Conta excluida com sucesso.' }))
       setShowDeleteConfirm(false)
     } catch {
-      dispatch(showToast({ type: 'error', message: 'Nao foi possivel excluir sua conta.' }))
+      dispatch(showToast({ type: 'error', title: 'Exclusão', message: 'Nao foi possivel excluir sua conta.' }))
     } finally {
       setIsDeletingAccount(false)
     }

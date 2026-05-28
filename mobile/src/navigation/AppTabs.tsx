@@ -15,8 +15,6 @@ import ProfileScreen from '../screens/ProfileScreen'
 import { useAppDispatch, useAppSelector } from '../store'
 import { selectUser } from '../store/slices/authSlice'
 import { fetchMyProfileThunk, selectProfile } from '../store/slices/profileSlice'
-import { setShowCreatePost, selectShowCreatePost, setLoadingPetsForPost, selectLoadingPetsForPost } from '../store/slices/uiSlice'
-import { fetchPetsThunk } from '../store/slices/petsSlice'
 
 type AppTabsParamList = {
   Home: undefined
@@ -70,19 +68,18 @@ function HeaderActions() {
     navigation.getParent()?.navigate('Tabs', { screen: 'Profile' })
   }
 
-  const handleCreatePost = async () => {
-    dispatch(setLoadingPetsForPost(true))
-    dispatch(setShowCreatePost(true))
-    navigation.getParent()?.navigate('Tabs', { screen: 'Profile' })
-    try {
-      await dispatch(fetchPetsThunk()).unwrap()
-    } finally {
-      dispatch(setLoadingPetsForPost(false))
-    }
-  }
-
   return (
     <>
+      <Pressable
+        onPress={() => navigation.getParent()?.navigate('Search')}
+        hitSlop={8}
+        style={styles.headerIconButton}
+        accessibilityRole="button"
+        accessibilityLabel="Pesquisar"
+      >
+        <Ionicons name="search-outline" size={24} color={colors.foreground} />
+      </Pressable>
+
       <Pressable
         onPress={navigateToProfile}
         hitSlop={8}
@@ -91,16 +88,6 @@ function HeaderActions() {
         accessibilityLabel="Abrir perfil"
       >
         <Avatar name={avatarName} source={avatarSource} size={34} />
-      </Pressable>
-
-      <Pressable
-        onPress={handleCreatePost}
-        hitSlop={8}
-        style={styles.headerIconButton}
-        accessibilityRole="button"
-        accessibilityLabel="Criar post"
-      >
-        <Ionicons name="add-circle-outline" size={26} color={colors.primary} />
       </Pressable>
 
       <Pressable
@@ -311,7 +298,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerAvatarButton: {
-    marginRight: 10,
+    marginHorizontal: 8,
   },
   regionBadge: {
     paddingHorizontal: 12,

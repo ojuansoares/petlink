@@ -8,7 +8,7 @@ import { useAppDispatch, useAppSelector } from '../../store'
 import {
   fetchFeedingPlanThunk, saveFeedingPlanThunk,
   fetchFeedingLogsThunk, checkMealThunk,
-  selectFeedingPlan, selectFeedingPlanLoading, selectFeedingLogs, selectFeedingSaving, selectFeedingLoading,
+  selectFeedingPlan, selectFeedingLogs, selectFeedingSaving, selectFeedingLoading,
   type FeedingPlan, type FeedingLog,
 } from '../../store/slices/feedingSlice'
 import { useTheme } from '../../hooks/useTheme'
@@ -29,7 +29,6 @@ export default function FeedingScreen({ route }: any) {
   const { petId, petName } = route.params
   const dispatch = useAppDispatch()
   const plan = useAppSelector(selectFeedingPlan)
-  const isLoadingPlan = useAppSelector(selectFeedingPlanLoading)
   const logs = useAppSelector(selectFeedingLogs)
   const isSaving = useAppSelector(selectFeedingSaving)
   const isLoadingLogs = useAppSelector(selectFeedingLoading)
@@ -40,6 +39,7 @@ export default function FeedingScreen({ route }: any) {
   const [mode, setMode] = useState<'loading' | 'create' | 'check'>('loading')
   const [showCelebration, setShowCelebration] = useState(false)
   const [checkingId, setCheckingId] = useState<string | null>(null)
+  const [loadingPlan, setLoadingPlan] = useState(true)
   const celebrationScale = useRef(new Animated.Value(0)).current
   const celebrationOpacity = useRef(new Animated.Value(0)).current
   const today = new Date().toISOString().split('T')[0]
@@ -47,11 +47,14 @@ export default function FeedingScreen({ route }: any) {
   const allChecked = logs.length > 0 && checkedCount === logs.length
 
   useEffect(() => {
-    dispatch(fetchFeedingPlanThunk(petId))
+    setLoadingPlan(true)
+    setMode('loading')
+    setMeals([])
+    dispatch(fetchFeedingPlanThunk(petId)).then(() => setLoadingPlan(false))
   }, [dispatch, petId])
 
   useEffect(() => {
-    if (isLoadingPlan || mode !== 'loading') return
+    if (loadingPlan) return
     if (plan.length > 0) {
       setMode('check')
       dispatch(fetchFeedingLogsThunk({ petId, date: today }))
@@ -59,7 +62,7 @@ export default function FeedingScreen({ route }: any) {
       setMode('create')
       setMeals([{ meal_name: 'Refeição 1', meal_time: (() => { const d = new Date(); d.setHours(8, 0, 0, 0); return d })(), quantity: '' }])
     }
-  }, [plan, isLoadingPlan, mode, dispatch, petId, today])
+  }, [plan, loadingPlan])
 
   useEffect(() => {
     if (allChecked && logs.length > 0) {
@@ -140,7 +143,7 @@ export default function FeedingScreen({ route }: any) {
       })),
     }))
     if (saveFeedingPlanThunk.fulfilled.match(result)) {
-      dispatch(showToast({ type: 'success', message: 'Plano alimentar salvo!' }))
+      dispatch(showToast({ type: 'success', title: 'Alimentação', message: 'Plano alimentar salvo!' }))
       setMode('check')
       dispatch(fetchFeedingLogsThunk({ petId, date: today }))
       scheduleFeedingNotifications(petId, petName, meals.map((m) => ({ meal_name: m.meal_name, meal_time: formatTime(m.meal_time) })))

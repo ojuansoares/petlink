@@ -115,5 +115,16 @@ export const profileRepository = {
 
     if (error) throw error
   },
+
+  async searchByName(query: string) {
+    const { data, error } = await supabaseAdmin
+      .from('profiles')
+      .select('id, name, avatar_url, bio, location')
+      .ilike('name', `%${query}%`)
+      .limit(20)
+
+    if (error) throw error
+    return data ?? []
+  },
 }
 

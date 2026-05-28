@@ -45,6 +45,7 @@ import { FollowersModal } from '../components/ui/FollowersModal'
 import { AppStackParamList } from '../navigation/types'
 import { PetBubbleRing } from '../components/ui/PetBubbleRing'
 import { AppToast } from '../components/ui/AppToast'
+import { CreatePostFAB } from '../components/ui/CreatePostFAB'
 import { formatCount } from '../utils/formatNumber'
 
 type NavigationProp = StackNavigationProp<AppStackParamList>
@@ -133,10 +134,10 @@ export default function ProfileScreen() {
         location,
         avatar_url: avatarUrl
       })).unwrap()
-      dispatch(showToast({ type: 'success', message: 'Perfil atualizado!' }))
+      dispatch(showToast({ type: 'success', title: 'Perfil', message: 'Perfil atualizado!' }))
       setIsEditModalOpen(false)
     } catch (err) {
-      dispatch(showToast({ type: 'error', message: 'Erro ao atualizar perfil.' }))
+      dispatch(showToast({ type: 'error', title: 'Perfil', message: 'Erro ao atualizar perfil.' }))
     } finally {
       setIsUpdating(false)
     }
@@ -181,7 +182,7 @@ export default function ProfileScreen() {
       const data = await uploadImageWithRetry({ formData })
       if (data?.url) setAvatarUrl(data.url)
     } catch (err) {
-      dispatch(showToast({ type: 'error', message: 'Erro no upload.' }))
+      dispatch(showToast({ type: 'error', title: 'Upload', message: 'Erro no upload.' }))
     } finally {
       setIsUploadingAvatar(false)
     }
@@ -380,6 +381,7 @@ export default function ProfileScreen() {
         title="Seguindo"
       />
       <AppToast />
+      <CreatePostFAB />
     </View>
   )
 }

@@ -10,11 +10,14 @@ import {
   Dimensions,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { useNavigation } from '@react-navigation/native'
 import { useTheme } from '../hooks/useTheme'
 import { Heading, Text } from '../components/ui/Typography'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
+import { Avatar } from '../components/ui/Avatar'
 import { useAppSelector } from '../store'
+import { selectProfile } from '../store/slices/profileSlice'
 import { selectActivePetId, selectPetsList } from '../store/slices/petsSlice'
 
 const { width } = Dimensions.get('window')
@@ -22,9 +25,14 @@ const CARD_WIDTH = width - 32
 
 export default function HomeScreen() {
   const { colors, withAlpha, mode } = useTheme()
+  const navigation = useNavigation()
   const pets = useAppSelector(selectPetsList)
   const activePetId = useAppSelector(selectActivePetId)
   const activePet = pets.find(p => p.id === activePetId) || (pets.length > 0 ? pets[0] : null)
+  const profile = useAppSelector(selectProfile)
+
+  const hour = new Date().getHours()
+  const greeting = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite'
 
   return (
     <ScrollView 
@@ -34,10 +42,17 @@ export default function HomeScreen() {
     >
       {/* HEADER */}
       <View style={styles.header}>
-        <View>
-          <Text size="sm" color="mutedForeground">Bem-vindo de volta!</Text>
-          <Heading size="3xl" weight="800">Olá, Humano! 👋</Heading>
+        <View style={{ flex: 1 }}>
+          <Text size="sm" color="mutedForeground">{greeting}!</Text>
+          <Heading size="3xl" weight="800">{profile?.name || 'Humano'} 👋</Heading>
         </View>
+        <Pressable onPress={() => navigation.navigate('Profile' as never)}>
+          <Avatar
+            name={profile?.name || 'Usuario'}
+            source={profile?.avatar_url ? { uri: profile.avatar_url } : undefined}
+            size={48}
+          />
+        </Pressable>
       </View>
 
       {/* BANNER CAROUSEL (STATIC) */}

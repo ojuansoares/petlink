@@ -65,6 +65,11 @@ export const profileService = {
     return attachEmail(userId, updated)
   },
 
+  async searchByName(query: string) {
+    if (!query || query.trim().length < 2) return []
+    return profileRepository.searchByName(query.trim())
+  },
+
   async deleteMe(userId: string) {
     const profile = await profileRepository.findById(userId)
     const pets = await petsRepository.listByOwner(userId)

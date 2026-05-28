@@ -7,6 +7,7 @@ type ThemeMode = 'light' | 'dark' | 'auto'
 interface Toast {
   id:      string
   type:    'success' | 'error' | 'info'
+  title?:  string
   message: string
 }
 

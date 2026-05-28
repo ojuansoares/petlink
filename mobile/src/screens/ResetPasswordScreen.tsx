@@ -50,7 +50,7 @@ export default function ResetPasswordScreen() {
     if (!canSubmit) return
     try {
       await dispatch(resetPasswordThunk(password)).unwrap()
-      dispatch(showToast({ type: 'success', message: 'Senha redefinida com sucesso! Faça login novamente.' }))
+      dispatch(showToast({ type: 'success', title: 'Senha redefinida', message: 'Senha redefinida com sucesso! Faça login novamente.' }))
     } catch {
       // erro tratado pelo toast
     }

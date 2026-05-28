@@ -55,5 +55,17 @@ export const profileController = {
       return res.status(statusCode).json({ error: err.message ?? 'Erro' })
     }
   },
+
+  async search(req: Request, res: Response) {
+    try {
+      const q = req.query.q as string
+      if (!q || q.length < 2) return res.status(200).json({ users: [] })
+      const users = await profileService.searchByName(q)
+      return res.status(200).json({ users })
+    } catch (err: any) {
+      const statusCode = err instanceof AppError ? err.statusCode : err.statusCode ?? 500
+      return res.status(statusCode).json({ error: err.message ?? 'Erro' })
+    }
+  },
 }
 

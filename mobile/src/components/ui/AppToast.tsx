@@ -65,6 +65,8 @@ export function AppToast() {
         const isError = toast.type === 'error'
         const bgColor = isError ? palette.destructive : palette.primary
         const fgColor = isError ? palette.destructiveForeground : palette.primaryForeground
+        const title = toast.title ?? (isError ? 'Erro' : undefined)
+        const showLoader = toast.type === 'info'
 
         return (
           <View
@@ -77,15 +79,9 @@ export function AppToast() {
               },
             ]}
           >
-            {toast.type === 'info' ? (
-              <ActivityIndicator size="small" color={fgColor} style={styles.toastSpinner} />
-            ) : !isError ? (
-              <ActivityIndicator size="small" color={fgColor} style={styles.toastSpinner} />
-            ) : null}
+            {showLoader && <ActivityIndicator size="small" color={fgColor} style={styles.toastSpinner} />}
             <View style={styles.toastTextWrapper}>
-              <Text style={[styles.toastTitle, { color: fgColor }]}>
-                {isError ? 'Aviso' : 'Notificação'}
-              </Text>
+              {title && <Text style={[styles.toastTitle, { color: fgColor }]}>{title}</Text>}
               <Text style={[styles.toastMessage, { color: fgColor }]}>{toast.message}</Text>
             </View>
           </View>

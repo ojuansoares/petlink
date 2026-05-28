@@ -190,7 +190,7 @@ export default function PetsScreen() {
 
   const requireOnline = async (action: () => Promise<void> | void) => {
     if (!isOnline) {
-      dispatch(showToast({ type: 'error', message: 'Sem internet. Conecte-se para continuar.' }))
+      dispatch(showToast({ type: 'error', title: 'Sem conexão', message: 'Sem internet. Conecte-se para continuar.' }))
       return
     }
     await action()
@@ -220,13 +220,13 @@ export default function PetsScreen() {
         const numericWeight = parseFloat(normalizedWeight)
         if (!breed.trim() || !birthDate.trim() || !weightKg.trim()) return
         if (isNaN(numericWeight)) {
-          dispatch(showToast({ type: 'error', message: 'Por favor, insira um peso válido.' }))
+          dispatch(showToast({ type: 'error', title: 'Peso', message: 'Por favor, insira um peso válido.' }))
           return
         }
         const maxKg = MAX_WEIGHT_BY_SPECIES[species] ?? 1000
         if (numericWeight < 0.01 || numericWeight > maxKg) {
           const label = maxKg < 1 ? `${(maxKg * 1000).toFixed(0)}g` : `${maxKg}kg`
-          dispatch(showToast({ type: 'error', message: `O peso máximo para essa espécie é ${label}.` }))
+          dispatch(showToast({ type: 'error', title: 'Peso', message: `O peso máximo para essa espécie é ${label}.` }))
           return
         }
      } else if (step === 2) {
@@ -243,7 +243,7 @@ export default function PetsScreen() {
       const numericWeight = parseFloat(normalizedWeight)
 
       if (weightKg && isNaN(numericWeight)) {
-        dispatch(showToast({ type: 'error', message: 'Por favor, insira um peso válido.' }))
+        dispatch(showToast({ type: 'error', title: 'Peso', message: 'Por favor, insira um peso válido.' }))
         return
       }
 
@@ -252,7 +252,7 @@ export default function PetsScreen() {
         const maxKg = MAX_WEIGHT_BY_SPECIES[finalSpecies] ?? 1000
         if (numericWeight < 0.01 || numericWeight > maxKg) {
           const label = maxKg < 1 ? `${(maxKg * 1000).toFixed(0)}g` : `${maxKg}kg`
-          dispatch(showToast({ type: 'error', message: `O peso máximo para essa espécie é ${label}.` }))
+          dispatch(showToast({ type: 'error', title: 'Peso', message: `O peso máximo para essa espécie é ${label}.` }))
           return
         }
       }
@@ -269,11 +269,11 @@ export default function PetsScreen() {
           tags,
           observations: observations.trim() || null,
         })).unwrap()
-        dispatch(showToast({ type: 'success', message: 'Pet cadastrado!' }))
+        dispatch(showToast({ type: 'success', title: 'Pet', message: 'Pet cadastrado!' }))
         setIsFlowOpen(false)
         resetForm()
       } catch (err) {
-        dispatch(showToast({ type: 'error', message: 'Erro ao cadastrar pet.' }))
+        dispatch(showToast({ type: 'error', title: 'Pet', message: 'Erro ao cadastrar pet.' }))
       }
     })
   }
@@ -286,7 +286,7 @@ export default function PetsScreen() {
       const numericWeight = parseFloat(normalizedWeight)
 
       if (weightKg && isNaN(numericWeight)) {
-        dispatch(showToast({ type: 'error', message: 'Por favor, insira um peso válido.' }))
+        dispatch(showToast({ type: 'error', title: 'Peso', message: 'Por favor, insira um peso válido.' }))
         return
       }
 
@@ -295,7 +295,7 @@ export default function PetsScreen() {
         const maxKg = MAX_WEIGHT_BY_SPECIES[finalSpecies] ?? 1000
         if (numericWeight < 0.01 || numericWeight > maxKg) {
           const label = maxKg < 1 ? `${(maxKg * 1000).toFixed(0)}g` : `${maxKg}kg`
-          dispatch(showToast({ type: 'error', message: `O peso máximo para essa espécie é ${label}.` }))
+          dispatch(showToast({ type: 'error', title: 'Peso', message: `O peso máximo para essa espécie é ${label}.` }))
           return
         }
       }
@@ -315,12 +315,12 @@ export default function PetsScreen() {
             observations: observations.trim() || null,
           }
         })).unwrap()
-        dispatch(showToast({ type: 'success', message: 'Pet atualizado!' }))
+        dispatch(showToast({ type: 'success', title: 'Pet', message: 'Pet atualizado!' }))
         resetForm()
         setIsEditing(false)
         setIsWeightModalOpen(false)
       } catch (err) {
-        dispatch(showToast({ type: 'error', message: 'Erro ao atualizar.' }))
+        dispatch(showToast({ type: 'error', title: 'Pet', message: 'Erro ao atualizar.' }))
       }
     })
   }
@@ -330,12 +330,12 @@ export default function PetsScreen() {
       if (!activePet) return
       try {
         await dispatch(deletePetThunk(activePet.id)).unwrap()
-        dispatch(showToast({ type: 'success', message: 'Pet removido.' }))
+        dispatch(showToast({ type: 'success', title: 'Pet', message: 'Pet removido.' }))
         resetForm()
         setIsDeleteModalOpen(false)
         setIsEditing(false)
       } catch (err) {
-        dispatch(showToast({ type: 'error', message: 'Erro ao remover.' }))
+        dispatch(showToast({ type: 'error', title: 'Pet', message: 'Erro ao remover.' }))
       }
     })
   }
@@ -360,7 +360,7 @@ export default function PetsScreen() {
       const data = await uploadImageWithRetry({ formData })
       if (data?.url) setPhotoUrl(data.url)
     } catch (err) {
-      dispatch(showToast({ type: 'error', message: 'Erro no upload.' }))
+      dispatch(showToast({ type: 'error', title: 'Upload', message: 'Erro no upload.' }))
     } finally {
       setIsUploadingPhoto(false)
     }
@@ -539,7 +539,7 @@ export default function PetsScreen() {
                 }}
               />
 
-               <Calendar petId={activePet.id} />
+               <Calendar petId={activePet.id} petName={activePet.name} />
 
               {(activePet.observations || activePet.allergies) && (
                 <View style={styles.extraSection}>
@@ -598,7 +598,7 @@ export default function PetsScreen() {
               borderColor={colors.mutedForeground}
               iconColor={colors.mutedForeground}
               badge="Em breve"
-              onPress={() => dispatch(showToast({ type: 'info', message: 'Passeios em breve!' }))}
+              onPress={() => dispatch(showToast({ type: 'info', title: 'Passeios', message: 'Passeios em breve!' }))}
             />
           </View>
         ) : (

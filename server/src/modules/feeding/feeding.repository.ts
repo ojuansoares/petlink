@@ -54,9 +54,12 @@ export const feedingRepository = {
     const existingIds = new Set((existing ?? []).map((p: any) => p.id))
     const incomingIds = new Set(meals.filter((m) => m.id).map((m) => m.id))
 
+    const today = new Date().toISOString().split('T')[0]
+
     const toDelete = [...existingIds].filter((id) => !incomingIds.has(id))
     if (toDelete.length > 0) {
       await supabaseAdmin.from('feeding_plans').delete().in('id', toDelete)
+      await supabaseAdmin.from('feeding_logs').delete().in('meal_plan_id', toDelete).eq('log_date', today)
     }
 
     for (let i = 0; i < meals.length; i++) {
@@ -71,6 +74,18 @@ export const feedingRepository = {
 
       if (meal.id && existingIds.has(meal.id)) {
         await supabaseAdmin.from('feeding_plans').update(record).eq('id', meal.id)
+
+        // sync today's logs with updated plan data
+        await supabaseAdmin
+          .from('feeding_logs')
+          .update({
+            meal_name: meal.meal_name,
+            scheduled_time: meal.meal_time,
+            quantity: meal.quantity || null,
+            order_index: i,
+          })
+          .eq('meal_plan_id', meal.id)
+          .eq('log_date', today)
       } else {
         await supabaseAdmin.from('feeding_plans').insert(record)
       }

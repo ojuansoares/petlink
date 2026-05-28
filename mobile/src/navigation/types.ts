@@ -8,6 +8,7 @@ export type AuthStackParamList = {
 
 export type AppStackParamList = {
   Tabs: undefined
+  Search: undefined
   SettingsMenu: undefined
   SettingsTheme: undefined
   SettingsNotifications: undefined

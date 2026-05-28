@@ -77,6 +77,17 @@ export const petsRepository = {
     return data ?? []
   },
 
+  async searchByName(query: string) {
+    const { data, error } = await supabaseAdmin
+      .from('pets')
+      .select('id, name, species, breed, photo_url, owner_id, owner:profiles!owner_id(name)')
+      .ilike('name', `%${query}%`)
+      .limit(20)
+
+    if (error) throw error
+    return data ?? []
+  },
+
   async listPublicByOwner(ownerId: string) {
     const { data, error } = await supabaseAdmin
       .from('pets')

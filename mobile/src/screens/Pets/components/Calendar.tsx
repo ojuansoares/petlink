@@ -34,9 +34,11 @@ import { getConsultationsByPetId } from '../../../api/consultation.api'
 import { fetchBatchMedia } from '../../../api/consultationMedia.api'
 import type { ConsultationMedia } from '../../../api/consultationMedia.api'
 import { Vaccine, VaccineDose, Consultation } from '../../../data/models'
+import { scheduleVaccineNotifications } from '../../../services/NotificationService'
 
 interface CalendarProps {
   petId: string
+  petName: string
 }
 
 type CalendarEvent =
@@ -44,7 +46,7 @@ type CalendarEvent =
   | { type: 'dewormer'; id: string; date: Date; name: string; original: Vaccine; doseIndex: number }
   | { type: 'consultation'; id: string; date: Date; name: string; original: Consultation }
 
-export function Calendar({ petId }: CalendarProps) {
+export function Calendar({ petId, petName }: CalendarProps) {
   const { colors, withAlpha, isDark } = useTheme()
 
   const [currentMonth, setCurrentMonth] = useState(new Date())
@@ -194,6 +196,15 @@ export function Calendar({ petId }: CalendarProps) {
       })
       setEvents(prev => prev.map(e => e.original.id === v.id ? { ...e, original: updated } as CalendarEvent : e))
       setSelectedEvent(prev => prev ? { ...prev, original: updated } as CalendarEvent : null)
+
+      // reagenda notificações de vacinas/vermífugos
+      const allVaccines = await getVaccinesByPetId(petId)
+      await scheduleVaccineNotifications(petName, allVaccines.map(v => ({
+        id: v.id,
+        name: v.name,
+        type: v.type,
+        doses: (v.doses && v.doses.length > 0) ? v.doses : [{ date: v.applied_at, applied: v.is_completed }],
+      })), petId)
     } catch (error) {
       console.error('Error toggling dose', error)
     } finally {
