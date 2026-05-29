@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="mobile/src/assets/icon.png" alt="PetLink Logo" width="48" style="vertical-align: middle; margin-right: 12px" /> <span style="font-size: 2em; font-weight: 800;">PetLink</span>
+<img src="mobile/src/assets/icon.png" alt="PetLink Logo" width="48" style="vertical-align: middle; margin-right: 12px" /> <span style="font-size: 3em; font-weight: 800;">PetLink</span>
 
 **Gestão de saúde animal e rede social para tutores de pets**
 
