@@ -14,7 +14,7 @@ export const offlinePostsRepository = {
     is_pinned: boolean
     created_at: string
     updated_at: string
-    profiles?: { name: string; avatar_url: string | null }
+    profiles?: { name: string; avatar_url: string | null; level: number }
     pets?: { name: string }
   }>) {
     if (!isOfflineDbAvailable || !offlineDatabase) return
@@ -67,7 +67,7 @@ export const offlinePostsRepository = {
         is_pinned: r.isPinned,
         created_at: r.createdAt,
         updated_at: r.updatedAt,
-        profiles: r.authorName ? { name: r.authorName, avatar_url: r.authorAvatarUrl } : undefined,
+        profiles: r.authorName ? { name: r.authorName, avatar_url: r.authorAvatarUrl, level: 1 } : undefined,
         pets: r.petName ? { name: r.petName } : undefined,
       }))
     } catch (error) {

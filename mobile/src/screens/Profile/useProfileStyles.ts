@@ -114,5 +114,27 @@ export const useProfileStyles = makeStyles((theme) => ({
     borderRadius: 16,
     borderColor: theme.colors.border,
     margin: 16,
-  }
+  },
+  levelPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  miniBadgesRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    marginBottom: 8,
+    marginHorizontal: 16,
+    borderTopWidth: 1,
+  },
+  miniBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 }))

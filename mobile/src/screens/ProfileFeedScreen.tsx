@@ -69,6 +69,7 @@ export default function ProfileFeedScreen() {
               size={36}
               name={post.profiles?.name || 'User'}
               source={post.profiles?.avatar_url ? { uri: post.profiles.avatar_url } : undefined}
+              level={post.profiles?.level}
             />
             <View style={styles.authorMeta}>
               <Text weight="700" size="sm">{post.profiles?.name}</Text>

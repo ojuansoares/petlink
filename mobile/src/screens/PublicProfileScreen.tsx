@@ -53,11 +53,14 @@ import { useProfileStyles } from './Profile/useProfileStyles'
 import { useNetworkCheck } from '../hooks/useNetworkCheck'
 import { FollowersModal } from '../components/ui/FollowersModal'
 import { AppToast } from '../components/ui/AppToast'
+import { shareProfile, sharePet } from '../utils/shareLink'
+import { gamificationApi, type PublicGamificationStats, type AchievementData } from '../api/gamification.api'
+import { getLevelColor } from '../utils/levelColors'
 
 type NavigationProp = StackNavigationProp<AppStackParamList>
 
 type ParamList = {
-  PublicProfile: { userId: string }
+  PublicProfile: { userId: string; petId?: string }
 }
 
 const SPECIES_TRANSLATION: Record<string, string> = {
@@ -123,6 +126,7 @@ export default function PublicProfileScreen() {
   const [followModalType, setFollowModalType] = useState<'followers' | 'following' | null>(null)
   const [selectedPetFilter, setSelectedPetFilter] = useState('')
   const [refreshing, setRefreshing] = useState(false)
+  const [gamification, setGamification] = useState<PublicGamificationStats | null>(null)
 
   useEffect(() => {
     if (pets.length <= 1) setSelectedPetFilter('')
@@ -158,20 +162,35 @@ export default function PublicProfileScreen() {
       dispatch(fetchPublicProfileThunk(userId))
       dispatch(fetchUserPostsThunk({ userId, isOnline }))
       dispatch(fetchPublicPetsThunk(userId))
+      gamificationApi.getUserStats(userId).then(setGamification).catch(() => {})
     }
   }, [dispatch, userId, isOnline])
+
+  useEffect(() => {
+    if (route.params.petId && pets.length > 0) {
+      const pet = pets.find(p => p.id === route.params.petId)
+      if (pet) setSelectedPet(pet)
+    }
+  }, [route.params.petId, pets])
 
   const renderHeader = () => (
     <View style={styles.header}>
       <View style={styles.avatarContainer}>
         <PetBubbleRing pets={pets} avatarSize={140}>
           <Pressable onPress={() => setIsImageExpanded(true)} style={styles.avatarPressable}>
-            <Avatar size={140} name={profile?.name} source={profile?.avatar_url ? { uri: profile.avatar_url } : undefined} />
+            <Avatar size={140} name={profile?.name} level={gamification?.level} source={profile?.avatar_url ? { uri: profile.avatar_url } : undefined} />
           </Pressable>
         </PetBubbleRing>
       </View>
       
-      <Heading size="xl" weight="800" style={styles.name}>{profile?.name}</Heading>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+        <Heading size="xl" weight="800" style={styles.name}>{profile?.name}</Heading>
+        {gamification && (
+          <View style={[styles.levelPill, { backgroundColor: getLevelColor(gamification.level) }]}>
+            <Text size="xs" weight="800" style={{ color: '#fff' }}>Nv. {gamification.level}</Text>
+          </View>
+        )}
+      </View>
       
       {profile?.location && (
         <View style={styles.locationRow}>
@@ -203,8 +222,18 @@ export default function PublicProfileScreen() {
           </View>
         </View>
 
-       {/* Follow button */}
-       <View style={styles.followButtonContainer}>
+        {gamification && gamification.unlockedAchievements.length > 0 && (
+          <View style={[styles.miniBadgesRow, { borderColor: colors.border }]}>
+            {gamification.unlockedAchievements.map((ach) => (
+              <View key={ach.id} style={[styles.miniBadge, { backgroundColor: '#fbbf24' }]}>
+                <Ionicons name={(ach.icon || 'trophy-outline') as any} size={14} color="#fff" />
+              </View>
+            ))}
+          </View>
+        )}
+
+       {/* Follow + Share buttons */}
+       <View style={[styles.followButtonContainer, { gap: 8 }]}>
          <Pressable
            onPress={async () => {
              if (isFollowing) {
@@ -225,9 +254,15 @@ export default function PublicProfileScreen() {
              <Text size="sm" weight="600" color={isFollowing ? "primary" : "primaryForeground"}>
                {isFollowing ? 'Seguindo' : 'Seguir'}
              </Text>
-           )}
-         </Pressable>
-       </View>
+            )}
+          </Pressable>
+          <Pressable
+            onPress={() => shareProfile(userId, profile?.name || 'Usuário')}
+            style={[styles.followButton, { flex: 0, aspectRatio: 1, backgroundColor: colors.muted }]}
+          >
+            <Ionicons name="share-outline" size={20} color={colors.primary} />
+          </Pressable>
+        </View>
 
        <SegmentedTabs
          options={[
@@ -376,6 +411,21 @@ export default function PublicProfileScreen() {
                   })}
                 </View>
               )}
+            </Pressable>
+            <Pressable
+              onPress={() => sharePet(userId, selectedPet.id, selectedPet.name)}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 6,
+                paddingVertical: 8,
+                paddingHorizontal: 16,
+                borderRadius: 8,
+                backgroundColor: colors.muted,
+              }}
+            >
+              <Ionicons name="share-outline" size={16} color={colors.primary} />
+              <Text size="sm" weight="700" color="primary">Compartilhar</Text>
             </Pressable>
             <View style={{ width: '100%', gap: 8 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>

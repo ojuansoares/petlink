@@ -1,19 +1,26 @@
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { supabase } from '../config/supabase';
 import { Consultation } from '../data/models';
 
+const CACHE_PREFIX = 'petlink.consultation.cache'
+
 export const getConsultationsByPetId = async (petId: string): Promise<Consultation[]> => {
-  const { data, error } = await supabase
-    .from('consultations')
-    .select('*')
-    .eq('pet_id', petId)
-    .order('consulted_at', { ascending: false });
+  try {
+    const { data, error } = await supabase
+      .from('consultations')
+      .select('*')
+      .eq('pet_id', petId)
+      .order('consulted_at', { ascending: false });
 
-  if (error) {
-    console.error('Error fetching consultations:', error);
-    throw new Error(error.message);
+    if (error) throw new Error(error.message);
+
+    await AsyncStorage.setItem(`${CACHE_PREFIX}.list.${petId}`, JSON.stringify(data));
+    return data as Consultation[];
+  } catch {
+    const cached = await AsyncStorage.getItem(`${CACHE_PREFIX}.list.${petId}`);
+    if (cached) return JSON.parse(cached) as Consultation[];
+    throw new Error('Falha ao carregar consultas');
   }
-
-  return data as Consultation[];
 };
 
 export const createConsultation = async (consultationData: Omit<Consultation, 'id' | 'created_at' | 'updated_at'>): Promise<Consultation> => {

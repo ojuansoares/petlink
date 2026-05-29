@@ -10,13 +10,14 @@ async function enrichWithProfiles(comments: any[]) {
   const authorIds = [...new Set(comments.map((c: any) => c.authorId))]
   const { data: profiles } = await supabaseAdmin
     .from('profiles')
-    .select('id, name, avatar_url')
+    .select('id, name, avatar_url, level')
     .in('id', authorIds)
   const profileMap = new Map((profiles ?? []).map((p: any) => [p.id, p]))
   return comments.map((c: any) => ({
     ...c,
     username: profileMap.get(c.authorId)?.name ?? null,
     avatar_url: optimizeCloudinaryUrl(profileMap.get(c.authorId)?.avatar_url, 'avatar'),
+    level: profileMap.get(c.authorId)?.level ?? 1,
   }))
 }
 

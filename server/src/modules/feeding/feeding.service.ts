@@ -3,6 +3,11 @@ import { feedingRepository, type UpsertPlanInput } from './feeding.repository'
 import { petsRepository } from '../pets/pets.repository'
 
 export const feedingService = {
+  async deactivatePlan(petId: string, userId: string) {
+    await this.verifyOwnership(petId, userId)
+    return feedingRepository.deactivatePlan(petId)
+  },
+
   async getPlan(petId: string, userId: string) {
     await this.verifyOwnership(petId, userId)
     return feedingRepository.listPlan(petId)

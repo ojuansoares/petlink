@@ -12,10 +12,13 @@ import { AppStackParamList } from '../../navigation/types';
 import { Vaccine, VaccineDose } from '../../data/models';
 import { getVaccinesByPetId, createVaccine, updateVaccine, deleteVaccine } from '../../api/vaccine.api';
 import { scheduleVaccineNotifications, cancelVaccineNotifications } from '../../services/NotificationService';
+import { vaccineCacheRepository } from '../../data/repositories/VaccineCacheRepository';
 import { format, parseISO, startOfDay, addDays, isBefore } from 'date-fns';
 import { DateInput } from '../../components/ui/DateInput';
 import { useSelector } from 'react-redux';
 import { selectUser } from '../../store/slices/authSlice';
+import { useAppDispatch } from '../../store';
+import { fetchGamificationThunk } from '../../store/slices/gamificationSlice';
 import { ActionOptionsModal } from '../../components/ui/ActionOptionsModal';
 
 const DateTimePickerComponent = (() => {
@@ -31,6 +34,7 @@ type VaccineScreenRouteProp = RouteProp<AppStackParamList, 'Vaccine'>;
 export function VaccineScreen() {
   const { colors, withAlpha } = useTheme();
   const user = useSelector(selectUser);
+  const dispatch = useAppDispatch();
   const route = useRoute<VaccineScreenRouteProp>();
   const { petId, petName, vaccineId } = route.params;
 
@@ -76,7 +80,10 @@ export function VaccineScreen() {
       const filteredItems = fetchedItems.filter(item => item.type === activeTab);
       setItems(filteredItems);
     } catch (error) {
-      console.error(error);
+      const cached = await vaccineCacheRepository.getVaccines(petId);
+      if (cached) {
+        setItems(cached.filter(item => item.type === activeTab));
+      }
     } finally {
       setLoading(false);
     }
@@ -203,27 +210,37 @@ export function VaccineScreen() {
       const currentDoses: VaccineDose[] = (detailItem.doses && detailItem.doses.length > 0)
         ? detailItem.doses
         : [{ date: detailItem.applied_at, applied: detailItem.is_completed }]
-      const newDoses = currentDoses.map((d, i) => i === doseIndex ? { ...d, applied: !d.applied } : d)
+      const newApplied = !currentDoses[doseIndex].applied
+      const newDoses = currentDoses.map((d, i) => i === doseIndex ? { ...d, applied: newApplied } : d)
       const allApplied = newDoses.every(d => d.applied)
       const firstUnapplied = newDoses.find(d => !d.applied)
-      const updated = await updateVaccine(detailItem.id, {
+      const payload = {
         doses: newDoses,
         next_dose_at: firstUnapplied ? firstUnapplied.date : undefined,
         is_completed: allApplied,
-      })
-      setDetailItem(updated)
-      fetchItems()
+      }
 
-      // reagenda notificações
-      const allVaccines = await getVaccinesByPetId(petId)
-      await scheduleVaccineNotifications(petName, allVaccines.map(v => ({
-        id: v.id,
-        name: v.name,
-        type: v.type,
-        doses: (v.doses && v.doses.length > 0) ? v.doses : [{ date: v.applied_at, applied: v.is_completed }],
-      })), petId)
-    } catch (error) {
-      console.error('Error toggling dose', error)
+      // optimistic update
+      setDetailItem({ ...detailItem, ...payload } as Vaccine)
+
+      try {
+        const updated = await updateVaccine(detailItem.id, payload)
+        setDetailItem(updated)
+        await vaccineCacheRepository.saveVaccineById(detailItem.id, updated)
+
+        const allVaccines = await getVaccinesByPetId(petId)
+        await scheduleVaccineNotifications(petName, allVaccines.map(v => ({
+          id: v.id,
+          name: v.name,
+          type: v.type,
+          doses: (v.doses && v.doses.length > 0) ? v.doses : [{ date: v.applied_at, applied: v.is_completed }],
+        })), petId)
+        dispatch(fetchGamificationThunk())
+      } catch {
+        await vaccineCacheRepository.addDoseToggle(detailItem.id, petId, doseIndex, newApplied)
+      }
+
+      fetchItems()
     } finally {
       setIsUpdatingStatus(false)
     }
@@ -232,8 +249,8 @@ export function VaccineScreen() {
   const renderDetailDoses = (item: Vaccine) => {
     const dosesList = (item.doses && item.doses.length > 0) ? item.doses : [{ date: item.applied_at, applied: item.is_completed }]
     return (
-      <View>
-        <Text size="xs" color="mutedForeground" weight="800" style={{ marginBottom: 8 }}>
+      <View style={[styles.detailCard, { backgroundColor: withAlpha(colors.muted, 0.4) }]}>
+        <Text size="xs" color="mutedForeground" weight="800">
           DOSES
         </Text>
         {dosesList.map((dose, idx) => {
@@ -251,8 +268,8 @@ export function VaccineScreen() {
                 paddingVertical: 10,
                 paddingHorizontal: 12,
                 borderRadius: 10,
-                marginBottom: 4,
-                backgroundColor: withAlpha(dose.applied ? '#22c55e' : (isDoseOverdue ? '#ef4444' : colors.muted), 0.1),
+                marginTop: 8,
+                backgroundColor: withAlpha(dose.applied ? '#22c55e' : (isDoseOverdue ? '#ef4444' : colors.muted), 0.15),
               }}
             >
               <Ionicons
@@ -281,7 +298,7 @@ export function VaccineScreen() {
 
     return (
       <View style={styles.modalContent}>
-        <View style={[styles.detailSection, { borderLeftColor: isDewormer ? '#f97316' : colors.primary }]}>
+        <View style={[styles.detailCard, { backgroundColor: withAlpha(colors.muted, 0.4), borderLeftColor: isDewormer ? '#f97316' : colors.primary }]}>
           <Text size="xs" color="mutedForeground" weight="800">
             TIPO DE REGISTRO
           </Text>
@@ -290,7 +307,7 @@ export function VaccineScreen() {
           </Text>
         </View>
 
-        <View style={styles.detailSection}>
+        <View style={[styles.detailCard, { backgroundColor: withAlpha(colors.muted, 0.4) }]}>
           <Text size="xs" color="mutedForeground" weight="800">
             NOME DO PRODUTO / VACINA
           </Text>
@@ -302,7 +319,7 @@ export function VaccineScreen() {
         {renderDetailDoses(detailItem)}
 
         {detailItem.lab && (
-          <View style={styles.detailSection}>
+          <View style={[styles.detailCard, { backgroundColor: withAlpha(colors.muted, 0.4) }]}>
             <Text size="xs" color="mutedForeground" weight="800">
               LABORATÓRIO
             </Text>
@@ -311,7 +328,7 @@ export function VaccineScreen() {
         )}
 
         {detailItem.notes && (
-          <View style={[styles.detailSection, { backgroundColor: withAlpha(colors.muted, 0.5), padding: 12, borderRadius: 12 }]}>
+          <View style={[styles.detailCard, { backgroundColor: withAlpha(colors.muted, 0.6) }]}>
             <Text size="xs" color="mutedForeground" weight="800" style={{ marginBottom: 4 }}>
               OBSERVAÇÕES
             </Text>
@@ -563,10 +580,18 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: 'rgba(0,0,0,0.05)',
   },
-  // Modal styles copied from Calendar component
+  // Modal styles
   modalContent: {
     gap: 16,
     paddingBottom: 24,
+    paddingTop: 12,
+  },
+  detailCard: {
+    gap: 6,
+    padding: 14,
+    borderRadius: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: 'transparent',
   },
   detailSection: {
     gap: 4,

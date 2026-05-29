@@ -189,6 +189,15 @@ server/src/
 | `mobile/src/store/slices/notificationsSlice.ts` | `fetchPreferencesThunk`, `updatePreferencesThunk`, `selectPreferences` |
 | `mobile/src/screens/SettingsNotificationsScreen.tsx` | Reescrita — sincroniza com servidor, toggles reais (alimentação, vacinas, aniversário, curtidas, seguidores) |
 | `mobile/src/services/NotificationService.ts` | Lê AsyncStorage com novas chaves; `scheduleBirthdayNotifications` checa `aniversario` |
+| `mobile/src/data/repositories/FeedingQueueRepository.ts` | **Novo** — fila offline de check de alimentação (AsyncStorage) + processamento ao reconectar + retry até 3x por item |
+| `mobile/src/store/slices/feedingSlice.ts` | `checkMealThunk` enfileira no `feedingQueueRepository` quando offline (err.isOffline). Todos os thunks (plan, logs, score) agora têm cache AsyncStorage — salvam no sucesso, restauram na falha. |
+| `mobile/src/services/NotificationService.ts` | `handleFeedingNotificationAction` enfileira quando offline |
+| `mobile/App.tsx` | Ao reconectar, chama `feedingQueueRepository.processQueue()` |
+| `server/src/modules/feeding/feeding.repository.ts` | `deactivatePlan()` — seta `is_active = false` |
+| `server/src/modules/feeding/feeding.service.ts` | `deactivatePlan()` + verificação de ownership |
+| `server/src/modules/feeding/feeding.controller.ts` | `deactivatePlan()` controller |
+| `server/src/modules/feeding/feeding.routes.ts` | Rota `DELETE /:petId/feeding/plan` |
+| `mobile/src/screens/Pets/FeedingScreen.tsx` | Botão "Desativar plano" no modo check + Alert de confirmação |
 
 ---
 
@@ -347,9 +356,92 @@ server/src/
 
 | # | Tarefa | Status |
 |---|--------|--------|
-| 44 | Compartilhar perfil/pet (deep link) | ❌ |
+| 44 | Compartilhar perfil/pet (deep link) | ✅ |
 | 45 | Badges e conquistas | ❌ |
-| 46 | Grupos (UI) | ❌ |
+
+---
+
+### Grupos — Plano de Implementação
+
+**Ideia:** Grupos de tutores com interesses em comum (espécie, raça, localidade). Botão "Grupos" no header do Feed, tela interna com "Meus Grupos" / "Descobrir", dropdown de busca incluindo Grupos.
+
+#### Servidor (Express + Supabase)
+
+- [x] Migration `005_groups.sql` — tabelas `groups` (nome, descrição, foto, species, is_public, created_by) + `group_members` (group_id, user_id, role, joined_at) com RLS
+- [x] Módulo `groups/` (routes, controller, service, repository):
+  - `GET /groups` — listar grupos do usuário
+  - `GET /groups/discover` — descobrir grupos públicos (paginado)
+  - `GET /groups/search?q=` — search por nome (para SearchScreen)
+  - `POST /groups` — criar grupo
+  - `POST /groups/:id/join` — entrar em grupo público
+  - `POST /groups/:id/leave` — sair
+  - `GET /groups/:id` — detalhe do grupo + membros
+
+#### Mobile
+
+- [x] Rota `Groups` no `AppStack` (root stack, mesma estrutura do Search)
+- [x] `GroupsScreen.tsx` — sub-tabs "Meus Grupos" | "Descobrir" usando `SegmentedTabs`, dois FlatLists separados
+- [x] Botão "Grupos" no header do `FeedScreen` (ao lado do SegmentedTabs ou headerRight)
+- [x] `SearchScreen.tsx` — substituir `SegmentedTabs` por dropdown seletor com setinha (Pessoas / Pets / Grupos)
+- [x] `groupsSlice.ts` — store Redux para listar grupos
+
+---
+
+### #45 — Gamificação / Badges & Conquistas
+
+**Ideia:** Sistema de níveis e conquistas para engajar o usuário. Toda ação relevante no app dá XP. Ao atingir marcos, desbloqueia badges. Tudo visível numa nova aba "Conquistas" dentro do Perfil.
+
+#### Perfil — Nova aba "Conquistas"
+
+O header do perfil (foto, nome, stats) permanece igual. Abaixo dele, um `SegmentedTabs` alterna entre:
+- **Posts** — grid de fotos (comportamento atual)
+- **Conquistas** — seção de gamificação
+
+#### Estrutura da aba Conquistas
+
+1. **Card de Nível** — no topo:
+   - Nível atual (ex: "Nível 5 — Veterano")
+   - Barra de XP (ex: 1.200 / 2.000)
+   - Nome do nível com ícone
+2. **Badges conquistadas** — grid de badges que o usuário já desbloqueou
+   - Cada badge: ícone + nome + descrição curta
+3. **Próximas conquistas** — badges que faltam pouco pra desbloquear (progresso > 50%)
+   - Badges "travadas" com barra de progresso
+
+#### Badges planejadas
+
+| Badge | Gatilho | XP |
+|-------|---------|----|
+| 🐾 Primeiro Post | Criar 1 post | 50 |
+| 📸 Paparazzi | Criar 10 posts | 100 |
+| 💉 Vacina em Dia | Marcar 5 doses | 100 |
+| 🛡️ Protetor | Marcar 20 doses | 200 |
+| 🍽️ Refeição Feita | Completar 7 dias de alimentação | 100 |
+| 🥇 Dieta de Ouro | Completar 30 dias de alimentação | 300 |
+| 👥 Social | Entrar em 3 grupos | 100 |
+| 🌟 Líder | Criar um grupo | 150 |
+| 🔥 Sequência | 7 dias seguidos de check-in alimentar | 200 |
+| 📍 Explorador | Fazer check-in em 3 locais | 100 |
+| 🏆 Veterano | Acumular 1.000 XP | 500 |
+
+#### Servidor (Express + Supabase)
+
+- [ ] Migration `006_gamification.sql`:
+  - `user_levels` (user_id, level, xp, xp_to_next_level)
+  - `achievements` (id, name, description, icon_url, category, xp_reward, criteria — JSON)
+  - `user_achievements` (user_id, achievement_id, unlocked_at)
+- [ ] Módulo `gamification/`:
+  - `GET /gamification/my` — nível atual + XP + badges conquistadas + progresso das próximas
+  - `POST /gamification/event` — registrar evento de XP (chamado internamente por outros módulos)
+  - Lógica de nível: a cada N XP sobe de nível, `xp_to_next_level` aumenta
+ 
+#### Mobile
+
+- [ ] `gamificationSlice.ts` — store Redux
+- [ ] ProfileScreen: adicionar `SegmentedTabs` (Posts | Conquistas) abaixo do header, substituindo o `renderHeader` atual por um header fixo + tabs + conteúdo condicional
+- [ ] Botão de filtro por pet: mover para dentro da aba **Posts** (não aparece na aba Conquistas)
+- [ ] `GamificationSection.tsx` — card de nível + grid de badges conquistadas + próximas conquistas
+- [ ] Feedback visual ao desbloquear badge (modal "Conquista desbloqueada!")
 
 ---
 
@@ -418,8 +510,9 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=
 |--------|------|-----------|
 | `GET` | `/plan` | Lista refeições do plano ativo |
 | `POST` | `/plan` | Cria/atualiza plano (array de refeições) |
+| `DELETE` | `/plan` | Desativa plano (`is_active = false`) + cancela notificações |
 | `GET` | `/logs?date=YYYY-MM-DD` | Logs de check do dia |
-| `POST` | `/logs/check/:logId` | Marcar refeição como concluída |
+| `POST` | `/logs/:logId/check` | Marcar refeição como concluída |
 
 #### Banco (Supabase)
 
@@ -453,6 +546,8 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=
 - **Tela de criação:** formulário inline para adicionar N refeições com nome, horário e quantidade
 - **Tela de check diário:** lista de refeições do dia com botão de check, progresso visual
 - **Animação conclusão:** modal colorido com confetes/celebração quando 100% do dia é concluído
+- **Fila offline:** `FeedingQueueRepository` (AsyncStorage) — quando offline, `checkMealThunk` e `handleFeedingNotificationAction` salvam ação na fila. Ao reconectar, `App.tsx` chama `processQueue()`. Cada item tem `retries` (max 3); se esgotar as tentativas vira *dead letter* e é descartado.
+- **Desativar:** botão "Desativar plano" no modo check → `DELETE /feeding/plan` → `is_active = false` + `cancelFeedingNotifications()`
 
 #### Status
 | # | Tarefa | Status |
@@ -463,6 +558,8 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=
 | F4 | Mobile: animação de conclusão (modal colorido) | ✅ |
 | F5 | Notificação local de lembrete de refeição | ✅ (local, sem Firebase) |
 | F6 | Ação "Já alimentei" na notificação | ✅ |
+| F7 | **Fila offline**: quando sem internet, "Já alimentei" (app ou notificação) vai pra fila AsyncStorage. Quando voltar a net, processa em ordem. Cada item tem até 3 tentativas; após 3 falhas é descartado. Notificação diferida guarda a `date` original pra resolver no dia correto. | ✅ |
+| F8 | **Desativar plano**: botão "Desativar plano" na tela de check + endpoint `DELETE /:petId/feeding/plan` no server + cancela notificações. | ✅ |
 
 ---
 
@@ -489,7 +586,7 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=
 
 Nenhum — todas as tarefas H1-H8 estão concluídas. ✅
 
-Próximas fases disponíveis: Onboarding, Grupos (UI), Testes (Jest), Sentry, CI/CD.
+Próximas fases disponíveis: Onboarding, Testes (Jest), Sentry, CI/CD.
 
 ---
 

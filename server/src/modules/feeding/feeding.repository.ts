@@ -34,6 +34,15 @@ export type UpsertPlanInput = {
 }
 
 export const feedingRepository = {
+  async deactivatePlan(petId: string): Promise<void> {
+    const { error } = await supabaseAdmin
+      .from('feeding_plans')
+      .update({ is_active: false })
+      .eq('pet_id', petId)
+
+    if (error) throw error
+  },
+
   async listPlan(petId: string): Promise<FeedingPlan[]> {
     const { data, error } = await supabaseAdmin
       .from('feeding_plans')

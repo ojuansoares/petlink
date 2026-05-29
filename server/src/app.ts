@@ -15,6 +15,8 @@ import likesRoutes from './modules/likes/likes.routes'
 import feedingRoutes from './modules/feeding/feeding.routes'
 import consultationsRoutes from './modules/consultations/consultations.routes'
 import remindersRoutes from './modules/reminders/reminders.routes'
+import groupsRoutes from './modules/groups/groups.routes'
+import gamificationRoutes from './modules/gamification/gamification.routes'
 import { swaggerSpec } from './config/swagger'
 
 const app = express()
@@ -54,6 +56,8 @@ app.use('/posts', likesRoutes)
 app.use('/pets', feedingRoutes)
 app.use('/consultations', consultationsRoutes)
 app.use('/reminders', remindersRoutes)
+app.use('/groups', groupsRoutes)
+app.use('/gamification', gamificationRoutes)
 
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error('[ERRO GLOBAL SEVIDOR]:', err)

@@ -152,6 +152,7 @@ export function CommentSheet({ visible, onClose, post }: CommentSheetProps) {
               name={item.username ?? item.authorId}
               source={item.avatar_url ? { uri: item.avatar_url } : undefined}
               size={32}
+              level={item.level}
             />
           </Pressable>
           <View style={cStyles.commentContent}>

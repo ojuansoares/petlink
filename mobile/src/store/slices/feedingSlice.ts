@@ -1,5 +1,9 @@
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import { api } from '../../api/axios'
+import { feedingQueueRepository } from '../../data/repositories/FeedingQueueRepository'
+
+const CACHE_PREFIX = 'petlink.feeding.cache'
 
 export type FeedingPlan = {
   id: string
@@ -54,8 +58,11 @@ export const fetchFeedingPlanThunk = createAsyncThunk(
   async (petId: string, { rejectWithValue }) => {
     try {
       const { data } = await api.get(`/pets/${petId}/feeding/plan`)
+      await AsyncStorage.setItem(`${CACHE_PREFIX}.plan.${petId}`, JSON.stringify(data))
       return data as FeedingPlan[]
     } catch (err: any) {
+      const cached = await AsyncStorage.getItem(`${CACHE_PREFIX}.plan.${petId}`)
+      if (cached) return JSON.parse(cached) as FeedingPlan[]
       return rejectWithValue(err.response?.data?.error ?? 'Erro')
     }
   }
@@ -69,6 +76,7 @@ export const saveFeedingPlanThunk = createAsyncThunk(
   ) => {
     try {
       const { data } = await api.post(`/pets/${petId}/feeding/plan`, { meals })
+      await AsyncStorage.setItem(`${CACHE_PREFIX}.plan.${petId}`, JSON.stringify(data))
       return data as FeedingPlan[]
     } catch (err: any) {
       return rejectWithValue(err.response?.data?.error ?? 'Erro')
@@ -81,8 +89,11 @@ export const fetchFeedingLogsThunk = createAsyncThunk(
   async ({ petId, date }: { petId: string; date: string }, { rejectWithValue }) => {
     try {
       const { data } = await api.get(`/pets/${petId}/feeding/logs?date=${date}`)
+      await AsyncStorage.setItem(`${CACHE_PREFIX}.logs.${petId}.${date}`, JSON.stringify(data))
       return data as FeedingLog[]
     } catch (err: any) {
+      const cached = await AsyncStorage.getItem(`${CACHE_PREFIX}.logs.${petId}.${date}`)
+      if (cached) return JSON.parse(cached) as FeedingLog[]
       return rejectWithValue(err.response?.data?.error ?? 'Erro')
     }
   }
@@ -95,6 +106,22 @@ export const checkMealThunk = createAsyncThunk(
       const { data } = await api.post(`/pets/${petId}/feeding/logs/${logId}/check`, { checked })
       return data as FeedingLog
     } catch (err: any) {
+      if (err.isOffline) {
+        await feedingQueueRepository.add(logId, petId, checked)
+        return { id: logId, pet_id: petId, checked_at: checked ? new Date().toISOString() : null, meal_plan_id: '', meal_name: '', scheduled_time: '', quantity: null, order_index: 0, log_date: '' } as FeedingLog
+      }
+      return rejectWithValue(err.response?.data?.error ?? 'Erro')
+    }
+  }
+)
+
+export const deactivateFeedingPlanThunk = createAsyncThunk(
+  'feeding/deactivatePlan',
+  async (petId: string, { rejectWithValue }) => {
+    try {
+      await api.delete(`/pets/${petId}/feeding/plan`)
+      await AsyncStorage.removeItem(`${CACHE_PREFIX}.plan.${petId}`)
+    } catch (err: any) {
       return rejectWithValue(err.response?.data?.error ?? 'Erro')
     }
   }
@@ -103,10 +130,14 @@ export const checkMealThunk = createAsyncThunk(
 export const fetchFeedingScoreThunk = createAsyncThunk(
   'feeding/fetchScore',
   async ({ petId, start, end }: { petId: string; start: string; end: string }, { rejectWithValue }) => {
+    const cacheKey = `${CACHE_PREFIX}.score.${petId}.${start}.${end}`
     try {
       const { data } = await api.get(`/pets/${petId}/feeding/score?start=${start}&end=${end}`)
+      await AsyncStorage.setItem(cacheKey, JSON.stringify(data))
       return data as DayScore[]
     } catch (err: any) {
+      const cached = await AsyncStorage.getItem(cacheKey)
+      if (cached) return JSON.parse(cached) as DayScore[]
       return rejectWithValue(err.response?.data?.error ?? 'Erro')
     }
   }
@@ -138,12 +169,18 @@ const feedingSlice = createSlice({
 
       .addCase(checkMealThunk.fulfilled, (s, a) => {
         const idx = s.logs.findIndex((l) => l.id === a.payload.id)
-        if (idx >= 0) s.logs[idx] = a.payload
+        if (idx >= 0) s.logs[idx] = { ...s.logs[idx], checked_at: a.payload.checked_at }
       })
 
       .addCase(fetchFeedingScoreThunk.pending, (s) => { s.isLoadingScore = true })
       .addCase(fetchFeedingScoreThunk.fulfilled, (s, a) => { s.isLoadingScore = false; s.score = a.payload })
       .addCase(fetchFeedingScoreThunk.rejected, (s) => { s.isLoadingScore = false })
+
+      .addCase(deactivateFeedingPlanThunk.fulfilled, (s) => {
+        s.plan = []
+        s.logs = []
+        s.score = []
+      })
   },
 })
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react'
-import { View, FlatList, RefreshControl, ActivityIndicator } from 'react-native'
+import { View, FlatList, RefreshControl, ActivityIndicator, Pressable } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useNavigation } from '@react-navigation/native'
 import { StackNavigationProp } from '@react-navigation/stack'
@@ -114,21 +114,38 @@ export default function FeedScreen() {
 
   const renderHeader = () => (
     <View style={styles.tabContainer}>
-      <SegmentedTabs
-        options={[
-          { id: 'recommended', label: 'Recomendados' },
-          { id: 'following', label: 'Seguindo' }
-        ]}
-        activeId={activeTab}
-        onChange={(id: any) => {
-          setActiveTab(id)
-          if (id === 'following' && !hasLoadedFollowed.current) {
-            hasLoadedFollowed.current = true
-            dispatch(fetchFollowedFeedThunk(isOnline))
-          }
-        }}
-        style={{ marginBottom: 12 }}
-      />
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <SegmentedTabs
+          options={[
+            { id: 'recommended', label: 'Recomendados' },
+            { id: 'following', label: 'Seguindo' }
+          ]}
+          activeId={activeTab}
+          onChange={(id: any) => {
+            setActiveTab(id)
+            if (id === 'following' && !hasLoadedFollowed.current) {
+              hasLoadedFollowed.current = true
+              dispatch(fetchFollowedFeedThunk(isOnline))
+            }
+          }}
+          style={{ marginBottom: 12, flex: 1 }}
+        />
+        <Pressable
+          onPress={() => navigation.navigate('Groups')}
+          hitSlop={8}
+          style={{
+            paddingHorizontal: 10,
+            paddingVertical: 8,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 4,
+            marginBottom: 12,
+          }}
+        >
+          <Ionicons name="people-outline" size={20} color={colors.primary} />
+          <Text size="sm" weight="800" style={{ color: colors.primary }}>Grupos</Text>
+        </Pressable>
+      </View>
     </View>
   )
 

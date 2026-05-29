@@ -16,7 +16,7 @@ export interface Post {
   comments_count: number
   created_at: string
   updated_at: string
-  profiles?: { name: string; avatar_url: string | null }
+  profiles?: { name: string; avatar_url: string | null; level: number }
   pets?: { name: string }
   liked_by_user?: boolean
 }
@@ -545,6 +545,19 @@ const postsSlice = createSlice({
         s.myPosts.forEach(updatePost)
         s.followedFeed.forEach(updatePost)
         s.userPosts.forEach(updatePost)
+      })
+      .addCase(toggleLikeThunk.rejected, (s, a) => {
+        const postId = a.meta.arg
+        const revertPost = (p: Post) => {
+          if (p.id === postId) {
+            p.likes_count += p.liked_by_user ? -1 : 1
+            p.liked_by_user = !p.liked_by_user
+          }
+        }
+        s.feed.forEach(revertPost)
+        s.myPosts.forEach(revertPost)
+        s.followedFeed.forEach(revertPost)
+        s.userPosts.forEach(revertPost)
       })
   },
 })

@@ -47,7 +47,7 @@ export const profileRepository = {
   async findPublicById(id: string) {
     const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
-      .select('id, name, avatar_url, bio, location, created_at')
+      .select('id, name, avatar_url, bio, location, level, created_at')
       .eq('id', id)
       .maybeSingle()
 
@@ -119,7 +119,7 @@ export const profileRepository = {
   async searchByName(query: string) {
     const { data, error } = await supabaseAdmin
       .from('profiles')
-      .select('id, name, avatar_url, bio, location')
+      .select('id, name, avatar_url, bio, location, level')
       .ilike('name', `%${query}%`)
       .limit(20)
 

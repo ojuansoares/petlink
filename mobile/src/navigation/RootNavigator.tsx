@@ -1,8 +1,8 @@
 import React from 'react'
-import { DarkTheme, DefaultTheme, NavigationContainer } from '@react-navigation/native'
+import { DarkTheme, DefaultTheme, NavigationContainer, LinkingOptions } from '@react-navigation/native'
 import { createStackNavigator } from '@react-navigation/stack'
 import { Ionicons } from '@expo/vector-icons'
-import { Pressable } from 'react-native'
+import { Pressable, Platform } from 'react-native'
 import { useAppSelector } from '../store'
 import { selectIsAuth, selectIsPasswordResetFlow } from '../store/slices/authSlice'
 import { selectIsDark } from '../store/slices/uiSlice'
@@ -13,6 +13,7 @@ import SettingsMenuScreen from '../screens/SettingsMenuScreen'
 import PublicProfileScreen from '../screens/PublicProfileScreen'
 import ProfileFeedScreen from '../screens/ProfileFeedScreen'
 import SearchScreen from '../screens/SearchScreen'
+import GroupsScreen from '../screens/GroupsScreen'
 import { AppStackParamList } from './types'
 import { navigationRef } from './navigationRef'
 import { VaccineScreen } from '../screens/Pets/VaccineScreen';
@@ -20,6 +21,15 @@ import { ConsultationScreen } from '../screens/Pets/ConsultationScreen';
 import FeedingScreen from '../screens/Pets/FeedingScreen';
 import ActivityTimelineScreen from '../screens/ActivityTimelineScreen';
 import ResetPasswordScreen from '../screens/ResetPasswordScreen';
+
+const linking: LinkingOptions<AppStackParamList> = {
+  prefixes: ['petlink://'],
+  config: {
+    screens: {
+      PublicProfile: 'profile/:userId',
+    },
+  },
+}
 
 const AppStack = createStackNavigator<AppStackParamList>()
 
@@ -79,6 +89,14 @@ function AuthenticatedNavigator() {
         component={SearchScreen}
         options={{
           title: 'Pesquisar',
+          headerLeft: PublicProfileBackButton,
+        }}
+      />
+      <AppStack.Screen
+        name="Groups"
+        component={GroupsScreen}
+        options={{
+          title: 'Grupos',
           headerLeft: PublicProfileBackButton,
         }}
       />
@@ -184,6 +202,7 @@ export default function RootNavigator() {
   return (
     <NavigationContainer
       ref={navigationRef}
+      linking={linking}
       theme={{
         ...baseTheme,
         colors: {

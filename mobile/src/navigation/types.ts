@@ -8,13 +8,14 @@ export type AuthStackParamList = {
 
 export type AppStackParamList = {
   Tabs: undefined
+  Groups: undefined
   Search: undefined
   SettingsMenu: undefined
   SettingsTheme: undefined
   SettingsNotifications: undefined
   SettingsSecurity: undefined
   SettingsDangerZone: undefined
-  PublicProfile: { userId: string }
+  PublicProfile: { userId: string; petId?: string }
   ProfileFeed: { userId: string; initialScrollIndex: number; title: string }
   Vaccine: { petId: string; petName: string; vaccineId?: string }
   Consultation: { petId: string; petName: string }

@@ -544,11 +544,28 @@ export async function handleFeedingNotificationAction(
     if (!log || log.checked_at) return
 
     await api.post(`/pets/${petId}/feeding/logs/${log.id}/check`, { checked: true })
-
-    if (notificationId) {
-      await Notifications.dismissNotificationAsync(notificationId)
+  } catch (err: any) {
+    if (err?.isOffline) {
+      try {
+        const { feedingQueueRepository } = await import('../data/repositories/FeedingQueueRepository')
+        const today = new Date().toISOString().split('T')[0]
+        const res = await api.get(`/pets/${petId}/feeding/logs`, { params: { date: today } })
+        const logs: any[] = Array.isArray(res.data) ? res.data : []
+        const log = logs.find((l: any) => l.meal_name === mealName)
+        if (log && !log.checked_at) {
+          await feedingQueueRepository.add(log.id, petId, true)
+        }
+      } catch {
+        const { feedingQueueRepository } = await import('../data/repositories/FeedingQueueRepository')
+        const today = new Date().toISOString().split('T')[0]
+        await feedingQueueRepository.addDeferred(petId, mealName, today)
+      }
+    } else {
+      console.error('[Notif] Erro ao processar ação de alimentação:', err)
     }
-  } catch (err) {
-    console.error('[Notif] Erro ao processar ação de alimentação:', err)
+  }
+
+  if (notificationId) {
+    await Notifications.dismissNotificationAsync(notificationId)
   }
 }

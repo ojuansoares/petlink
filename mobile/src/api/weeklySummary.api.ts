@@ -10,10 +10,10 @@ export type WeeklySummary = {
 export async function fetchWeeklySummary(petId: string): Promise<WeeklySummary | null> {
   try {
     const { data } = await api.get(`/pets/${petId}/weekly-summary`)
-    await homeCacheRepository.saveWeeklySummary(data)
+    await homeCacheRepository.saveWeeklySummary(petId, data)
     return data as WeeklySummary
   } catch {
-    const cached = await homeCacheRepository.getWeeklySummary<WeeklySummary>()
+    const cached = await homeCacheRepository.getWeeklySummary<WeeklySummary>(petId)
     return cached
   }
 }

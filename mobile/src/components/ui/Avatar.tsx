@@ -2,11 +2,13 @@ import React, { useMemo } from 'react'
 import { Image, ImageSourcePropType, StyleSheet, View } from 'react-native'
 import { useTheme } from '../../hooks/useTheme'
 import { Text } from './Typography'
+import { getLevelColor } from '../../utils/levelColors'
 
 interface AvatarProps {
   name?: string
   source?: ImageSourcePropType
   size?: number
+  level?: number
 }
 
 function toInitials(name?: string): string {
@@ -17,9 +19,10 @@ function toInitials(name?: string): string {
   return `${parts[0][0]}${parts[1][0]}`.toUpperCase()
 }
 
-export function Avatar({ name, source, size = 48 }: Readonly<AvatarProps>) {
+export function Avatar({ name, source, size = 48, level }: Readonly<AvatarProps>) {
   const { colors, withAlpha } = useTheme()
   const initials = useMemo(() => toInitials(name), [name])
+  const levelColor = level ? getLevelColor(level) : undefined
 
   return (
     <View
@@ -29,7 +32,7 @@ export function Avatar({ name, source, size = 48 }: Readonly<AvatarProps>) {
           width: size,
           height: size,
           borderRadius: size / 2,
-          borderColor: colors.border,
+          borderColor: levelColor ?? colors.border,
           backgroundColor: withAlpha(colors.accent, 0.45),
         },
       ]}

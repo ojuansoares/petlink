@@ -290,61 +290,69 @@ export function ConsultationScreen() {
         ) : null}
 
         <View style={styles.modalContent}>
-          <View style={[styles.detailSection, { borderLeftColor: colors.info }]}>
+          <View style={[styles.detailCard, { backgroundColor: withAlpha(colors.muted, 0.4), borderLeftColor: colors.info }]}>
             <Text size="xs" color="mutedForeground" weight="800">TIPO DE REGISTRO</Text>
             <Text size="lg" weight="800" style={{ color: colors.info }}>CONSULTA MÉDICA</Text>
           </View>
 
-          <View style={styles.detailSection}>
+          <View style={[styles.detailCard, { backgroundColor: withAlpha(colors.muted, 0.4) }]}>
             <Text size="xs" color="mutedForeground" weight="800">VETERINÁRIO(A)</Text>
             <Heading size="lg" weight="800">{c.vet_name}</Heading>
           </View>
 
           <View style={styles.rowGrid}>
-            <View style={[styles.detailSection, { flex: 1 }]}>
+            <View style={[styles.detailCard, { flex: 1, backgroundColor: withAlpha(colors.muted, 0.4) }]}>
               <Text size="xs" color="mutedForeground" weight="800">DATA DA CONSULTA</Text>
               <Text weight="700">{c.consulted_at ? format(parseISO(c.consulted_at), 'dd/MM/yyyy') : 'N/A'}</Text>
             </View>
             {c.clinic && (
-              <View style={[styles.detailSection, { flex: 1 }]}>
+              <View style={[styles.detailCard, { flex: 1, backgroundColor: withAlpha(colors.muted, 0.4) }]}>
                 <Text size="xs" color="mutedForeground" weight="800">CLÍNICA</Text>
                 <Text weight="700">{c.clinic}</Text>
               </View>
             )}
           </View>
 
-          <View style={styles.detailSection}>
-            <Text size="xs" color="mutedForeground" weight="800">MOTIVO / QUEIXA</Text>
-            <Text>{c.reason}</Text>
+          {(c.reason || c.diagnosis || c.exams_requested) && (
+            <View style={{ gap: 12 }}>
+              {c.reason && (
+                <View style={[styles.detailCard, { backgroundColor: withAlpha(colors.muted, 0.4) }]}>
+                  <Text size="xs" color="mutedForeground" weight="800">MOTIVO / QUEIXA</Text>
+                  <Text>{c.reason}</Text>
+                </View>
+              )}
+
+              {c.diagnosis && (
+                <View style={[styles.detailCard, { backgroundColor: withAlpha(colors.muted, 0.4) }]}>
+                  <Text size="xs" color="mutedForeground" weight="800">DIAGNÓSTICO</Text>
+                  <Text weight="700">{c.diagnosis}</Text>
+                </View>
+              )}
+
+              {c.exams_requested && (
+                <View style={[styles.detailCard, { backgroundColor: withAlpha(colors.muted, 0.4) }]}>
+                  <Text size="xs" color="mutedForeground" weight="800">EXAMES SOLICITADOS</Text>
+                  <Text>{c.exams_requested}</Text>
+                </View>
+              )}
+            </View>
+          )}
+
+          <View style={{ gap: 12 }}>
+            {c.prescription && (
+              <View style={[styles.detailCard, { backgroundColor: withAlpha(colors.infoContainer, 0.4) }]}>
+                <Text size="xs" color="mutedForeground" weight="800" style={{ marginBottom: 4 }}>RECOMENDAÇÃO / PRESCRIÇÃO</Text>
+                <Text size="sm" weight="600">{c.prescription}</Text>
+              </View>
+            )}
+
+            {c.notes && (
+              <View style={[styles.detailCard, { backgroundColor: withAlpha(colors.muted, 0.6) }]}>
+                <Text size="xs" color="mutedForeground" weight="800" style={{ marginBottom: 4 }}>ANOTAÇÕES</Text>
+                <Text size="sm">"{c.notes}"</Text>
+              </View>
+            )}
           </View>
-
-          {c.diagnosis && (
-            <View style={styles.detailSection}>
-              <Text size="xs" color="mutedForeground" weight="800">DIAGNÓSTICO</Text>
-              <Text weight="700">{c.diagnosis}</Text>
-            </View>
-          )}
-
-          {c.exams_requested && (
-            <View style={styles.detailSection}>
-              <Text size="xs" color="mutedForeground" weight="800">EXAMES SOLICITADOS</Text>
-              <Text>{c.exams_requested}</Text>
-            </View>
-          )}
-
-          {c.prescription && (
-            <View style={[styles.detailSection, { backgroundColor: withAlpha(colors.infoContainer, 0.4), padding: 12, borderRadius: 12 }]}>
-              <Text size="xs" color="mutedForeground" weight="800" style={{ marginBottom: 4 }}>RECOMENDAÇÃO / PRESCRIÇÃO</Text>
-              <Text size="sm" weight="600">{c.prescription}</Text>
-            </View>
-          )}
-
-          {c.notes && (
-            <View style={[styles.detailSection, { backgroundColor: withAlpha(colors.muted, 0.5), padding: 12, borderRadius: 12 }]}>
-              <Text size="xs" color="mutedForeground" weight="800" style={{ marginBottom: 4 }}>ANOTAÇÕES</Text>
-              <Text size="sm">"{c.notes}"</Text>
-            </View>
-          )}
         </View>
       </ScrollView>
 
@@ -555,6 +563,14 @@ const styles = StyleSheet.create({
   modalContent: {
     gap: 16,
     paddingBottom: 24,
+    paddingTop: 12,
+  },
+  detailCard: {
+    gap: 6,
+    padding: 14,
+    borderRadius: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: 'transparent',
   },
   detailSection: {
     gap: 4,

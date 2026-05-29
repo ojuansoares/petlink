@@ -9,7 +9,7 @@ import {
   useWindowDimensions,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { Image } from 'expo-image'
+import { Avatar } from './Avatar'
 import { useNavigation } from '@react-navigation/native'
 import { StackNavigationProp } from '@react-navigation/stack'
 import { api } from '../../api/axios'
@@ -24,6 +24,7 @@ type FollowUser = {
   name: string
   avatar_url: string | null
   bio: string | null
+  level: number
 }
 
 type Props = {
@@ -151,16 +152,14 @@ export function FollowersModal({ visible, onClose, userId, type, title }: Props)
                   onPress={() => handleUserPress(item)}
                 >
                   {item.avatar_url ? (
-                    <Image
+                    <Avatar
+                      name={item.name}
                       source={{ uri: item.avatar_url }}
-                      style={[styles.avatar, { borderColor: colors.border }]}
+                      size={44}
+                      level={item.level}
                     />
                   ) : (
-                    <View style={[styles.avatar, styles.avatarPlaceholder, { backgroundColor: withAlpha(colors.accent, 0.45) }]}>
-                      <Text weight="700" size="sm" style={{ color: colors.accentForeground }}>
-                        {item.name.slice(0, 2).toUpperCase()}
-                      </Text>
-                    </View>
+                    <Avatar name={item.name} size={44} level={item.level} />
                   )}
                   <View style={{ flex: 1, marginLeft: 12 }}>
                     <Text weight="600" size="sm">{item.name}</Text>
@@ -219,15 +218,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 10,
     paddingHorizontal: 20,
-  },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 1.5,
-  },
-  avatarPlaceholder: {
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 })

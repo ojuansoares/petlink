@@ -84,6 +84,7 @@ export function LikesSheet({ visible, onClose, post }: LikesSheetProps) {
             name={item.username ?? item.userId}
             source={item.avatar_url ? { uri: item.avatar_url } : undefined}
             size={36}
+            level={item.level}
           />
           <Text weight="600" size="sm">
             {item.username || item.userId?.slice(0, 8) || 'Usuário'}

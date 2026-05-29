@@ -10,7 +10,7 @@ export type PostCreateInput = {
   location?: string | null
 }
 
-type ProfileInfo = { name: string; avatar_url: string | null }
+type ProfileInfo = { name: string; avatar_url: string | null; level: number }
 type PetInfo = { name: string }
 
 export type EnrichedPost = {
@@ -43,13 +43,13 @@ async function enrichWithProfilesAndPets(
   const postIds = docs.map((d) => d._id)
 
   const [profilesRes, petsRes] = await Promise.all([
-    supabaseAdmin.from('profiles').select('id, name, avatar_url').in('id', authorIds),
+    supabaseAdmin.from('profiles').select('id, name, avatar_url, level').in('id', authorIds),
     supabaseAdmin.from('pets').select('id, name').in('id', petIds),
   ])
 
   const profileMap = new Map<string, ProfileInfo>()
   for (const p of profilesRes.data ?? []) {
-    profileMap.set(p.id, { name: p.name, avatar_url: p.avatar_url })
+    profileMap.set(p.id, { name: p.name, avatar_url: p.avatar_url, level: p.level ?? 1 })
   }
 
   const petMap = new Map<string, PetInfo>()

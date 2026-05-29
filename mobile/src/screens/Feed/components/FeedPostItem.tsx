@@ -32,7 +32,7 @@ export const FeedPostItem = React.memo(({ post, onUserPress, onOptionsPress, onC
     <View style={styles.postContainer}>
       <View style={styles.postHeader}>
         <Pressable style={styles.userInfo} onPress={() => onUserPress(post.author_id)}>
-          <Avatar size={36} name={post.profiles?.name} source={post.profiles?.avatar_url ? { uri: post.profiles.avatar_url } : undefined} />
+          <Avatar size={36} name={post.profiles?.name} source={post.profiles?.avatar_url ? { uri: post.profiles.avatar_url } : undefined} level={post.profiles?.level} />
           <View>
             <Text weight="700" size="sm">{post.profiles?.name}</Text>
             {post.location && (

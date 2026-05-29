@@ -25,6 +25,7 @@ import { Vaccine } from '../data/models'
 import { AppStackParamList } from '../navigation/types'
 import { fetchReminders, ReminderItem } from '../api/reminders.api'
 import { WeeklySummaryCard } from '../components/WeeklySummaryCard'
+import { homeCacheRepository } from '../data/repositories/HomeCacheRepository'
 import { format, parseISO } from 'date-fns'
 
 type NavProp = StackNavigationProp<AppStackParamList>
@@ -79,10 +80,24 @@ export default function HomeScreen() {
             return aDate.localeCompare(bDate)
           })
         setNextVaccine(upcoming[0] || null)
+        homeCacheRepository.saveNextVaccine(activePet.id, vaccines)
       })
-      .catch(() => {
+      .catch(async () => {
         setAllVaccines([])
-        setNextVaccine(null)
+        const cached = await homeCacheRepository.getNextVaccine<Vaccine[]>(activePet.id)
+        if (cached && cached.length > 0) {
+          setAllVaccines(cached)
+          const upcoming = cached
+            .filter(v => !v.is_completed)
+            .sort((a, b) => {
+              const aDate = a.next_dose_at || a.doses?.find(d => !d.applied)?.date || ''
+              const bDate = b.next_dose_at || b.doses?.find(d => !d.applied)?.date || ''
+              return aDate.localeCompare(bDate)
+            })
+          setNextVaccine(upcoming[0] || null)
+        } else {
+          setNextVaccine(null)
+        }
       })
       .finally(() => setVaccinesLoading(false))
   }, [activePet?.id])

@@ -33,6 +33,7 @@ import { tokens, withAlpha } from './src/theme'
 import OnboardingScreen, { OnboardingStep } from './src/screens/OnboardingScreen'
 import { AppLoadingOverlay } from './src/components/ui/AppLoadingOverlay'
 import { AppToast } from './src/components/ui/AppToast'
+import LevelUpProvider from './src/components/LevelUpProvider'
 import {
   configureNotifications,
   createNotificationChannel,
@@ -326,6 +327,12 @@ function AppContent() {
       if (lastConnectionRef.current !== isOnline) {
         lastConnectionRef.current = isOnline
         showConnectivityBanner(isOnline ? 'online' : 'offline')
+        if (isOnline) {
+          const { feedingQueueRepository } = require('./src/data/repositories/FeedingQueueRepository')
+          feedingQueueRepository.processQueue()
+          const { vaccineCacheRepository } = require('./src/data/repositories/VaccineCacheRepository')
+          vaccineCacheRepository.processQueue()
+        }
       }
     }
 
@@ -483,6 +490,8 @@ function AppContent() {
       <AppToast />
 
       <AppLoadingOverlay visible={authLoading && hydrated} message={loadingMessage} />
+
+      <LevelUpProvider />
     </>
   )
 }

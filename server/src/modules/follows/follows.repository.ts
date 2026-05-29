@@ -41,11 +41,11 @@ export const followsRepository = {
   async listFollowers(userId: string, limit = 20, offset = 0) {
     const { data, error, count } = await supabaseAdmin
       .from('follows')
-      .select(
-        `
-          profiles:follower_id (id, name, avatar_url, bio, created_at),
-          created_at
-        `,
+        .select(
+          `
+            profiles:follower_id (id, name, avatar_url, bio, created_at, level),
+            created_at
+          `,
         { count: 'exact' }
       )
       .eq('following_id', userId)
@@ -59,11 +59,11 @@ export const followsRepository = {
   async listFollowing(userId: string, limit = 20, offset = 0) {
     const { data, error, count } = await supabaseAdmin
       .from('follows')
-      .select(
-        `
-          profiles:following_id (id, name, avatar_url, bio, created_at),
-          created_at
-        `,
+        .select(
+          `
+            profiles:following_id (id, name, avatar_url, bio, created_at, level),
+            created_at
+          `,
         { count: 'exact' }
       )
       .eq('follower_id', userId)

@@ -41,7 +41,7 @@ export const likesService = {
     const userIds = [...new Set(data.map((l: any) => l.userId))]
     const { data: profiles } = await supabaseAdmin
       .from('profiles')
-      .select('id, name, avatar_url')
+      .select('id, name, avatar_url, level')
       .in('id', userIds)
 
     const profileMap = new Map((profiles ?? []).map((p: any) => [p.id, p]))
@@ -50,6 +50,7 @@ export const likesService = {
       ...like,
       username: profileMap.get(like.userId)?.name ?? null,
       avatar_url: optimizeCloudinaryUrl(profileMap.get(like.userId)?.avatar_url, 'avatar'),
+      level: profileMap.get(like.userId)?.level ?? 1,
     }))
     return { data: enriched, total, page, limit, hasMore: page * limit < total }
   },

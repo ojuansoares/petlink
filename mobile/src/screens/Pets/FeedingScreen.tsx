@@ -9,7 +9,7 @@ import { useAppDispatch, useAppSelector } from '../../store'
 import {
   fetchFeedingPlanThunk, saveFeedingPlanThunk,
   fetchFeedingLogsThunk, checkMealThunk,
-  fetchFeedingScoreThunk,
+  fetchFeedingScoreThunk, deactivateFeedingPlanThunk,
   selectFeedingPlan, selectFeedingLogs, selectFeedingSaving, selectFeedingLoading,
   selectFeedingScore, selectFeedingScoreLoading,
   type FeedingPlan, type FeedingLog,
@@ -344,6 +344,32 @@ export default function FeedingScreen({ route }: any) {
         }}>
           <Ionicons name="pencil-outline" size={16} color={colors.mutedForeground} />
           <Text size="sm" color="mutedForeground">Editar plano</Text>
+        </Pressable>
+
+        <Pressable
+          style={[styles.editPlanButton, { borderColor: '#EF4444' }]}
+          onPress={() => {
+            Alert.alert(
+              'Desativar plano alimentar',
+              'Todas as refeições e notificações de alimentação do ' + petName + ' serão removidas. Deseja continuar?',
+              [
+                { text: 'Cancelar', style: 'cancel' },
+                {
+                  text: 'Desativar',
+                  style: 'destructive',
+                  onPress: async () => {
+                    await dispatch(deactivateFeedingPlanThunk(petId))
+                    const { cancelFeedingNotifications } = await import('../../services/NotificationService')
+                    await cancelFeedingNotifications(petId)
+                    dispatch(showToast({ type: 'success', title: 'Plano desativado', message: 'O plano alimentar foi removido.' }))
+                  },
+                },
+              ]
+            )
+          }}
+        >
+          <Ionicons name="trash-outline" size={16} color="#EF4444" />
+          <Text size="sm" style={{ color: '#EF4444' }}>Desativar plano</Text>
         </Pressable>
       </ScrollView>
 

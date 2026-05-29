@@ -5,6 +5,7 @@ import { Text } from './Typography'
 import { useTheme } from '../../hooks/useTheme'
 import { useAppDispatch, useAppSelector } from '../../store'
 import { toggleLikeThunk, selectLikedByPostId, selectIsLikeLoading } from '../../store/slices/likesSlice'
+import { selectIsOnline } from '../../store/slices/uiSlice'
 import { formatCount } from '../../utils/formatNumber'
 
 interface LikesButtonProps {
@@ -20,13 +21,15 @@ export function LikesButton({ postId, likesCount, size = 36, initialLiked, onCou
   const dispatch = useAppDispatch()
   const globalLiked = useAppSelector(selectLikedByPostId)[postId]
   const loading = useAppSelector(selectIsLikeLoading(postId))
+  const isOnline = useAppSelector(selectIsOnline)
 
   // Use global state when toggled in this session; fall back to initial from server
   const liked = globalLiked !== undefined ? globalLiked : !!initialLiked
 
   const handlePress = useCallback(() => {
+    if (!isOnline) return
     dispatch(toggleLikeThunk(postId))
-  }, [dispatch, postId])
+  }, [dispatch, postId, isOnline])
 
   if (loading) {
     return (

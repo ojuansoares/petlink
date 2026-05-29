@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import {
   View,
-  ScrollView,
   Pressable,
+  ScrollView,
   ActivityIndicator,
-  RefreshControl,
   StyleSheet,
   Modal,
 } from 'react-native'
@@ -20,6 +19,7 @@ import { Input } from '../components/ui/Input'
 import { OptionSelect } from '../components/ui/OptionSelect'
 import { AppModal } from '../components/ui/AppModal'
 import { ProfileGrid } from '../components/ui/ProfileGrid'
+import { SegmentedTabs } from '../components/ui/SegmentedTabs'
 import { useTheme } from '../hooks/useTheme'
 import { useAppDispatch, useAppSelector } from '../store'
 import { selectProfile, updateProfileThunk } from '../store/slices/profileSlice'
@@ -47,6 +47,9 @@ import { PetBubbleRing } from '../components/ui/PetBubbleRing'
 import { AppToast } from '../components/ui/AppToast'
 import { CreatePostFAB } from '../components/ui/CreatePostFAB'
 import { formatCount } from '../utils/formatNumber'
+import { getLevelColor } from '../utils/levelColors'
+import GamificationSection from '../components/GamificationSection'
+import { fetchGamificationThunk, selectGamification } from '../store/slices/gamificationSlice'
 
 type NavigationProp = StackNavigationProp<AppStackParamList>
 
@@ -98,6 +101,16 @@ export default function ProfileScreen() {
 
   // Followers modal
   const [followModalType, setFollowModalType] = useState<'followers' | 'following' | null>(null)
+  const [profileTab, setProfileTab] = useState<'posts' | 'conquistas'>('posts')
+  const gamificationStats = useAppSelector(selectGamification)
+  const myLevel = gamificationStats?.level
+
+  const handleProfileTabChange = useCallback((tab: string) => {
+    setProfileTab(tab as 'posts' | 'conquistas')
+    if (tab === 'conquistas') {
+      dispatch(fetchGamificationThunk())
+    }
+  }, [dispatch])
 
   useEffect(() => {
     if (currentUser?.id) {
@@ -193,7 +206,7 @@ export default function ProfileScreen() {
       <View style={styles.avatarContainer}>
         <PetBubbleRing pets={pets} avatarSize={140}>
           <Pressable onPress={() => setIsImageExpanded(true)} style={styles.avatarPressable}>
-            <Avatar size={140} name={profile?.name} source={profile?.avatar_url ? { uri: profile.avatar_url } : undefined} />
+            <Avatar size={140} name={profile?.name} level={myLevel} source={profile?.avatar_url ? { uri: profile.avatar_url } : undefined} />
           </Pressable>
         </PetBubbleRing>
         <Pressable onPress={handleStartEdit} style={styles.avatarEditFoot}>
@@ -202,7 +215,14 @@ export default function ProfileScreen() {
         </Pressable>
       </View>
 
-      <Heading size="xl" weight="800" style={styles.name}>{profile?.name}</Heading>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+        <Heading size="xl" weight="800" style={styles.name}>{profile?.name}</Heading>
+        {myLevel && (
+          <View style={[styles.levelPill, { backgroundColor: getLevelColor(myLevel) }]}>
+            <Text size="xs" weight="800" style={{ color: '#fff' }}>Nv. {myLevel}</Text>
+          </View>
+        )}
+      </View>
 
       {profile?.location && (
         <View style={styles.locationRow}>
@@ -234,21 +254,6 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      {pets.length > 1 && posts.length > 0 && (
-        <View style={styles.filterContainer}>
-          <OptionSelect
-            placeholder="Filtrar por Pet"
-            value={selectedPetFilter}
-            onChange={setSelectedPetFilter}
-            options={[
-              { label: 'Todos os posts', value: '' },
-              ...pets.map(p => ({ label: p.name, value: p.id, photoUrl: p.photo_url }))
-            ]}
-            leftIconName="paw-outline"
-            showPhotos
-          />
-        </View>
-      )}
     </View>
   )
 
@@ -276,24 +281,63 @@ export default function ProfileScreen() {
     ? posts.filter(p => p.pet_id === selectedPetFilter)
     : posts
 
+  const renderPetFilter = () => {
+    if (pets.length <= 1 || posts.length === 0) return null
+    return (
+      <View style={styles.filterContainer}>
+        <OptionSelect
+          placeholder="Filtrar por Pet"
+          value={selectedPetFilter}
+          onChange={setSelectedPetFilter}
+          options={[
+            { label: 'Todos os posts', value: '' },
+            ...pets.map(p => ({ label: p.name, value: p.id, photoUrl: p.photo_url }))
+          ]}
+          leftIconName="paw-outline"
+          showPhotos
+        />
+      </View>
+    )
+  }
+
+  const postGridOnPress = (post: any) => {
+    const index = filteredPosts.findIndex((p: any) => p.id === post.id)
+    navigation.navigate('ProfileFeed', {
+      userId: currentUser?.id || '',
+      initialScrollIndex: index,
+      title: 'Minhas Publicações'
+    })
+  }
+
   return (
     <View style={styles.container}>
-      <ProfileGrid
-        posts={filteredPosts}
-        loading={isPostsLoading}
-        onPostPress={(post) => {
-          const index = filteredPosts.findIndex(p => p.id === post.id)
-          navigation.navigate('ProfileFeed', {
-            userId: currentUser?.id || '',
-            initialScrollIndex: index,
-            title: 'Minhas Publicações'
-          })
-        }}
-        ListHeaderComponent={renderHeader()}
-        ListEmptyComponent={renderEmpty()}
-        onRefresh={onRefresh}
-        refreshing={isRefreshing}
+      {renderHeader()}
+
+      <SegmentedTabs
+        options={[
+          { id: 'posts', label: 'Posts' },
+          { id: 'conquistas', label: 'Conquistas' },
+        ]}
+        activeId={profileTab}
+        onChange={handleProfileTabChange}
+        style={{ marginHorizontal: 16 }}
       />
+
+      {profileTab === 'posts' && (
+        <ProfileGrid
+          posts={filteredPosts}
+          loading={isPostsLoading}
+          onPostPress={postGridOnPress}
+          ListHeaderComponent={renderPetFilter}
+          ListEmptyComponent={renderEmpty()}
+          onRefresh={onRefresh}
+          refreshing={isRefreshing}
+        />
+      )}
+
+      {profileTab === 'conquistas' && (
+        <GamificationSection />
+      )}
 
       <AppModal
         visible={isEditModalOpen}
