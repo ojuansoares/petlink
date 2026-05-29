@@ -16,8 +16,8 @@ export type AppStackParamList = {
   SettingsDangerZone: undefined
   PublicProfile: { userId: string }
   ProfileFeed: { userId: string; initialScrollIndex: number; title: string }
-  Vaccine: { petId: string, petName: string }
-  Consultation: { petId: string, petName: string }
+  Vaccine: { petId: string; petName: string; vaccineId?: string }
+  Consultation: { petId: string; petName: string }
   FeedingPlan: { petId: string; petName: string }
   FeedingCheck: { petId: string; petName: string }
 }

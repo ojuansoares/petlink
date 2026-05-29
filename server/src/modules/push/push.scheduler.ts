@@ -21,7 +21,7 @@ async function checkVaccines(): Promise<void> {
       'vaccine_due',
       `Vacina pendente: ${vaccine.name}`,
       `${petName} — a dose venceu em ${vaccine.next_dose_at}`,
-      { screen: 'Vaccine', vaccineId: vaccine.id },
+      { screen: 'Vaccine', vaccineId: vaccine.id, petId: vaccine.pet_id, petName },
     )
 
     await supabaseAdmin
@@ -31,40 +31,9 @@ async function checkVaccines(): Promise<void> {
   }
 }
 
-async function checkMedications(): Promise<void> {
-  const today = new Date().toISOString().split('T')[0]
-
-  const { data: meds, error } = await supabaseAdmin
-    .from('medication_reminders')
-    .select('id, name, dosage, times, pets!inner(owner_id, name)')
-    .eq('is_active', true)
-    .lte('start_date', today)
-    .or(`end_date.gte.${today},end_date.is.null`)
-
-  if (error || !meds?.length) return
-
-  for (const med of meds) {
-    const petData = (med as any).pets
-    const petName = petData?.name ?? 'Pet'
-    const ownerId = petData?.owner_id
-    if (!ownerId) continue
-
-    const dosageText = med.dosage ? ` (${med.dosage})` : ''
-
-    await sendPush(
-      ownerId,
-      'medication',
-      `Medicação: ${med.name}`,
-      `Hora de medicar ${petName}${dosageText}`,
-      { screen: 'Medication', medicationId: med.id },
-    )
-  }
-}
-
 export function startPushScheduler(): void {
   cron.schedule('0 8 * * *', () => {
     checkVaccines()
-    checkMedications()
   })
 
   console.log('Push scheduler started (daily at 08:00)')

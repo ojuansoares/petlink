@@ -3,7 +3,7 @@ import { supabaseAdmin } from '../../config/supabase'
 export type AppNotification = {
   id:       string
   user_id:  string
-  type:     'vaccine_due' | 'medication' | 'geofence' | 'social'
+  type:     'vaccine_due' | 'geofence' | 'social'
   title:    string
   body:     string | null
   data:     Record<string, unknown> | null

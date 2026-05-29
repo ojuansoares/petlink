@@ -39,14 +39,16 @@ import { scheduleVaccineNotifications } from '../../../services/NotificationServ
 interface CalendarProps {
   petId: string
   petName: string
+  birthDate?: string | null
 }
 
 type CalendarEvent =
   | { type: 'vaccine'; id: string; date: Date; name: string; original: Vaccine; doseIndex: number }
   | { type: 'dewormer'; id: string; date: Date; name: string; original: Vaccine; doseIndex: number }
   | { type: 'consultation'; id: string; date: Date; name: string; original: Consultation }
+  | { type: 'birthday'; id: string; date: Date; name: string; original: null; doseIndex: number }
 
-export function Calendar({ petId, petName }: CalendarProps) {
+export function Calendar({ petId, petName, birthDate }: CalendarProps) {
   const { colors, withAlpha, isDark } = useTheme()
 
   const [currentMonth, setCurrentMonth] = useState(new Date())
@@ -112,6 +114,21 @@ export function Calendar({ petId, petName }: CalendarProps) {
           })
         }
       })
+
+      // Map Birthday
+      if (birthDate) {
+        const birth = parseISO(birthDate)
+        if (!isNaN(birth.getTime())) {
+          mappedEvents.push({
+            type: 'birthday' as any,
+            id: 'birthday',
+            date: new Date(new Date().getFullYear(), birth.getMonth(), birth.getDate()),
+            name: `🎂 Aniversário do ${petName}`,
+            original: null as any,
+            doseIndex: 0,
+          })
+        }
+      }
 
       setEvents(mappedEvents)
     } catch (err) {
@@ -194,7 +211,7 @@ export function Calendar({ petId, petName }: CalendarProps) {
         next_dose_at: firstUnapplied ? firstUnapplied.date : undefined,
         is_completed: allApplied,
       })
-      setEvents(prev => prev.map(e => e.original.id === v.id ? { ...e, original: updated } as CalendarEvent : e))
+      setEvents(prev => prev.map(e => e.original && (e.original as any).id === v.id ? { ...e, original: updated } as CalendarEvent : e))
       setSelectedEvent(prev => prev ? { ...prev, original: updated } as CalendarEvent : null)
 
       // reagenda notificações de vacinas/vermífugos
@@ -460,6 +477,7 @@ export function Calendar({ petId, petName }: CalendarProps) {
             const hasVaccine = dayEvents.some((e) => e.type === 'vaccine')
             const hasDewormer = dayEvents.some((e) => e.type === 'dewormer')
             const hasConsultation = dayEvents.some((e) => e.type === 'consultation')
+            const hasBirthday = dayEvents.some((e) => e.type === 'birthday')
 
             return (
               <Pressable
@@ -492,6 +510,7 @@ export function Calendar({ petId, petName }: CalendarProps) {
                   {hasVaccine && <View style={[styles.dot, { backgroundColor: colors.primary }]} />}
                   {hasDewormer && <View style={[styles.dot, { backgroundColor: '#f97316' }]} />}
                   {hasConsultation && <View style={[styles.dot, { backgroundColor: colors.info }]} />}
+                  {hasBirthday && <Ionicons name={'cake' as any} size={10} color="#EC4899" />}
                 </View>
               </Pressable>
             )
@@ -537,6 +556,11 @@ export function Calendar({ petId, petName }: CalendarProps) {
                 iconName = 'pulse-outline'
                 color = colors.info
                 subtitle = 'Consulta Veterinária'
+              } else if (item.type === 'birthday') {
+                iconName = 'cake' as any
+                color = '#EC4899'
+                subtitle = 'Aniversário do pet'
+                isDone = true
               }
               
               const itemColor = isPastDue ? colors.destructive : color

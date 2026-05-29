@@ -42,6 +42,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { AppStackParamList } from '../navigation/types';
+import { scheduleBirthdayNotifications } from '../services/NotificationService';
 
 import { usePetsStyles } from './Pets/usePetsStyles'
 import { PetListSelector } from './Pets/components/PetListSelector'
@@ -258,7 +259,7 @@ export default function PetsScreen() {
       }
 
       try {
-        await dispatch(createPetThunk({
+        const createdPet = await dispatch(createPetThunk({
           name: name.trim(),
           species: finalSpecies,
           breed: breed.trim() || null,
@@ -270,6 +271,9 @@ export default function PetsScreen() {
           observations: observations.trim() || null,
         })).unwrap()
         dispatch(showToast({ type: 'success', title: 'Pet', message: 'Pet cadastrado!' }))
+        if (birthDate.trim()) {
+          scheduleBirthdayNotifications(createdPet.id, createdPet.name, birthDate.trim())
+        }
         setIsFlowOpen(false)
         resetForm()
       } catch (err) {
@@ -539,7 +543,7 @@ export default function PetsScreen() {
                 }}
               />
 
-               <Calendar petId={activePet.id} petName={activePet.name} />
+                <Calendar petId={activePet.id} petName={activePet.name} birthDate={activePet.birth_date} />
 
               {(activePet.observations || activePet.allergies) && (
                 <View style={styles.extraSection}>

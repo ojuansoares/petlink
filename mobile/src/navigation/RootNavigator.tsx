@@ -14,6 +14,7 @@ import PublicProfileScreen from '../screens/PublicProfileScreen'
 import ProfileFeedScreen from '../screens/ProfileFeedScreen'
 import SearchScreen from '../screens/SearchScreen'
 import { AppStackParamList } from './types'
+import { navigationRef } from './navigationRef'
 import { VaccineScreen } from '../screens/Pets/VaccineScreen';
 import { ConsultationScreen } from '../screens/Pets/ConsultationScreen';
 import FeedingScreen from '../screens/Pets/FeedingScreen';
@@ -173,6 +174,7 @@ export default function RootNavigator() {
 
   return (
     <NavigationContainer
+      ref={navigationRef}
       theme={{
         ...baseTheme,
         colors: {

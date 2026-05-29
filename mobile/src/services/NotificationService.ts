@@ -186,6 +186,15 @@ export async function restoreScheduledNotifications() {
     }
   }
 
+  // recupera aniversários
+  const birthdayBackup = await AsyncStorage.getItem(BIRTHDAY_BACKUP_KEY)
+  if (birthdayBackup) {
+    const entries: BirthdayBackupEntry[] = JSON.parse(birthdayBackup)
+    for (const entry of entries) {
+      await scheduleBirthdayNotifications(entry.petId, entry.petName, entry.birthDate)
+    }
+  }
+
   await AsyncStorage.setItem(NOTIF_VERSION_KEY, CURRENT_NOTIF_VERSION)
 }
 
@@ -361,7 +370,95 @@ export async function setupNotificationCategories() {
   ])
 }
 
-// ─── Handler de ações de notificações de vacina ────────────────
+// ─── Aniversário: agendar notificações ─────────────────────────
+const BIRTHDAY_NOTIF_IDS_KEY = 'petlink.birthday.notification.ids'
+const BIRTHDAY_BACKUP_KEY = 'petlink.birthday.plans_backup'
+
+type BirthdayBackupEntry = {
+  petId: string
+  petName: string
+  birthDate: string // YYYY-MM-DD
+}
+
+function getNextBirthdayDate(birthDate: string): Date | null {
+  if (!birthDate) return null
+  const birth = new Date(birthDate + 'T00:00:00')
+  if (isNaN(birth.getTime())) return null
+
+  const now = new Date()
+  const next = new Date(now.getFullYear(), birth.getMonth(), birth.getDate())
+
+  if (next <= now) {
+    next.setFullYear(next.getFullYear() + 1)
+  }
+
+  return next
+}
+
+export async function scheduleBirthdayNotifications(
+  petId: string,
+  petName: string,
+  birthDate: string
+) {
+  const notifEnabled = await AsyncStorage.getItem('petlink.notifications.enabled')
+  if (notifEnabled === 'false') return
+
+  await cancelBirthdayNotifications(petId)
+
+  const nextBirthday = getNextBirthdayDate(birthDate)
+  if (!nextBirthday) return
+
+  const ids: string[] = []
+
+  const milestones = [
+    { label: '30 dias antes', daysBefore: 30 },
+    { label: '7 dias antes', daysBefore: 7 },
+    { label: '🎂 Hoje é o aniversário!', daysBefore: 0 },
+  ]
+
+  for (const ms of milestones) {
+    const target = new Date(nextBirthday)
+    target.setDate(target.getDate() - ms.daysBefore)
+
+    if (target <= new Date()) continue
+
+    const id = await Notifications.scheduleNotificationAsync({
+      content: {
+        title: ms.daysBefore === 0 ? `🎂 ${petName} faz aniversário hoje!` : `🎉 Aniversário do ${petName}`,
+        body: ms.daysBefore === 0
+          ? `Parabéns ${petName}! 🐾`
+          : `Faltam ${ms.daysBefore} dias para o aniversário do ${petName}!`,
+        data: { type: 'birthday', petId, petName },
+        sound: 'default',
+      },
+      trigger: { type: 'date', date: target.getTime(), channelId: 'default' } as DateTriggerInput,
+    })
+    ids.push(id)
+  }
+
+  const stored = JSON.parse((await AsyncStorage.getItem(BIRTHDAY_NOTIF_IDS_KEY)) || '{}')
+  stored[petId] = ids
+  await AsyncStorage.setItem(BIRTHDAY_NOTIF_IDS_KEY, JSON.stringify(stored))
+
+  const backupRaw = JSON.parse((await AsyncStorage.getItem(BIRTHDAY_BACKUP_KEY)) || '[]') as BirthdayBackupEntry[]
+  const entry = { petId, petName, birthDate }
+  const idx = backupRaw.findIndex(e => e.petId === petId)
+  if (idx >= 0) backupRaw[idx] = entry
+  else backupRaw.push(entry)
+  await AsyncStorage.setItem(BIRTHDAY_BACKUP_KEY, JSON.stringify(backupRaw))
+}
+
+export async function cancelBirthdayNotifications(petId: string) {
+  const stored = JSON.parse((await AsyncStorage.getItem(BIRTHDAY_NOTIF_IDS_KEY)) || '{}')
+  const ids = stored[petId]
+  if (ids?.length) {
+    for (const id of ids) {
+      await Notifications.cancelScheduledNotificationAsync(id)
+    }
+  }
+  delete stored[petId]
+  await AsyncStorage.setItem(BIRTHDAY_NOTIF_IDS_KEY, JSON.stringify(stored))
+}
 import { getVaccineById, getVaccinesByPetId, updateVaccine } from '../api/vaccine.api'
 
 export async function handleVaccineNotificationAction(

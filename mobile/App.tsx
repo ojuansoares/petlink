@@ -45,6 +45,7 @@ import {
   handleVaccineNotificationAction,
   handleFeedingNotificationAction,
 } from './src/services/NotificationService'
+import { navigateFromNotification } from './src/navigation/navigationRef'
 
 LogBox.ignoreLogs([
   'InteractionManager has been deprecated',
@@ -373,11 +374,42 @@ function AppContent() {
     initPushNotifications()
 
     const sub = addNotificationResponseReceivedListener((data, actionId, notificationId) => {
-      if (!actionId) return
-      if (data.type === 'vaccine') {
-        handleVaccineNotificationAction(actionId, data as Record<string, unknown>, notificationId)
-      } else if (data.type === 'feeding') {
-        handleFeedingNotificationAction(actionId, data as Record<string, unknown>, notificationId)
+      if (actionId) {
+        if (data.type === 'vaccine') {
+          handleVaccineNotificationAction(actionId, data as Record<string, unknown>, notificationId)
+        } else if (data.type === 'feeding') {
+          handleFeedingNotificationAction(actionId, data as Record<string, unknown>, notificationId)
+        }
+        return
+      }
+
+      const navData = data as Record<string, unknown>
+      const type = navData.type as string | undefined
+      const screen = navData.screen as string | undefined
+
+      if (type === 'vaccine' || type === 'vaccine_due') {
+        const petId = navData.petId as string | undefined
+        const petName = navData.petName as string | undefined
+        const vaccineId = navData.vaccineId as string | undefined
+        if (petId && petName) {
+          navigateFromNotification('Vaccine', { petId, petName, vaccineId })
+        }
+      } else if (type === 'feeding') {
+        const petId = navData.petId as string | undefined
+        const petName = navData.petName as string | undefined
+        if (petId && petName) {
+          navigateFromNotification('FeedingPlan', { petId, petName })
+        }
+      } else if (screen === 'PublicProfile') {
+        const userId = navData.userId as string | undefined
+        if (userId) {
+          navigateFromNotification('PublicProfile', { userId })
+        }
+      } else if (screen === 'Post') {
+        const userId = navData.userId as string | undefined
+        if (userId) {
+          navigateFromNotification('PublicProfile', { userId })
+        }
       }
     })
 

@@ -22,7 +22,7 @@ export const likesService = {
           'social',
           'Nova curtida',
           `${profile?.name ?? 'Alguém'} curtiu seu post`,
-          { screen: 'Post', postId },
+          { screen: 'Post', postId, userId: post.authorId },
         )
       }
     }

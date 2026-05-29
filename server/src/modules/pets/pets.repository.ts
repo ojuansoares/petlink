@@ -221,13 +221,6 @@ export const petsRepository = {
 
     if (calendarDeleteError) throw calendarDeleteError
 
-    const { error: remindersDeleteError } = await supabaseAdmin
-      .from('medication_reminders')
-      .delete()
-      .eq('pet_id', petId)
-
-    if (remindersDeleteError) throw remindersDeleteError
-
     const { error: vaccinesDeleteError } = await supabaseAdmin
       .from('vaccines')
       .delete()

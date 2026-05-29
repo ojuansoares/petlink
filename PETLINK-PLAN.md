@@ -4,7 +4,7 @@
 
 | Banco | Função | Tabelas/Collections |
 |-------|--------|---------------------|
-| **Supabase (PostgreSQL)** | Dados estruturados com integridade referencial + RLS | profiles, pets, vaccines, weight_records, consultations, consultations_attachments, medication_reminders, feeding_plans, feeding_logs, walks, follows, calendar_events, groups, group_members, group_posts, notifications, push_tokens |
+| **Supabase (PostgreSQL)** | Dados estruturados com integridade referencial + RLS | profiles, pets, vaccines, weight_records, consultations, consultations_attachments, feeding_plans, feeding_logs, walks, follows, calendar_events, groups, group_members, group_posts, notifications, push_tokens |
 | **MongoDB Atlas** | Dados de alto volume, schema flexível, geoespacial | posts, comments, likes, comment_likes, locations (2dsphere), reviews, checkins |
 
 **Fluxo:**
@@ -98,13 +98,10 @@ server/src/
 
 | # | Tarefa | Prioridade |
 |---|--------|------------|
-| H1 | **Dashboard do pet ativo**: foto, nome, espécie, peso atual, próxima vacina — puxado do Redux (pets + health) | Alta |
-| H2 | **Lembretes reais**: buscar do backend (`GET /reminders` ou similar) com base no pet ativo — vacinas vencendo, medicação, consultas | Alta |
-| H3 | **Quick actions**: botões de ação rápida — "Criar post", "Iniciar passeio", "Registrar peso", "Agendar consulta" | Alta |
-| H4 | **Resumo da semana**: stats do pet ativo — passeios essa semana, passos (se disponível), peso | Média |
-| H5 | **Feed de atividades recentes**: últimas curtidas, comentários, seguidores novos — feed de notificações/social resumido | Média |
-| H6 | **Banner dinâmico**: dica do dia variável (clima, estação, data comemorativa pet) via backend ou lógica local | Baixa |
-| H7 | **Empty state inteligente**: se o usuário não tem pet, mostra CTA pra cadastrar. Se tem mas sem dados, mostra onboarding gentil | Alta |
+| H1 | **Dashboard do pet ativo**: foto, nome, espécie, peso atual, próxima vacina — puxado do Redux (pets + health) | ✅ |
+| H2 | **Lembretes reais**: endpoint `GET /reminders` no servidor — vacinas vencendo/próximas + consultas futuras. Consumido na Home. | ✅ |
+| H3 | **Quick actions**: botões de ação rápida — "Criar post", "Registrar peso", "Agendar consulta", "Alimentação" | ✅ |
+| H7 | **Empty state inteligente**: se não tem pet, CTA pra cadastrar. Se tem pet sem dados, onboarding gentil | ✅ |
 | H8 | **Responsividade**: adaptar layout para diferentes tamanhos de tela (ScrollView com seções flexíveis, sem hardcoded heights) | Alta |
 
 ### Mobile (Expo + React Native) — Demais features
@@ -132,6 +129,8 @@ server/src/
 - [x] LikesSheet: loadingListByPostId distingue loading de empty
 - [x] PublicProfileScreen: RefreshControl (pull-to-reload perfil/posts/pets/follow)
 - [x] ProfileFeedScreen: ícones like/comentário size=26 (consistente com FeedPostItem)
+- [x] Ações em notificações: vacina (✅ marcar aplicada, ⏰ lembrar amanhã) e alimentação (✅ já alimentei)
+- [x] Deep links em notificações: ao tap, navega para tela correta (Vacina + detail, Alimentação, Perfil Público)
 
 ## Backend (Express)
 
@@ -152,18 +151,30 @@ server/src/
 ### Servidor
 | Arquivo | Mudança |
 |---------|---------|
-| `src/modules/posts/posts.service.ts` | Adicionado `groupAndShuffleByDay`: agrupa posts por dia e shuffle dentro do dia (Fisher-Yates). Aplicado em getFeed e getFollowed. |
-| `src/modules/posts/posts.repository.ts` | Removido `$sample` (random per-request) e `getDailyOffset`. Feed volta a usar sort `createdAt: -1`. |
-| `src/modules/posts/posts.controller.ts` | Removido parâmetro `random` da query. |
+| `src/modules/push/push.scheduler.ts` | Removeu `checkMedications()`; adicionou `petId`/`petName` ao payload de vacina |
+| `src/modules/push/push.service.ts` | Removeu `'medication'` do union type |
+| `src/modules/notifications/notifications.repository.ts` | Removeu `'medication'` do union type |
+| `src/modules/pets/pets.repository.ts` | Removeu delete de `medication_reminders` |
+| `src/modules/likes/likes.service.ts` | Push de like agora envia `{ screen: 'Post', postId, userId }` |
+| `src/modules/comments/comments.service.ts` | Push de comentário agora envia `{ screen: 'Post', postId, userId }` |
 
 ### Mobile
 | Arquivo | Mudança |
 |---------|---------|
-| `src/components/ui/CommentSheet.tsx` | `handleUserPress` com `requestAnimationFrame` após `onClose()` para evitar race condition na navegação. Keyboard via `addListener` + `marginBottom`. |
-| `src/components/ui/LikesSheet.tsx` | `handleUserPress` com `requestAnimationFrame`. `loadingListByPostId` no slice para distinguir loading de empty. |
-| `src/screens/PublicProfileScreen.tsx` | RefreshControl adicionado (recarrega perfil, posts, pets, follow status). |
-| `src/screens/ProfileFeedScreen.tsx` | Ícones like/comentário `size={26}`, `gap: 16`, `gap: 6` (consistente com FeedPostItem). |
-| `src/store/slices/postsSlice.ts` | Removido `random=true` das URLs de feed. |
+| `src/services/NotificationService.ts` | Feeding: corrigido response shape (`res.data` é array direto). Adicionado `FEEDING_CATEGORY_ID`, `handleFeedingNotificationAction`, dismiss após ação. |
+| `src/navigation/navigationRef.ts` | **Novo** — `createNavigationContainerRef` + helper `navigateFromNotification()` |
+| `src/navigation/RootNavigator.tsx` | `NavigationContainer` agora usa `ref={navigationRef}` |
+| `src/navigation/types.ts` | `Vaccine` params aceita `vaccineId?: string` |
+| `App.tsx` | Handler trata tap simples (navegação) + botões de ação |
+| `src/screens/Pets/VaccineScreen.tsx` | Auto-abre detail modal se `vaccineId` vier nos params |
+| `src/screens/FeedingScreen.tsx` | Ajustes de layout |
+| `src/screens/HomeScreen.tsx` | **H1 Dashboard**: card do pet ativo. **H7 Empty state**: sem pet → CTA; pet sem dados → onboarding. **H2 Lembretes reais**: renderiza dinamicamente do `GET /reminders`. **Banner carrossel**: auto-rotação 4s + dots + swipe manual |
+| `src/api/reminders.api.ts` | **Novo** — `fetchReminders()` que chama `GET /reminders` |
+| `server/src/modules/reminders/` | **Novo** — módulo com rota `GET /reminders` que consolida vacinas pendentes + consultas futuras de todos os pets do user |
+| `server/src/app.ts` | Registra rota `/reminders` |
+| `src/services/NotificationService.ts` | **Birthday**: `scheduleBirthdayNotifications()`, `cancelBirthdayNotifications()`, integrado ao `restoreScheduledNotifications()` |
+| `src/screens/PetsScreen.tsx` | Chama `scheduleBirthdayNotifications()` após criar pet; passou `birthDate` ao `<Calendar>` |
+| `src/screens/Pets/components/Calendar.tsx` | `birthDate` prop → evento de aniversário no calendário com cake icon (#EC4899) na grade + lista |
 
 ---
 
@@ -293,7 +304,7 @@ server/src/
 | 40 | Instalar `expo-server-sdk` e `node-cron` | ✅ | server/package.json |
 | 41 | Adicionar `EXPO_ACCESS_TOKEN` ao `env.ts` | ⏭️ | Não necessário — Expo Push API não requer token |
 | 42 | Criar módulo `push/` com `push.service.ts` | ✅ | `sendPush()`: busca token, envia via Expo, trata DeviceNotRegistered, salva notificação |
-| 43 | Criar `push.scheduler.ts` | ✅ | Cron diário 08:00 — vacinas vencendo (`notified=false`) + medicações ativas |
+| 43 | Criar `push.scheduler.ts` | ✅ | Cron diário 08:00 — vacinas vencendo (`notified=false`) |
 | 44 | Gatilho social: like | ✅ | `likes.service.ts` → push pro autor do post |
 | 45 | Gatilho social: comentário | ✅ | `comments.service.ts` → push pro autor do post |
 | 46 | Gatilho social: seguir | ✅ | `follows.service.ts` → push pra quem foi seguido |
@@ -443,13 +454,23 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=
 
 ## Próximos passos (prioritário)
 
-### Fase atual — Home Screen (H1 a H8)
+**✅ Concluídos:**
+- **H1 — Dashboard do pet ativo**: card com foto, nome, espécie, peso, próxima vacina
+- **H7 — Empty state inteligente**: sem pet → CTA cadastro; pet sem dados → onboarding
+- **H2 — Lembretes reais**: endpoint `GET /reminders` consumido na HomeScreen
+- **H3 — Quick actions**: Criar post, Registrar peso, Agendar consulta, Alimentação
+- **H6 — Birthday notifications + calendário**: notificações 30d/7d/dia do aniversário + evento no calendário com cake icon
+- **Banner carrossel**: auto-rotação 4s + dots indicadores + swipe manual
+- **Action buttons notificação**: "Já alimentei" feeding + deep links (vacina detail, feeding, perfil público)
+- **Deep links**: navigationRef + navegação correta ao tap na notificação
 
-**Fase 3 — FCM / EAS Build (itens 51 a 54) - ✅ CONCLUÍDO**
+**Pendentes:**
 
-**Home Screen (H1 a H8)**
-1. H1 — Header com saudação e avatar
-2. H2 — Barra de pesquisa
+| # | Tarefa | Descrição | Prioridade |
+|---|--------|-----------|------------|
+| H4 | **Resumo da semana** | Card na HomeScreen com stats dos últimos 7 dias: total de refeições, variação de peso, próximas vacinas/consultas da semana. Puxar de múltiplos endpoints (weights, feeding_logs, vaccines, consultations) e agregar. | Média |
+| H5 | **Feed de atividades** | Timeline cronológica de tudo do pet: posts criados, pesos registrados, vacinas aplicadas, consultas realizadas. Ícone + data + descrição por evento. Ordenação por data descendente. | Média |
+| H8 | **Responsividade** | Adaptar layouts para tablets/telas grandes. Substituir valores fixos por `useWindowDimensions`, FlexBox, grid adaptável. Garantir usabilidade em landscape. | Alta |
 
 ---
 
@@ -607,7 +628,7 @@ npx expo run:android
 ```
 
 Se o ADB estiver quebrado:
-```bash
+```bsh
 ANDROID_ADB_SERVER_PORT=5040 adb -P 5040 nodaemon server &
 ANDROID_ADB_SERVER_PORT=5040 npx expo run:android
 ```

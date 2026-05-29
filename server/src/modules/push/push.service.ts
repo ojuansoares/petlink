@@ -20,7 +20,7 @@ async function deletePushToken(userId: string): Promise<void> {
 
 async function saveNotification(
   userId: string,
-  type: 'vaccine_due' | 'medication' | 'geofence' | 'social',
+  type: 'vaccine_due' | 'geofence' | 'social',
   title: string,
   body: string | null,
   data: Record<string, unknown> | null,
@@ -37,7 +37,7 @@ async function saveNotification(
 
 export async function sendPush(
   userId: string,
-  type: 'vaccine_due' | 'medication' | 'geofence' | 'social',
+  type: 'vaccine_due' | 'geofence' | 'social',
   title: string,
   body: string | null,
   data: Record<string, unknown> | null = null,

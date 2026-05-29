@@ -46,7 +46,7 @@ export const commentsService = {
         'social',
         'Novo comentário',
         `${profile?.name ?? 'Alguém'} comentou no seu post`,
-        { screen: 'Post', postId },
+        { screen: 'Post', postId, userId: post.authorId },
       )
     }
 

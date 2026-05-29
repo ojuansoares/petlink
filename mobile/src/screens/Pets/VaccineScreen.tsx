@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
@@ -32,7 +32,7 @@ export function VaccineScreen() {
   const { colors, withAlpha } = useTheme();
   const user = useSelector(selectUser);
   const route = useRoute<VaccineScreenRouteProp>();
-  const { petId, petName } = route.params;
+  const { petId, petName, vaccineId } = route.params;
 
   const [activeTab, setActiveTab] = useState('vaccine');
   const [items, setItems] = useState<Vaccine[]>([]);
@@ -85,6 +85,17 @@ export function VaccineScreen() {
   useEffect(() => {
     fetchItems();
   }, [fetchItems]);
+
+  const autoOpenedRef = useRef(false)
+
+  useEffect(() => {
+    if (!vaccineId || !items.length || autoOpenedRef.current) return
+    const match = items.find(i => i.id === vaccineId)
+    if (match) {
+      autoOpenedRef.current = true
+      handleOpenDetail(match)
+    }
+  }, [vaccineId, items])
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
