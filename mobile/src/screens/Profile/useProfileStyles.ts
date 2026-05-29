@@ -84,11 +84,22 @@ export const useProfileStyles = makeStyles((theme) => ({
      borderWidth: 2,
      borderColor: theme.colors.primary,
    },
-   // Grid
+    // Grid
   filterContainer: {
-    paddingHorizontal: 16,
-    paddingBottom: 12,
+    paddingVertical: 8,
   },
+  petChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 20,
+  },
+  petChipActive: {
+    backgroundColor: theme.withAlpha(theme.colors.primary, 0.08),
+  },
+
   // Modals
   editForm: {
     padding: 16,
