@@ -1,10 +1,10 @@
 <div align="center">
 
-<img src="mobile/src/assets/icon.png" alt="PetLink Logo" width="96" />
-
-# PetLink
+<img src="mobile/src/assets/icon.png" alt="PetLink Logo" width="48" style="vertical-align: middle; margin-right: 12px" /> <span style="font-size: 2em; font-weight: 800;">PetLink</span>
 
 **Gestão de saúde animal e rede social para tutores de pets**
+
+<img src="https://github.com/user-attachments/assets/2249db09-db89-49b2-98dd-2617bf27188f" width="200" alt="PetLink Screenshot 1" /> <img src="https://github.com/user-attachments/assets/7edddeb3-355a-4e46-8274-eb5e91970cb1" width="200" alt="PetLink Screenshot 2" /> <img src="https://github.com/user-attachments/assets/bc0147a5-ba92-40e2-85eb-2e8153ca6bc8" width="200" alt="PetLink Screenshot 3" />
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/) [![React Native](https://img.shields.io/badge/React_Native-20232A?style=flat-square&logo=react&logoColor=61DAFB)](https://reactnative.dev/) [![Expo](https://img.shields.io/badge/Expo-000020?style=flat-square&logo=expo&logoColor=white)](https://expo.dev/) [![Redux](https://img.shields.io/badge/Redux_Toolkit-764ABC?style=flat-square&logo=redux&logoColor=white)](https://redux-toolkit.js.org/) [![Node.js](https://img.shields.io/badge/Node.js-339933?style=flat-square&logo=nodedotjs&logoColor=white)](https://nodejs.org/) [![Express](https://img.shields.io/badge/Express-000000?style=flat-square&logo=express&logoColor=white)](https://expressjs.com/) [![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?style=flat-square&logo=supabase&logoColor=white)](https://supabase.com/) [![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=flat-square&logo=mongodb&logoColor=white)](https://www.mongodb.com/) [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white)](https://www.postgresql.org/) [![Cloudinary](https://img.shields.io/badge/Cloudinary-3448C5?style=flat-square&logo=cloudinary&logoColor=white)](https://cloudinary.com/) [![Firebase](https://img.shields.io/badge/Firebase-FFCA28?style=flat-square&logo=firebase&logoColor=black)](https://firebase.google.com/) [![Axios](https://img.shields.io/badge/Axios-5A29E4?style=flat-square&logo=axios&logoColor=white)](https://axios-http.com/)
 
