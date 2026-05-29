@@ -15,6 +15,8 @@ import ProfileScreen from '../screens/ProfileScreen'
 import { useAppDispatch, useAppSelector } from '../store'
 import { selectUser } from '../store/slices/authSlice'
 import { fetchMyProfileThunk, selectProfile } from '../store/slices/profileSlice'
+import { fetchPetsThunk } from '../store/slices/petsSlice'
+import { fetchGamificationThunk, selectGamification } from '../store/slices/gamificationSlice'
 
 type AppTabsParamList = {
   Home: undefined
@@ -60,6 +62,7 @@ function HeaderActions() {
   const { colors } = useTheme()
   const user = useAppSelector(selectUser)
   const profile = useAppSelector(selectProfile)
+  const gamificationStats = useAppSelector(selectGamification)
 
   const avatarName = profile?.name ?? user?.name ?? 'Usuario'
   const avatarSource = profile?.avatar_url ? { uri: profile.avatar_url } : undefined
@@ -87,7 +90,7 @@ function HeaderActions() {
         accessibilityRole="button"
         accessibilityLabel="Abrir perfil"
       >
-        <Avatar name={avatarName} source={avatarSource} size={34} />
+        <Avatar name={avatarName} source={avatarSource} size={34} level={gamificationStats?.level} />
       </Pressable>
 
       <Pressable
@@ -243,6 +246,8 @@ export default function AppTabs() {
 
   React.useEffect(() => {
     dispatch(fetchMyProfileThunk())
+    dispatch(fetchPetsThunk())
+    dispatch(fetchGamificationThunk())
   }, [dispatch])
 
   return (

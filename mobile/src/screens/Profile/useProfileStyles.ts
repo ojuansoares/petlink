@@ -56,9 +56,7 @@ export const useProfileStyles = makeStyles((theme) => ({
      width: '100%',
      paddingVertical: 16,
      borderTopWidth: 1,
-     borderBottomWidth: 1,
      borderColor: theme.colors.border,
-     marginBottom: 16,
    },
    statItem: {
      alignItems: 'center',
@@ -127,9 +125,10 @@ export const useProfileStyles = makeStyles((theme) => ({
     margin: 16,
   },
   levelPill: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 2,
   },
   miniBadgesRow: {
     flexDirection: 'row',

@@ -6,7 +6,7 @@ import { Heading, Text } from '../../../components/ui/Typography'
 import { Pet } from '../../../store/slices/petsSlice'
 import { usePetsStyles } from '../usePetsStyles'
 import { useTheme } from '../../../hooks/useTheme'
-import { sharePet } from '../../../utils/shareLink'
+
 
 interface PetDetailsCardProps {
   pet: Pet
@@ -130,19 +130,13 @@ export function PetDetailsCard({
           </View>
         )}
 
-        <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-          <Pressable onPress={onEditAvatar} style={styles.avatarEditFoot}>
-            <Ionicons name="create-outline" size={18} color={colors.primary} />
-            <Text weight="700">Editar</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => sharePet(pet.owner_id, pet.id, pet.name)}
-            style={[styles.avatarEditFoot, { backgroundColor: colors.muted }]}
-          >
-            <Ionicons name="share-outline" size={18} color={colors.primary} />
-            <Text weight="700">Compartilhar</Text>
-          </Pressable>
-        </View>
+        <Pressable
+          onPress={onEditAvatar}
+          style={[styles.avatarEditFoot, { alignSelf: 'center' }]}
+        >
+          <Ionicons name="create-outline" size={18} color={colors.primary} />
+          <Text weight="700">Editar</Text>
+        </Pressable>
       </View>
 
       <View style={styles.heroSection}>

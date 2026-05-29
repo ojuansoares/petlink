@@ -11,18 +11,20 @@ export const gamificationController = {
       const stats = await gamificationService.getMyStats(authReq.user.id)
       return res.json(stats)
     } catch (err: any) {
-      return res.status(err.statusCode ?? 500).json({ error: err.message ?? 'Erro' })
+      console.error('[Gamification] getMyStats error:', err)
+      return res.status(err.statusCode ?? 500).json({ error: err.message ?? 'Erro interno' })
     }
   },
 
   async getUserStats(req: Request, res: Response) {
     try {
-      const { userId } = req.params
+      const { userId } = req.params as { userId: string }
       if (!userId) return res.status(400).json({ error: 'userId é obrigatório' })
       const stats = await gamificationService.getPublicStats(userId)
       return res.json(stats)
     } catch (err: any) {
-      return res.status(err.statusCode ?? 500).json({ error: err.message ?? 'Erro' })
+      console.error('[Gamification] getUserStats error:', err)
+      return res.status(err.statusCode ?? 500).json({ error: err.message ?? 'Erro interno' })
     }
   },
 }

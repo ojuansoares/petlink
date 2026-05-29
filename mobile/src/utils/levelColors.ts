@@ -13,3 +13,18 @@ export function getLevelColor(level: number): string {
   }
   return LEVEL_COLORS[LEVEL_COLORS.length - 1].color
 }
+
+const BADGE_XP_COLORS = [
+  { maxXp: 50, color: '#10b981' },
+  { maxXp: 100, color: '#3b82f6' },
+  { maxXp: 150, color: '#8b5cf6' },
+  { maxXp: 200, color: '#f59e0b' },
+  { maxXp: 400, color: '#ef4444' },
+]
+
+export function getBadgeColor(xpReward: number): string {
+  for (const entry of BADGE_XP_COLORS) {
+    if (xpReward <= entry.maxXp) return entry.color
+  }
+  return '#ec4899'
+}

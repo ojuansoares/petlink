@@ -13,6 +13,7 @@ import {
 } from '../store/slices/gamificationSlice'
 import type { AchievementData } from '../api/gamification.api'
 import { format, parseISO } from 'date-fns'
+import { getLevelColor, getBadgeColor } from '../utils/levelColors'
 
 const levelNames = ['Iniciante', 'Aprendiz', 'Dedicado', 'Expert', 'Veterano', 'Mestre', 'Lendário']
 
@@ -20,8 +21,8 @@ function LevelBar({ current, max }: { current: number; max: number }) {
   const { colors } = useTheme()
   const pct = max > 0 ? Math.min(current / max, 1) : 0
   return (
-    <View style={[styles.levelBarBg, { backgroundColor: colors.muted }]}>
-      <View style={[styles.levelBarFill, { width: `${pct * 100}%`, backgroundColor: colors.primary }]} />
+    <View style={[styles.levelBarBg, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+      <View style={[styles.levelBarFill, { width: `${pct * 100}%`, backgroundColor: 'rgba(255,255,255,0.6)' }]} />
     </View>
   )
 }
@@ -29,16 +30,17 @@ function LevelBar({ current, max }: { current: number; max: number }) {
 function BadgeDetailModal({ achievement, visible, onClose }: { achievement: AchievementData | null; visible: boolean; onClose: () => void }) {
   const { colors, withAlpha } = useTheme()
   if (!achievement) return null
+  const badgeColor = getBadgeColor(achievement.xp_reward)
 
   return (
     <Modal visible={visible} transparent animationType="fade" statusBarTranslucent>
       <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={onClose}>
         <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <View style={[styles.modalIconWrap, { backgroundColor: achievement.unlocked ? withAlpha('#fbbf24', 0.15) : withAlpha(colors.muted, 0.5) }]}>
+          <View style={[styles.modalIconWrap, { backgroundColor: achievement.unlocked ? withAlpha(badgeColor, 0.15) : withAlpha(colors.muted, 0.5) }]}>
             <Ionicons
               name={(achievement.icon || 'trophy-outline') as any}
               size={40}
-              color={achievement.unlocked ? '#fbbf24' : colors.mutedForeground}
+              color={achievement.unlocked ? badgeColor : colors.mutedForeground}
             />
           </View>
           <Text weight="800" size="lg" style={{ marginTop: 12, textAlign: 'center' }}>{achievement.name}</Text>
@@ -73,6 +75,7 @@ function AchievementBadge({ achievement, size = 'small', newlyUnlocked = false, 
   const isMedium = size === 'medium'
   const dimension = isMedium ? 80 : 64
   const pulseAnim = useRef(new Animated.Value(1)).current
+  const badgeColor = getBadgeColor(achievement.xp_reward)
 
   useEffect(() => {
     if (!newlyUnlocked) return
@@ -96,9 +99,9 @@ function AchievementBadge({ achievement, size = 'small', newlyUnlocked = false, 
             height: dimension - 8,
             borderRadius: (dimension - 8) / 2,
             backgroundColor: achievement.unlocked
-              ? withAlpha('#fbbf24', 0.15)
+              ? withAlpha(badgeColor, 0.15)
               : withAlpha(colors.muted, 0.5),
-            borderColor: achievement.unlocked ? '#fbbf24' : colors.border,
+            borderColor: achievement.unlocked ? badgeColor : colors.border,
             transform: newlyUnlocked ? [{ scale: pulseAnim }] : undefined,
           },
         ]}
@@ -106,7 +109,7 @@ function AchievementBadge({ achievement, size = 'small', newlyUnlocked = false, 
         <Ionicons
           name={(achievement.icon || 'trophy-outline') as any}
           size={isMedium ? 28 : 22}
-          color={achievement.unlocked ? '#fbbf24' : colors.mutedForeground}
+          color={achievement.unlocked ? badgeColor : colors.mutedForeground}
         />
         {newlyUnlocked && (
           <View style={styles.newBadge}>
@@ -182,8 +185,8 @@ export default function GamificationSection() {
     return () => { dispatch(clearNewlyUnlocked()) }
   }, [dispatch])
 
-  const inProgress = stats?.nextAchievements.filter((a) => a.progress > 0 && a.progress < 1) ?? []
-  const locked = stats?.nextAchievements.filter((a) => a.progress <= 0) ?? []
+  const inProgress = (stats?.nextAchievements ?? []).filter((a) => a.progress > 0 && a.progress < 1)
+  const locked = (stats?.nextAchievements ?? []).filter((a) => a.progress <= 0)
 
   if (loading && !stats) {
     return (
@@ -202,26 +205,26 @@ export default function GamificationSection() {
     )
   }
 
-  const showEmptyUnlocked = stats.unlockedAchievements.length === 0
+  const showEmptyUnlocked = (stats.unlockedAchievements ?? []).length === 0
 
   return (
     <>
       <BadgeDetailModal achievement={detailAchievement} visible={!!detailAchievement} onClose={() => setDetailAchievement(null)} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
         {/* Level Card */}
-        <View style={[styles.levelCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={[styles.levelCard, { backgroundColor: getLevelColor(stats.level), borderColor: getLevelColor(stats.level) }]}>
           <View style={styles.levelHeader}>
-            <View style={[styles.levelBadge, { backgroundColor: withAlpha(colors.primary, 0.1) }]}>
-              <Ionicons name="trophy" size={28} color={colors.primary} />
+            <View style={[styles.levelBadge, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+              <Ionicons name="trophy" size={28} color="#fff" />
             </View>
             <View style={styles.levelInfo}>
-              <Text size="xs" color="mutedForeground" weight="700">NÍVEL {stats.level}</Text>
-              <Text size="lg" weight="800">{levelNames[Math.min(stats.level - 1, levelNames.length - 1)] ?? 'Lendário'}</Text>
+              <Text size="xs" color="primaryForeground" weight="700" style={{ opacity: 0.8 }}>NÍVEL {stats.level}</Text>
+              <Text size="lg" weight="800" style={{ color: '#fff' }}>{levelNames[Math.min(stats.level - 1, levelNames.length - 1)] ?? 'Lendário'}</Text>
             </View>
           </View>
           <View style={styles.xpRow}>
-            <Text size="sm" weight="600">{stats.xpInLevel} / {stats.xpToNext} XP</Text>
-            <Text size="xs" color="mutedForeground">Total: {stats.totalXp} XP</Text>
+            <Text size="sm" weight="600" style={{ color: '#fff' }}>{stats.xpInLevel} / {stats.xpToNext} XP</Text>
+            <Text size="xs" style={{ color: '#fff', opacity: 0.7 }}>Total: {stats.totalXp} XP</Text>
           </View>
           <LevelBar current={stats.xpInLevel} max={stats.xpToNext} />
         </View>

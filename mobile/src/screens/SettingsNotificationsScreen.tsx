@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { Ionicons } from '@expo/vector-icons'
 import { StyleSheet, Switch, View } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import * as Notifications from 'expo-notifications'
+
 import { useAppDispatch, useAppSelector } from '../store'
 import {
   fetchPreferencesThunk,
@@ -10,7 +10,6 @@ import {
   selectPreferences,
   selectPrefsLoading,
 } from '../store/slices/notificationsSlice'
-import { Button } from '../components/ui/Button'
 import { Heading, Text } from '../components/ui/Typography'
 import { useTheme } from '../hooks/useTheme'
 
@@ -28,7 +27,7 @@ const ASYNC_KEYS = {
 const CATEGORIES: { key: keyof typeof ASYNC_KEYS; icon: string; label: string; desc: string }[] = [
   { key: 'alimentacao',   icon: 'restaurant-outline',     label: 'Alimentação',    desc: 'Lembretes de refeições do pet' },
   { key: 'vacinas',       icon: 'shield-checkmark-outline', label: 'Vacinas / Vermífugos', desc: 'Alertas de doses e prazos' },
-  { key: 'aniversario',   icon: 'cake-outline',            label: 'Aniversário',    desc: 'Lembretes de aniversário do pet' },
+  { key: 'aniversario',   icon: 'gift-outline',            label: 'Aniversário',    desc: 'Lembretes de aniversário do pet' },
   { key: 'social_likes',  icon: 'heart-outline',           label: 'Curtidas e comentários', desc: 'Interações em suas publicações' },
   { key: 'social_follows', icon: 'people-outline',          label: 'Novos seguidores', desc: 'Quando alguém seguir você' },
 ]
@@ -91,21 +90,6 @@ export default function SettingsNotificationsScreen() {
     }
   }, [dispatch])
 
-  const handleTestNotification = async () => {
-    try {
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: '🔔 PetLink',
-          body: 'Esta é uma notificação de teste!',
-          data: { type: 'test' },
-        },
-        trigger: null,
-      })
-    } catch {
-      // silent
-    }
-  }
-
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.content}>
@@ -113,8 +97,6 @@ export default function SettingsNotificationsScreen() {
         <Text color="mutedForeground" style={styles.description}>
           Gerencie como o PetLink se comunica com você.
         </Text>
-
-        <Button label="Enviar notificação de teste" onPress={handleTestNotification} variant="outline" />
 
         <View
           style={[

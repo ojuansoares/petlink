@@ -47,7 +47,7 @@ import { PetBubbleRing } from '../components/ui/PetBubbleRing'
 import { AppToast } from '../components/ui/AppToast'
 import { CreatePostFAB } from '../components/ui/CreatePostFAB'
 import { formatCount } from '../utils/formatNumber'
-import { getLevelColor } from '../utils/levelColors'
+import { getLevelColor, getBadgeColor } from '../utils/levelColors'
 import GamificationSection from '../components/GamificationSection'
 import { fetchGamificationThunk, selectGamification } from '../store/slices/gamificationSlice'
 
@@ -116,6 +116,7 @@ export default function ProfileScreen() {
     if (currentUser?.id) {
       dispatch(fetchMyPostsThunk({ userId: currentUser.id, isOnline }))
       dispatch(fetchPetsThunk())
+      dispatch(fetchGamificationThunk())
     }
   }, [dispatch, currentUser?.id, isOnline])
 
@@ -218,8 +219,37 @@ export default function ProfileScreen() {
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
         <Heading size="xl" weight="800" style={styles.name}>{profile?.name}</Heading>
         {myLevel && (
-          <View style={[styles.levelPill, { backgroundColor: getLevelColor(myLevel) }]}>
+          <View style={[styles.levelPill, { backgroundColor: getLevelColor(myLevel), borderColor: getLevelColor(myLevel) }]}>
             <Text size="xs" weight="800" style={{ color: '#fff' }}>Nv. {myLevel}</Text>
+          </View>
+        )}
+        {gamificationStats && gamificationStats.unlockedAchievements.length > 0 && (
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            {gamificationStats.unlockedAchievements.map((ach: any, i: number) => {
+              const badgeColor = getBadgeColor(ach.xp_reward)
+              return (
+                <View
+                  key={ach.id}
+                  style={{
+                    width: 24,
+                    height: 24,
+                    borderRadius: 12,
+                    backgroundColor: badgeColor,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginLeft: i > 0 ? -10 : 0,
+                    zIndex: gamificationStats.unlockedAchievements.length - i,
+                    shadowColor: badgeColor,
+                    shadowOffset: { width: 0, height: 0 },
+                    shadowOpacity: 0.8,
+                    shadowRadius: 6,
+                    elevation: 6,
+                  }}
+                >
+                  <Ionicons name={(ach.icon || 'trophy-outline') as any} size={12} color="#fff" />
+                </View>
+              )
+            })}
           </View>
         )}
       </View>
@@ -321,26 +351,31 @@ export default function ProfileScreen() {
     })
   }
 
+  const tabsComponent = (
+    <SegmentedTabs
+      options={[
+        { id: 'posts', label: 'Posts' },
+        { id: 'conquistas', label: 'Conquistas' },
+      ]}
+      activeId={profileTab}
+      onChange={handleProfileTabChange}
+    />
+  )
+
   return (
     <View style={styles.container}>
-      {renderHeader()}
-
-      <SegmentedTabs
-        options={[
-          { id: 'posts', label: 'Posts' },
-          { id: 'conquistas', label: 'Conquistas' },
-        ]}
-        activeId={profileTab}
-        onChange={handleProfileTabChange}
-        style={{ marginHorizontal: 16 }}
-      />
-
       {profileTab === 'posts' && (
         <ProfileGrid
           posts={filteredPosts}
           loading={isPostsLoading}
           onPostPress={postGridOnPress}
-          ListHeaderComponent={renderPetFilter}
+          ListHeaderComponent={
+            <View>
+              {renderHeader()}
+              {tabsComponent}
+              {renderPetFilter()}
+            </View>
+          }
           ListEmptyComponent={renderEmpty()}
           onRefresh={onRefresh}
           refreshing={isRefreshing}
@@ -348,7 +383,11 @@ export default function ProfileScreen() {
       )}
 
       {profileTab === 'conquistas' && (
-        <GamificationSection />
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, paddingBottom: 100 }}>
+          {renderHeader()}
+          {tabsComponent}
+          <GamificationSection />
+        </ScrollView>
       )}
 
       <AppModal

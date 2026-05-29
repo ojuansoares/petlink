@@ -92,13 +92,13 @@ export const gamificationRepository = {
   },
 
   async countGroupsJoined(userId: string): Promise<number> {
-    const { data, error } = await supabaseAdmin
+    const { count, error } = await supabaseAdmin
       .from('group_members')
-      .select('id', { count: 'exact' })
+      .select('*', { count: 'exact', head: true })
       .eq('user_id', userId)
 
     if (error) throw error
-    return data?.length ?? 0
+    return count ?? 0
   },
 
   async countGroupsCreated(userId: string): Promise<number> {

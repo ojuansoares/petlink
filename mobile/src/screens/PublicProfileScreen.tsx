@@ -55,7 +55,7 @@ import { FollowersModal } from '../components/ui/FollowersModal'
 import { AppToast } from '../components/ui/AppToast'
 import { shareProfile, sharePet } from '../utils/shareLink'
 import { gamificationApi, type PublicGamificationStats, type AchievementData } from '../api/gamification.api'
-import { getLevelColor } from '../utils/levelColors'
+import { getLevelColor, getBadgeColor } from '../utils/levelColors'
 
 type NavigationProp = StackNavigationProp<AppStackParamList>
 
@@ -184,14 +184,46 @@ export default function PublicProfileScreen() {
       </View>
       
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+        <Pressable onPress={() => shareProfile(userId, profile?.name || 'Usuário')}>
+          <Ionicons name="share-outline" size={20} color={colors.primary} />
+        </Pressable>
         <Heading size="xl" weight="800" style={styles.name}>{profile?.name}</Heading>
         {gamification && (
-          <View style={[styles.levelPill, { backgroundColor: getLevelColor(gamification.level) }]}>
+          <View style={[styles.levelPill, { backgroundColor: getLevelColor(gamification.level), borderColor: getLevelColor(gamification.level) }]}>
             <Text size="xs" weight="800" style={{ color: '#fff' }}>Nv. {gamification.level}</Text>
           </View>
         )}
+        {gamification && gamification.unlockedAchievements.length > 0 && (
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            {gamification.unlockedAchievements.map((ach, i) => {
+              const badgeColor = getBadgeColor(ach.xp_reward)
+              return (
+                <View
+                  key={ach.id}
+                  style={{
+                    width: 24,
+                    height: 24,
+                    borderRadius: 12,
+                    backgroundColor: badgeColor,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginLeft: i > 0 ? -10 : 0,
+                    zIndex: gamification.unlockedAchievements.length - i,
+                    shadowColor: badgeColor,
+                    shadowOffset: { width: 0, height: 0 },
+                    shadowOpacity: 0.8,
+                    shadowRadius: 6,
+                    elevation: 6,
+                  }}
+                >
+                  <Ionicons name={(ach.icon || 'trophy-outline') as any} size={12} color="#fff" />
+                </View>
+              )
+            })}
+          </View>
+        )}
       </View>
-      
+
       {profile?.location && (
         <View style={styles.locationRow}>
           <Ionicons name="location-sharp" size={14} color={colors.primary} />
@@ -222,45 +254,29 @@ export default function PublicProfileScreen() {
           </View>
         </View>
 
-        {gamification && gamification.unlockedAchievements.length > 0 && (
-          <View style={[styles.miniBadgesRow, { borderColor: colors.border }]}>
-            {gamification.unlockedAchievements.map((ach) => (
-              <View key={ach.id} style={[styles.miniBadge, { backgroundColor: '#fbbf24' }]}>
-                <Ionicons name={(ach.icon || 'trophy-outline') as any} size={14} color="#fff" />
-              </View>
-            ))}
-          </View>
-        )}
-
-       {/* Follow + Share buttons */}
-       <View style={[styles.followButtonContainer, { gap: 8 }]}>
-         <Pressable
-           onPress={async () => {
-             if (isFollowing) {
-               dispatch(unfollowUserThunk(userIdFromRoute))
-             } else {
-               dispatch(followUserThunk(userIdFromRoute))
-             }
-           }}
-           disabled={followLoading}
-           style={[
-             styles.followButton,
-             isFollowing ? styles.followButtonFollowing : styles.followButtonFollow
-           ]}
-         >
-           {followLoading ? (
-             <ActivityIndicator size={20} color={isFollowing ? colors.primary : "white"} />
-           ) : (
-             <Text size="sm" weight="600" color={isFollowing ? "primary" : "primaryForeground"}>
-               {isFollowing ? 'Seguindo' : 'Seguir'}
-             </Text>
-            )}
-          </Pressable>
+        {/* Follow button */}
+        <View style={styles.followButtonContainer}>
           <Pressable
-            onPress={() => shareProfile(userId, profile?.name || 'Usuário')}
-            style={[styles.followButton, { flex: 0, aspectRatio: 1, backgroundColor: colors.muted }]}
+            onPress={async () => {
+              if (isFollowing) {
+                dispatch(unfollowUserThunk(userIdFromRoute))
+              } else {
+                dispatch(followUserThunk(userIdFromRoute))
+              }
+            }}
+            disabled={followLoading}
+            style={[
+              styles.followButton,
+              isFollowing ? styles.followButtonFollowing : styles.followButtonFollow
+            ]}
           >
-            <Ionicons name="share-outline" size={20} color={colors.primary} />
+            {followLoading ? (
+              <ActivityIndicator size={20} color={isFollowing ? colors.primary : "white"} />
+            ) : (
+              <Text size="sm" weight="600" color={isFollowing ? "primary" : "primaryForeground"}>
+                {isFollowing ? 'Seguindo' : 'Seguir'}
+              </Text>
+            )}
           </Pressable>
         </View>
 

@@ -48,7 +48,7 @@ const gamificationSlice = createSlice({
         s.isLoading = false
         const oldLevel = s.stats?.level ?? 0
         s.lastLevel = oldLevel
-        const oldUnlocked = new Set(s.stats?.unlockedAchievements.map((a) => a.id) ?? [])
+        const oldUnlocked = new Set((s.stats?.unlockedAchievements ?? []).map((a) => a.id))
         s.newlyUnlockedIds = a.payload.unlockedAchievements
           .filter((ach) => !oldUnlocked.has(ach.id))
           .map((ach) => ach.id)

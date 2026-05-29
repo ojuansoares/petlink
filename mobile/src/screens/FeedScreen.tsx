@@ -114,38 +114,38 @@ export default function FeedScreen() {
 
   const renderHeader = () => (
     <View style={styles.tabContainer}>
-      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <SegmentedTabs
-          options={[
-            { id: 'recommended', label: 'Recomendados' },
-            { id: 'following', label: 'Seguindo' }
-          ]}
-          activeId={activeTab}
-          onChange={(id: any) => {
-            setActiveTab(id)
-            if (id === 'following' && !hasLoadedFollowed.current) {
-              hasLoadedFollowed.current = true
-              dispatch(fetchFollowedFeedThunk(isOnline))
-            }
-          }}
-          style={{ marginBottom: 12, flex: 1 }}
-        />
-        <Pressable
-          onPress={() => navigation.navigate('Groups')}
-          hitSlop={8}
-          style={{
-            paddingHorizontal: 10,
-            paddingVertical: 8,
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 4,
-            marginBottom: 12,
-          }}
-        >
-          <Ionicons name="people-outline" size={20} color={colors.primary} />
-          <Text size="sm" weight="800" style={{ color: colors.primary }}>Grupos</Text>
-        </Pressable>
-      </View>
+      <Pressable
+        onPress={() => navigation.navigate('Groups')}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 8,
+          borderWidth: 1.5,
+          borderColor: colors.primary,
+          borderRadius: 12,
+          paddingVertical: 10,
+          marginBottom: 12,
+        }}
+      >
+        <Ionicons name="people-outline" size={20} color={colors.primary} />
+        <Text size="sm" weight="800" style={{ color: colors.primary }}>Grupos</Text>
+      </Pressable>
+      <SegmentedTabs
+        options={[
+          { id: 'recommended', label: 'Recomendados' },
+          { id: 'following', label: 'Seguindo' }
+        ]}
+        activeId={activeTab}
+        onChange={(id: any) => {
+          setActiveTab(id)
+          if (id === 'following' && !hasLoadedFollowed.current) {
+            hasLoadedFollowed.current = true
+            dispatch(fetchFollowedFeedThunk(isOnline))
+          }
+        }}
+        style={{ marginBottom: 12 }}
+      />
     </View>
   )
 

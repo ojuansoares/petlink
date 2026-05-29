@@ -20,6 +20,7 @@ import { Avatar } from '../components/ui/Avatar'
 import { useAppSelector } from '../store'
 import { selectProfile } from '../store/slices/profileSlice'
 import { selectActivePetId, selectPetsList } from '../store/slices/petsSlice'
+import { selectGamification } from '../store/slices/gamificationSlice'
 import { getVaccinesByPetId } from '../api/vaccine.api'
 import { Vaccine } from '../data/models'
 import { AppStackParamList } from '../navigation/types'
@@ -37,8 +38,21 @@ export default function HomeScreen() {
   const navigation = useNavigation<NavProp>()
   const pets = useAppSelector(selectPetsList)
   const activePetId = useAppSelector(selectActivePetId)
-  const activePet = pets.find(p => p.id === activePetId) || (pets.length > 0 ? pets[0] : null)
   const profile = useAppSelector(selectProfile)
+  const gamificationStats = useAppSelector(selectGamification)
+
+  const [petCarouselIndex, setPetCarouselIndex] = useState(0)
+  const petCarouselRef = useRef<ScrollView>(null)
+  const activePet = pets.length > 0
+    ? (pets[petCarouselIndex] ?? pets[0])
+    : null
+
+  useEffect(() => {
+    if (pets.length > 0) {
+      const idx = activePetId ? pets.findIndex(p => p.id === activePetId) : 0
+      setPetCarouselIndex(Math.max(0, idx))
+    }
+  }, [pets.length, activePetId])
 
   const [allVaccines, setAllVaccines] = useState<Vaccine[]>([])
   const [vaccinesLoading, setVaccinesLoading] = useState(false)
@@ -113,14 +127,6 @@ export default function HomeScreen() {
 
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite'
-
-  const speciesLabel = activePet?.species
-    ? activePet.species.charAt(0).toUpperCase() + activePet.species.slice(1)
-    : null
-
-  const weightLabel = activePet?.weight_kg != null
-    ? `${activePet.weight_kg} kg`
-    : null
 
   const hasWeightData = !!(activePet?.weight_kg || activePet?.weight_history?.length)
   const hasVaccineData = allVaccines.length > 0
@@ -262,63 +268,121 @@ export default function HomeScreen() {
             name={profile?.name || 'Usuario'}
             source={profile?.avatar_url ? { uri: profile.avatar_url } : undefined}
             size={48}
+            level={gamificationStats?.level}
           />
         </Pressable>
       </View>
 
       {/* PET DASHBOARD / EMPTY STATE */}
-      {activePet ? (
+      {pets.length > 0 ? (
         <>
-          <Pressable
-            onPress={() => navigation.navigate('Pets' as never)}
-            style={[styles.dashboardCard, { backgroundColor: colors.card, borderColor: withAlpha(colors.border, 0.6) }]}
+          <ScrollView
+            ref={petCarouselRef}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            snapToInterval={cardWidth + 16}
+            decelerationRate="fast"
+            contentContainerStyle={{ gap: 16, paddingBottom: 4 }}
+            style={{ marginBottom: 0 }}
+            onMomentumScrollEnd={(e) => {
+              const idx = Math.round(e.nativeEvent.contentOffset.x / (cardWidth + 16))
+              setPetCarouselIndex(idx)
+            }}
           >
-            <View style={styles.dashboardLeft}>
-              <Avatar
-                name={activePet.name}
-                source={activePet.photo_url ? { uri: activePet.photo_url } : undefined}
-                size={72}
-              />
-            </View>
-            <View style={styles.dashboardRight}>
-              <Heading size="xl" weight="800">{activePet.name}</Heading>
-              <View style={styles.dashboardTags}>
-                {speciesLabel && (
-                  <View style={[styles.tag, { backgroundColor: withAlpha(colors.primary, 0.1) }]}>
-                    <Text size="xs" weight="700" color="primary">{speciesLabel}</Text>
+            {pets.map((pet) => {
+              const isCurrentPet = pet.id === activePet?.id
+              return (
+                <Pressable
+                  key={pet.id}
+                  onPress={() => navigation.navigate('Pets' as never)}
+                  style={[
+                    styles.dashboardCard,
+                    {
+                      backgroundColor: colors.card,
+                      borderColor: withAlpha(colors.border, 0.6),
+                      width: cardWidth,
+                    },
+                  ]}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <View style={styles.dashboardLeft}>
+                      <Avatar
+                        name={pet.name}
+                        source={pet.photo_url ? { uri: pet.photo_url } : undefined}
+                        size={72}
+                      />
+                    </View>
+                    <View style={styles.dashboardRight}>
+                      <Heading size="xl" weight="800">{pet.name}</Heading>
+                      <View style={styles.dashboardTags}>
+                        {pet.species && (
+                          <View style={[styles.tag, { backgroundColor: withAlpha(colors.primary, 0.1) }]}>
+                            <Text size="xs" weight="700" color="primary">
+                              {pet.species.charAt(0).toUpperCase() + pet.species.slice(1)}
+                            </Text>
+                          </View>
+                        )}
+                        {pet.breed && (
+                          <View style={[styles.tag, { backgroundColor: withAlpha(colors.mutedForeground, 0.1) }]}>
+                            <Text size="xs" weight="700" style={{ color: colors.mutedForeground }}>{pet.breed}</Text>
+                          </View>
+                        )}
+                      </View>
+                      <View style={styles.dashboardStats}>
+                        {pet.weight_kg != null && (
+                          <View style={styles.statItem}>
+                            <Ionicons name="scale-outline" size={16} color={colors.mutedForeground} />
+                            <Text size="sm" color="mutedForeground">{pet.weight_kg} kg</Text>
+                          </View>
+                        )}
+                        {isCurrentPet && (
+                          <View style={styles.statItem}>
+                            <Ionicons
+                              name={nextVaccineUrgent ? 'warning' : 'medical-outline'}
+                              size={16}
+                              color={nextVaccineUrgent ? '#EF4444' : colors.mutedForeground}
+                            />
+                            <Text
+                              size="sm"
+                              style={{ color: nextVaccineUrgent ? '#EF4444' : colors.mutedForeground }}
+                              numberOfLines={1}
+                            >
+                              {nextVaccineLabel}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color={colors.mutedForeground} style={styles.dashboardArrow} />
                   </View>
-                )}
-                {activePet.breed && (
-                  <View style={[styles.tag, { backgroundColor: withAlpha(colors.mutedForeground, 0.1) }]}>
-                    <Text size="xs" weight="700" style={{ color: colors.mutedForeground }}>{activePet.breed}</Text>
-                  </View>
-                )}
-              </View>
-              <View style={styles.dashboardStats}>
-                {weightLabel && (
-                  <View style={styles.statItem}>
-                    <Ionicons name="scale-outline" size={16} color={colors.mutedForeground} />
-                    <Text size="sm" color="mutedForeground">{weightLabel}</Text>
-                  </View>
-                )}
-                <View style={styles.statItem}>
-                  <Ionicons
-                    name={nextVaccineUrgent ? 'warning' : 'medical-outline'}
-                    size={16}
-                    color={nextVaccineUrgent ? '#EF4444' : colors.mutedForeground}
+                </Pressable>
+              )
+            })}
+          </ScrollView>
+
+          {pets.length > 1 && (
+            <View style={[styles.bannerDotsRow, { marginBottom: 12 }]}>  
+              {pets.map((_, i) => (
+                <Pressable
+                  key={i}
+                  onPress={() => {
+                    setPetCarouselIndex(i)
+                    petCarouselRef.current?.scrollTo({ x: i * (cardWidth + 16), animated: true })
+                  }}
+                >
+                  <View
+                    style={[
+                      styles.bannerDot,
+                      {
+                        backgroundColor: i === petCarouselIndex ? colors.primary : withAlpha(colors.mutedForeground, 0.3),
+                        width: i === petCarouselIndex ? 20 : 8,
+                      },
+                    ]}
                   />
-                  <Text
-                    size="sm"
-                    style={{ color: nextVaccineUrgent ? '#EF4444' : colors.mutedForeground }}
-                    numberOfLines={1}
-                  >
-                    {nextVaccineLabel}
-                  </Text>
-                </View>
-              </View>
+                </Pressable>
+              ))}
             </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.mutedForeground} style={styles.dashboardArrow} />
-          </Pressable>
+          )}
 
           {isPetSparse && renderPetSparseOnboarding()}
         </>
@@ -328,7 +392,7 @@ export default function HomeScreen() {
 
       {/* QUICK ACTIONS */}
       {activePet && (
-        <View style={[styles.quickActionsRow, screenWidth < 400 && styles.quickActionsRowNarrow]}>
+        <View style={[styles.quickActionsRow, screenWidth < 400 && styles.quickActionsRowNarrow, { marginBottom: 16 }]}>  
           <Pressable
             onPress={() => navigation.navigate('Feed' as never)}
             style={[styles.quickActionBtn, { backgroundColor: colors.card, borderColor: withAlpha(colors.border, 0.6) }, screenWidth < 400 && styles.quickActionBtnNarrow]}
@@ -541,6 +605,7 @@ const styles = StyleSheet.create({
   quickActionsRow: {
     flexDirection: 'row',
     gap: 10,
+    width: '100%',
   },
   quickActionsRowNarrow: {
     flexWrap: 'wrap',

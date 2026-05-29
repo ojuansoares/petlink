@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import {
-  View, StyleSheet, ScrollView, Pressable, TextInput, Alert, Animated, Modal, ActivityIndicator,
+  View, StyleSheet, ScrollView, Pressable, TextInput, Alert, Animated, Modal, ActivityIndicator, RefreshControl,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker'
@@ -46,6 +46,7 @@ export default function FeedingScreen({ route }: any) {
   const [showCelebration, setShowCelebration] = useState(false)
   const [checkingId, setCheckingId] = useState<string | null>(null)
   const [loadingPlan, setLoadingPlan] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [scoreViewMode, setScoreViewMode] = useState<'weekly' | 'monthly'>('weekly')
   const [scoreRefDate, setScoreRefDate] = useState(new Date())
   const celebrationScale = useRef(new Animated.Value(0)).current
@@ -187,6 +188,19 @@ export default function FeedingScreen({ route }: any) {
     setCheckingId(null)
   }
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true)
+    if (mode === 'check') {
+      await Promise.all([
+        dispatch(fetchFeedingLogsThunk({ petId, date: today })),
+        dispatch(fetchFeedingPlanThunk(petId)),
+      ])
+    } else {
+      await dispatch(fetchFeedingPlanThunk(petId))
+    }
+    setRefreshing(false)
+  }, [dispatch, petId, today, mode])
+
   const startCelebration = () => {
     setShowCelebration(true)
     celebrationScale.setValue(0)
@@ -211,7 +225,10 @@ export default function FeedingScreen({ route }: any) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <AppToast />
-        <ScrollView contentContainerStyle={styles.scroll}>
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />}
+        >
           <View style={styles.header}>
             <View style={[styles.iconCircle, { backgroundColor: withAlpha('#F97316', 0.15) }]}>
               <Ionicons name="restaurant-outline" size={28} color="#F97316" />
@@ -277,7 +294,10 @@ export default function FeedingScreen({ route }: any) {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <AppToast />
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />}
+      >
         <View style={styles.header}>
           <View style={[styles.iconCircle, { backgroundColor: withAlpha('#F97316', 0.15) }]}>
             <Ionicons name="restaurant-outline" size={28} color="#F97316" />
