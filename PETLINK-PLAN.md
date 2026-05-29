@@ -102,6 +102,7 @@ server/src/
 | H2 | **Lembretes reais**: endpoint `GET /reminders` no servidor — vacinas vencendo/próximas + consultas futuras. Consumido na Home. | ✅ |
 | H3 | **Quick actions**: botões de ação rápida — "Criar post", "Registrar peso", "Agendar consulta", "Alimentação" | ✅ |
 | H4 | **Resumo da semana**: card com stats dos últimos 7 dias (refeições, peso, vacinas, consultas) — endpoint `GET /pets/:petId/weekly-summary` | ✅ |
+| H5 | **Feed de atividades**: timeline cronológica (peso, vacinas, consultas, posts) com paginação — endpoint `GET /pets/:petId/timeline` | ✅ |
 | H7 | **Empty state inteligente**: se não tem pet, CTA pra cadastrar. Se tem pet sem dados, onboarding gentil | ✅ |
 | H8 | **Responsividade**: adaptar layout para diferentes tamanhos de tela (ScrollView com seções flexíveis, sem hardcoded heights) | ✅ |
 
@@ -480,12 +481,13 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=
 - **Config notificações funcionando**: migration `004_notification_preferences.sql` (tabela `user_notification_preferences`), `GET/PUT /notifications/preferences`, server filtra pushes por preferência (enabled, vacinas, social_likes, social_follows), mobile Settings sincroniza com servidor, toggles: Alimentação, Vacinas, Aniversário (novo), Curtidas/comentários, Seguidores (replace do mock "Posts de amigos").
 - **FeedingScoreCalendar**: `GET /pets/:petId/feeding/score?start=&end=` (agregação diária), componente móvel com visão semanal (padrão) e mensal, dias coloridos por completude (verde/laranja/vermelho), integrado na tela de alimentação.
 - **H4 — Resumo da semana**: Card na HomeScreen com stats dos últimos 7 dias (refeições, peso, vacinas, consultas). Endpoint `GET /pets/:petId/weekly-summary`.
+- **H5 — Feed de atividades**: Timeline cronológica (peso, vacinas, consultas, posts) com paginação. Endpoint `GET /pets/:petId/timeline`. Botão "Atividades" na aba Controle do PetsScreen.
 
 **Pendentes:**
 
-| # | Tarefa | Descrição | Prioridade |
-|---|--------|-----------|------------|
-| H5 | **Feed de atividades** | Timeline cronológica de tudo do pet: posts criados, pesos registrados, vacinas aplicadas, consultas realizadas. Ícone + data + descrição por evento. Ordenação por data descendente. | Média |
+Nenhum — todas as tarefas H1-H8 estão concluídas. ✅
+
+Próximas fases disponíveis: Onboarding, Grupos (UI), Testes (Jest), Sentry, CI/CD.
 
 ---
 
