@@ -47,4 +47,38 @@ export const notificationsController = {
       return res.status(statusCode).json({ error: err.message ?? 'Erro' })
     }
   },
+
+  async getPreferences(req: Request, res: Response) {
+    try {
+      const authReq = req as AuthRequest
+      if (!authReq.user) return res.status(401).json({ error: 'Não autenticado' })
+
+      const prefs = await notificationsService.getPreferences(authReq.user.id)
+      return res.status(200).json(prefs)
+    } catch (err: any) {
+      const statusCode = err instanceof AppError ? err.statusCode : 500
+      return res.status(statusCode).json({ error: err.message ?? 'Erro' })
+    }
+  },
+
+  async updatePreferences(req: Request, res: Response) {
+    try {
+      const authReq = req as AuthRequest
+      if (!authReq.user) return res.status(401).json({ error: 'Não autenticado' })
+
+      const allowed = ['enabled', 'alimentacao', 'vacinas', 'social_likes', 'social_follows', 'aniversario']
+      const updates: Record<string, boolean> = {}
+      for (const key of allowed) {
+        if (typeof req.body[key] === 'boolean') {
+          updates[key] = req.body[key]
+        }
+      }
+
+      const prefs = await notificationsService.updatePreferences(authReq.user.id, updates)
+      return res.status(200).json(prefs)
+    } catch (err: any) {
+      const statusCode = err instanceof AppError ? err.statusCode : 500
+      return res.status(statusCode).json({ error: err.message ?? 'Erro' })
+    }
+  },
 }

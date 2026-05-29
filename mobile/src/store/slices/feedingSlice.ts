@@ -23,19 +23,29 @@ export type FeedingLog = {
   checked_at: string | null
 }
 
+export type DayScore = {
+  date: string
+  total: number
+  completed: number
+}
+
 type FeedingState = {
   plan: FeedingPlan[]
   logs: FeedingLog[]
+  score: DayScore[]
   isLoadingPlan: boolean
   isLoadingLogs: boolean
+  isLoadingScore: boolean
   isSaving: boolean
 }
 
 const initialState: FeedingState = {
   plan: [],
   logs: [],
+  score: [],
   isLoadingPlan: false,
   isLoadingLogs: false,
+  isLoadingScore: false,
   isSaving: false,
 }
 
@@ -90,6 +100,18 @@ export const checkMealThunk = createAsyncThunk(
   }
 )
 
+export const fetchFeedingScoreThunk = createAsyncThunk(
+  'feeding/fetchScore',
+  async ({ petId, start, end }: { petId: string; start: string; end: string }, { rejectWithValue }) => {
+    try {
+      const { data } = await api.get(`/pets/${petId}/feeding/score?start=${start}&end=${end}`)
+      return data as DayScore[]
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.error ?? 'Erro')
+    }
+  }
+)
+
 const feedingSlice = createSlice({
   name: 'feeding',
   initialState,
@@ -97,6 +119,7 @@ const feedingSlice = createSlice({
     clearFeeding(state) {
       state.plan = []
       state.logs = []
+      state.score = []
     },
   },
   extraReducers: (builder) => {
@@ -117,6 +140,10 @@ const feedingSlice = createSlice({
         const idx = s.logs.findIndex((l) => l.id === a.payload.id)
         if (idx >= 0) s.logs[idx] = a.payload
       })
+
+      .addCase(fetchFeedingScoreThunk.pending, (s) => { s.isLoadingScore = true })
+      .addCase(fetchFeedingScoreThunk.fulfilled, (s, a) => { s.isLoadingScore = false; s.score = a.payload })
+      .addCase(fetchFeedingScoreThunk.rejected, (s) => { s.isLoadingScore = false })
   },
 })
 
@@ -128,3 +155,5 @@ export const selectFeedingPlanLoading = (s: any): boolean => s.feeding.isLoading
 export const selectFeedingLogs = (s: any): FeedingLog[] => s.feeding.logs
 export const selectFeedingLoading = (s: any): boolean => s.feeding.isLoadingLogs
 export const selectFeedingSaving = (s: any): boolean => s.feeding.isSaving
+export const selectFeedingScore = (s: any): DayScore[] => s.feeding.score
+export const selectFeedingScoreLoading = (s: any): boolean => s.feeding.isLoadingScore

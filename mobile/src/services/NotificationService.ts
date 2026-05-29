@@ -107,7 +107,7 @@ export async function scheduleFeedingNotifications(
 ) {
   const [notifEnabled, feedingEnabled] = await Promise.all([
     AsyncStorage.getItem('petlink.notifications.enabled'),
-    AsyncStorage.getItem('petlink.notifications.category.alimentacao'),
+    AsyncStorage.getItem('petlink.notifications.alimentacao'),
   ])
 
   const shouldSchedule = notifEnabled !== 'false' && feedingEnabled !== 'false'
@@ -246,7 +246,7 @@ export async function scheduleVaccineNotifications(
 ) {
   const [notifEnabled, vacinaEnabled] = await Promise.all([
     AsyncStorage.getItem('petlink.notifications.enabled'),
-    AsyncStorage.getItem('petlink.notifications.category.vacinas'),
+    AsyncStorage.getItem('petlink.notifications.vacinas'),
   ])
 
   const shouldSchedule = notifEnabled !== 'false' && vacinaEnabled !== 'false'
@@ -400,8 +400,11 @@ export async function scheduleBirthdayNotifications(
   petName: string,
   birthDate: string
 ) {
-  const notifEnabled = await AsyncStorage.getItem('petlink.notifications.enabled')
-  if (notifEnabled === 'false') return
+  const [notifEnabled, aniversarioEnabled] = await Promise.all([
+    AsyncStorage.getItem('petlink.notifications.enabled'),
+    AsyncStorage.getItem('petlink.notifications.aniversario'),
+  ])
+  if (notifEnabled === 'false' || aniversarioEnabled === 'false') return
 
   await cancelBirthdayNotifications(petId)
 

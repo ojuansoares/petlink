@@ -6,9 +6,9 @@ import {
   ActivityIndicator,
   RefreshControl,
   StyleSheet,
+  Modal,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { Modal, Dimensions } from 'react-native'
 import { Image } from 'expo-image'
 import { useNavigation } from '@react-navigation/native'
 import { StackNavigationProp } from '@react-navigation/stack'

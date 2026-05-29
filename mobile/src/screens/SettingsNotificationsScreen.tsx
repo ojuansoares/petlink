@@ -1,68 +1,95 @@
-import React from 'react'
-import { useFocusEffect } from '@react-navigation/native'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Ionicons } from '@expo/vector-icons'
-import { StyleSheet, Switch, View, Alert } from 'react-native'
-import * as Notifications from 'expo-notifications'
+import { StyleSheet, Switch, View } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import * as Notifications from 'expo-notifications'
+import { useAppDispatch, useAppSelector } from '../store'
+import {
+  fetchPreferencesThunk,
+  updatePreferencesThunk,
+  selectPreferences,
+  selectPrefsLoading,
+} from '../store/slices/notificationsSlice'
 import { Button } from '../components/ui/Button'
 import { Heading, Text } from '../components/ui/Typography'
 import { useTheme } from '../hooks/useTheme'
 
-const NOTIF_PREF_KEY = 'petlink.notifications.enabled'
-const CATEGORY_KEYS = {
-  alimentacao: 'petlink.notifications.category.alimentacao',
-  postsLikes: 'petlink.notifications.category.posts_likes',
-  postsAmigos: 'petlink.notifications.category.posts_amigos',
-  vacinas: 'petlink.notifications.category.vacinas',
+// ─── AsyncStorage keys (read by NotificationService) ─────────
+const ASYNC_PREFIX = 'petlink.notifications.'
+const ASYNC_KEYS = {
+  enabled:      ASYNC_PREFIX + 'enabled',
+  alimentacao:  ASYNC_PREFIX + 'alimentacao',
+  vacinas:      ASYNC_PREFIX + 'vacinas',
+  social_likes: ASYNC_PREFIX + 'social_likes',
+  social_follows: ASYNC_PREFIX + 'social_follows',
+  aniversario:  ASYNC_PREFIX + 'aniversario',
 } as const
 
-type NotifCategory = keyof typeof CATEGORY_KEYS
-
-const CATEGORY_CONFIG: { key: NotifCategory; icon: string; label: string; desc: string }[] = [
-  { key: 'alimentacao', icon: 'restaurant-outline', label: 'Alimentação', desc: 'Lembretes de refeições do pet' },
-  { key: 'postsLikes', icon: 'heart-outline', label: 'Posts — curtidas e comentários', desc: 'Interações em suas publicações' },
-  { key: 'postsAmigos', icon: 'people-outline', label: 'Posts de amigos', desc: 'Novas publicações de quem você segue' },
-  { key: 'vacinas', icon: 'shield-checkmark-outline', label: 'Vacinas / Vermífugos', desc: 'Alertas de doses e prazos' },
+const CATEGORIES: { key: keyof typeof ASYNC_KEYS; icon: string; label: string; desc: string }[] = [
+  { key: 'alimentacao',   icon: 'restaurant-outline',     label: 'Alimentação',    desc: 'Lembretes de refeições do pet' },
+  { key: 'vacinas',       icon: 'shield-checkmark-outline', label: 'Vacinas / Vermífugos', desc: 'Alertas de doses e prazos' },
+  { key: 'aniversario',   icon: 'cake-outline',            label: 'Aniversário',    desc: 'Lembretes de aniversário do pet' },
+  { key: 'social_likes',  icon: 'heart-outline',           label: 'Curtidas e comentários', desc: 'Interações em suas publicações' },
+  { key: 'social_follows', icon: 'people-outline',          label: 'Novos seguidores', desc: 'Quando alguém seguir você' },
 ]
 
 export default function SettingsNotificationsScreen() {
   const { colors, withAlpha } = useTheme()
-  const [receiveNotifications, setReceiveNotifications] = React.useState(true)
-  const [categories, setCategories] = React.useState<Record<NotifCategory, boolean>>({
+  const dispatch = useAppDispatch()
+  const serverPrefs = useAppSelector(selectPreferences)
+  const prefsLoading = useAppSelector(selectPrefsLoading)
+
+  const [prefs, setPrefs] = useState<Record<string, boolean>>({
+    enabled: true,
     alimentacao: true,
-    postsLikes: true,
-    postsAmigos: true,
     vacinas: true,
+    aniversario: true,
+    social_likes: true,
+    social_follows: true,
   })
-  useFocusEffect(
-    React.useCallback(() => {
-      let mounted = true
 
-      const loadState = async () => {
-        const [notifPref, ...catPrefs] = await Promise.all([
-          AsyncStorage.getItem(NOTIF_PREF_KEY),
-          ...Object.values(CATEGORY_KEYS).map((k) => AsyncStorage.getItem(k)),
-        ])
+  // Load server + AsyncStorage on mount
+  useEffect(() => {
+    dispatch(fetchPreferencesThunk())
+    const loadAsync = async () => {
+      const entries = await AsyncStorage.multiGet(Object.values(ASYNC_KEYS))
+      const fromAsync: Record<string, boolean> = {}
+      const keyMap = Object.entries(ASYNC_KEYS)
+      entries.forEach(([storageKey, val], i) => {
+        const field = keyMap.find(([, v]) => v === storageKey)?.[0]
+        if (field && val !== null) fromAsync[field] = val === 'true'
+      })
+      setPrefs(prev => ({ ...prev, ...fromAsync }))
+    }
+    loadAsync()
+  }, [dispatch])
 
-        if (!mounted) return
-        setReceiveNotifications(notifPref !== 'false')
+  // Merge server prefs when they arrive
+  useEffect(() => {
+    if (serverPrefs) {
+      setPrefs(prev => ({ ...prev, ...serverPrefs }))
+    }
+  }, [serverPrefs])
 
-        const catValues = { ...categories }
-        Object.values(CATEGORY_CONFIG).forEach((cfg, i) => {
-          if (catPrefs[i] !== null) {
-            catValues[cfg.key] = catPrefs[i] === 'true'
-          }
-        })
-        setCategories(catValues)
+  const persistToggle = useCallback(async (key: keyof typeof ASYNC_KEYS, value: boolean) => {
+    await AsyncStorage.setItem(ASYNC_KEYS[key], value ? 'true' : 'false')
+    setPrefs(prev => ({ ...prev, [key]: value }))
+    dispatch(updatePreferencesThunk({ [key]: value }))
+  }, [dispatch])
+
+  const handleMasterToggle = useCallback(async (value: boolean) => {
+    await AsyncStorage.setItem(ASYNC_KEYS.enabled, value ? 'true' : 'false')
+    setPrefs(prev => ({ ...prev, enabled: value }))
+    dispatch(updatePreferencesThunk({ enabled: value }))
+    if (!value) {
+      // when disabling all, also disable all category prefs locally
+      for (const cat of CATEGORIES) {
+        await AsyncStorage.setItem(ASYNC_KEYS[cat.key], 'false')
+        setPrefs(prev => ({ ...prev, [cat.key]: false }))
+        dispatch(updatePreferencesThunk({ [cat.key]: false }))
       }
-
-      loadState()
-
-      return () => {
-        mounted = false
-      }
-    }, [])
-  )
+    }
+  }, [dispatch])
 
   const handleTestNotification = async () => {
     try {
@@ -74,20 +101,9 @@ export default function SettingsNotificationsScreen() {
         },
         trigger: null,
       })
-      Alert.alert('Notificação enviada!', 'Verifique sua central de notificações.')
     } catch {
-      Alert.alert('Erro', 'Não foi possível disparar a notificação.')
+      // silent
     }
-  }
-
-  const handleNotificationToggle = async (nextValue: boolean) => {
-    await AsyncStorage.setItem(NOTIF_PREF_KEY, nextValue ? 'true' : 'false')
-    setReceiveNotifications(nextValue)
-  }
-
-  const handleCategoryToggle = async (key: NotifCategory, nextValue: boolean) => {
-    await AsyncStorage.setItem(CATEGORY_KEYS[key], nextValue ? 'true' : 'false')
-    setCategories((prev) => ({ ...prev, [key]: nextValue }))
   }
 
   return (
@@ -95,7 +111,7 @@ export default function SettingsNotificationsScreen() {
       <View style={styles.content}>
         <Heading size="2xl" weight="800">Alertas</Heading>
         <Text color="mutedForeground" style={styles.description}>
-          Gerencie como o PetLink se comunica com você. Desative se preferir o silêncio.
+          Gerencie como o PetLink se comunica com você.
         </Text>
 
         <Button label="Enviar notificação de teste" onPress={handleTestNotification} variant="outline" />
@@ -117,13 +133,13 @@ export default function SettingsNotificationsScreen() {
             </View>
           </View>
           <Switch
-            value={receiveNotifications}
-            onValueChange={handleNotificationToggle}
+            value={prefs.enabled}
+            onValueChange={handleMasterToggle}
             trackColor={{
               false: withAlpha(colors.mutedForeground, 0.35),
               true: withAlpha(colors.primary, 0.55),
             }}
-            thumbColor={receiveNotifications ? colors.primary : colors.card}
+            thumbColor={prefs.enabled ? colors.primary : colors.card}
           />
         </View>
 
@@ -131,8 +147,8 @@ export default function SettingsNotificationsScreen() {
           <Text size="xs" weight="800" color="mutedForeground" style={styles.subLabel}>
             NOTIFICAÇÕES POR CATEGORIA
           </Text>
-          {CATEGORY_CONFIG.map((cfg) => {
-            const enabled = categories[cfg.key]
+          {CATEGORIES.map((cfg) => {
+            const enabled = prefs[cfg.key]
             return (
               <View
                 key={cfg.key}
@@ -141,32 +157,31 @@ export default function SettingsNotificationsScreen() {
                   {
                     borderColor: withAlpha(colors.border, 0.8),
                     backgroundColor: withAlpha(colors.card, 0.78),
-                    opacity: receiveNotifications ? 1 : 0.45,
+                    opacity: prefs.enabled ? 1 : 0.45,
                   },
                 ]}
               >
                 <View style={styles.actionLeft}>
-                  <Ionicons name={cfg.icon as any} size={22} color={receiveNotifications ? colors.primary : colors.mutedForeground} />
+                  <Ionicons name={cfg.icon as any} size={22} color={prefs.enabled ? colors.primary : colors.mutedForeground} />
                   <View>
                     <Text weight="700" size="lg">{cfg.label}</Text>
                     <Text size="xs" color="mutedForeground">{cfg.desc}</Text>
                   </View>
                 </View>
                 <Switch
-                  value={receiveNotifications && enabled}
-                  onValueChange={(v) => handleCategoryToggle(cfg.key, v)}
-                  disabled={!receiveNotifications}
+                  value={prefs.enabled && enabled}
+                  onValueChange={(v) => persistToggle(cfg.key, v)}
+                  disabled={!prefs.enabled}
                   trackColor={{
                     false: withAlpha(colors.mutedForeground, 0.35),
                     true: withAlpha(colors.primary, 0.55),
                   }}
-                  thumbColor={enabled && receiveNotifications ? colors.primary : colors.card}
+                  thumbColor={enabled && prefs.enabled ? colors.primary : colors.card}
                 />
               </View>
             )
           })}
         </View>
-
       </View>
     </View>
   )

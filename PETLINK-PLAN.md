@@ -174,7 +174,19 @@ server/src/
 | `server/src/app.ts` | Registra rota `/reminders` |
 | `src/services/NotificationService.ts` | **Birthday**: `scheduleBirthdayNotifications()`, `cancelBirthdayNotifications()`, integrado ao `restoreScheduledNotifications()` |
 | `src/screens/PetsScreen.tsx` | Chama `scheduleBirthdayNotifications()` após criar pet; passou `birthDate` ao `<Calendar>` |
-| `src/screens/Pets/components/Calendar.tsx` | `birthDate` prop → evento de aniversário no calendário com cake icon (#EC4899) na grade + lista |
+| `src/screens/Pets/components/Calendar.tsx` | `birthDate` prop → evento de aniversário no calendário com cake icon (#EC4899) na grade + lista; botão "Postar consulta" para consultas com foto |
+| `src/screens/Pets/ConsultationScreen.tsx` | Botão "Postar consulta" no modal de detalhes; checkbox "Postar após salvar" no formulário de criação; renderiza `CreatePostModal` pré-preenchido |
+| `src/components/ui/CreatePostModal.tsx` | Aceita `initialPhotoUrl` e `initialPetId` — pula escolha de imagem/seleção de pet |
+| `server/src/migrations/004_notification_preferences.sql` | **Novo** — tabela `user_notification_preferences` |
+| `server/src/modules/notifications/` | `GET/PUT /notifications/preferences` no controller/service/repository/routes |
+| `server/src/modules/push/push.service.ts` | Checa preferências do usuário antes de enviar push (enabled, vacinas, social_likes, social_follows) |
+| `server/src/modules/feeding/` | `GET /pets/:petId/feeding/score` — agregação diária de completude alimentar |
+| `mobile/src/store/slices/feedingSlice.ts` | `fetchFeedingScoreThunk`, estado `score`, seletor `selectFeedingScore` |
+| `mobile/src/components/FeedingScoreCalendar.tsx` | **Novo** — calendário semanal/mensal colorido por score alimentar |
+| `mobile/src/screens/Pets/FeedingScreen.tsx` | Integração do `FeedingScoreCalendar` no modo check |
+| `mobile/src/store/slices/notificationsSlice.ts` | `fetchPreferencesThunk`, `updatePreferencesThunk`, `selectPreferences` |
+| `mobile/src/screens/SettingsNotificationsScreen.tsx` | Reescrita — sincroniza com servidor, toggles reais (alimentação, vacinas, aniversário, curtidas, seguidores) |
+| `mobile/src/services/NotificationService.ts` | Lê AsyncStorage com novas chaves; `scheduleBirthdayNotifications` checa `aniversario` |
 
 ---
 
@@ -463,6 +475,9 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=
 - **Banner carrossel**: auto-rotação 4s + dots indicadores + swipe manual
 - **Action buttons notificação**: "Já alimentei" feeding + deep links (vacina detail, feeding, perfil público)
 - **Deep links**: navigationRef + navegação correta ao tap na notificação
+- **Postar consulta**: botão "Postar consulta" no modal de detalhes (com foto) + checkbox "Postar após salvar" no formulário de criação. Abre CreatePostModal pré-preenchido com foto e pet da consulta.
+- **Config notificações funcionando**: migration `004_notification_preferences.sql` (tabela `user_notification_preferences`), `GET/PUT /notifications/preferences`, server filtra pushes por preferência (enabled, vacinas, social_likes, social_follows), mobile Settings sincroniza com servidor, toggles: Alimentação, Vacinas, Aniversário (novo), Curtidas/comentários, Seguidores (replace do mock "Posts de amigos").
+- **FeedingScoreCalendar**: `GET /pets/:petId/feeding/score?start=&end=` (agregação diária), componente móvel com visão semanal (padrão) e mensal, dias coloridos por completude (verde/laranja/vermelho), integrado na tela de alimentação.
 
 **Pendentes:**
 

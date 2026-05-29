@@ -149,4 +149,41 @@ export const feedingRepository = {
     if (error) throw error
     return data as FeedingLog
   },
+
+  async getScoreInRange(petId: string, startDate: string, endDate: string): Promise<{ date: string; total: number; completed: number }[]> {
+    const { data, error } = await supabaseAdmin
+      .from('feeding_logs')
+      .select('log_date, checked_at')
+      .eq('pet_id', petId)
+      .gte('log_date', startDate)
+      .lte('log_date', endDate)
+      .order('log_date', { ascending: true })
+
+    if (error) throw error
+
+    const dayMap = new Map<string, { total: number; completed: number }>()
+    for (const row of data ?? []) {
+      const day = row.log_date as string
+      const entry = dayMap.get(day) ?? { total: 0, completed: 0 }
+      entry.total += 1
+      if (row.checked_at) entry.completed += 1
+      dayMap.set(day, entry)
+    }
+
+    const result: { date: string; total: number; completed: number }[] = []
+    const cursor = new Date(startDate)
+    const end = new Date(endDate)
+    while (cursor <= end) {
+      const dateStr = cursor.toISOString().split('T')[0]
+      const entry = dayMap.get(dateStr)
+      result.push({
+        date: dateStr,
+        total: entry?.total ?? 0,
+        completed: entry?.completed ?? 0,
+      })
+      cursor.setDate(cursor.getDate() + 1)
+    }
+
+    return result
+  },
 }

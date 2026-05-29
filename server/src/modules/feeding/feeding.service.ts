@@ -24,6 +24,11 @@ export const feedingService = {
     return feedingRepository.checkLog(logId, petId, checked)
   },
 
+  async getScore(petId: string, userId: string, start: string, end: string) {
+    await this.verifyOwnership(petId, userId)
+    return feedingRepository.getScoreInRange(petId, start, end)
+  },
+
   async verifyOwnership(petId: string, userId: string) {
     const pet = await petsRepository.findById(petId)
     if (!pet || pet.owner_id !== userId) {

@@ -19,6 +19,24 @@ export type PushTokenRow = {
   created_at: string
 }
 
+export type NotificationPreferences = {
+  enabled:      boolean
+  alimentacao:  boolean
+  vacinas:      boolean
+  social_likes: boolean
+  social_follows: boolean
+  aniversario:  boolean
+}
+
+const DEFAULT_PREFERENCES: NotificationPreferences = {
+  enabled: true,
+  alimentacao: true,
+  vacinas: true,
+  social_likes: true,
+  social_follows: true,
+  aniversario: true,
+}
+
 export const notificationsRepository = {
   async listByUser(userId: string): Promise<AppNotification[]> {
     const { data, error } = await supabaseAdmin
@@ -50,5 +68,45 @@ export const notificationsRepository = {
       )
 
     if (upsertError) throw upsertError
+  },
+
+  async getPreferences(userId: string): Promise<NotificationPreferences> {
+    const { data, error } = await supabaseAdmin
+      .from('user_notification_preferences')
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle()
+
+    if (error) throw error
+    if (!data) return DEFAULT_PREFERENCES
+    return {
+      enabled: data.enabled ?? true,
+      alimentacao: data.alimentacao ?? true,
+      vacinas: data.vacinas ?? true,
+      social_likes: data.social_likes ?? true,
+      social_follows: data.social_follows ?? true,
+      aniversario: data.aniversario ?? true,
+    }
+  },
+
+  async upsertPreferences(userId: string, prefs: Partial<NotificationPreferences>): Promise<NotificationPreferences> {
+    const { data, error } = await supabaseAdmin
+      .from('user_notification_preferences')
+      .upsert(
+        { user_id: userId, ...prefs, updated_at: new Date().toISOString() },
+        { onConflict: 'user_id' }
+      )
+      .select()
+      .single()
+
+    if (error) throw error
+    return {
+      enabled: data.enabled ?? true,
+      alimentacao: data.alimentacao ?? true,
+      vacinas: data.vacinas ?? true,
+      social_likes: data.social_likes ?? true,
+      social_follows: data.social_follows ?? true,
+      aniversario: data.aniversario ?? true,
+    }
   },
 }

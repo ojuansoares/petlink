@@ -4,11 +4,14 @@ import {
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker'
+import { format, subMonths, addMonths } from 'date-fns'
 import { useAppDispatch, useAppSelector } from '../../store'
 import {
   fetchFeedingPlanThunk, saveFeedingPlanThunk,
   fetchFeedingLogsThunk, checkMealThunk,
+  fetchFeedingScoreThunk,
   selectFeedingPlan, selectFeedingLogs, selectFeedingSaving, selectFeedingLoading,
+  selectFeedingScore, selectFeedingScoreLoading,
   type FeedingPlan, type FeedingLog,
 } from '../../store/slices/feedingSlice'
 import { useTheme } from '../../hooks/useTheme'
@@ -16,6 +19,7 @@ import { Heading, Text } from '../../components/ui/Typography'
 import { Button } from '../../components/ui/Button'
 import { showToast } from '../../store/slices/uiSlice'
 import { AppToast } from '../../components/ui/AppToast'
+import { FeedingScoreCalendar } from '../../components/FeedingScoreCalendar'
 import { scheduleFeedingNotifications } from '../../services/NotificationService'
 
 type MealForm = {
@@ -30,6 +34,8 @@ export default function FeedingScreen({ route }: any) {
   const dispatch = useAppDispatch()
   const plan = useAppSelector(selectFeedingPlan)
   const logs = useAppSelector(selectFeedingLogs)
+  const score = useAppSelector(selectFeedingScore)
+  const isLoadingScore = useAppSelector(selectFeedingScoreLoading)
   const isSaving = useAppSelector(selectFeedingSaving)
   const isLoadingLogs = useAppSelector(selectFeedingLoading)
   const { colors, withAlpha } = useTheme()
@@ -40,6 +46,8 @@ export default function FeedingScreen({ route }: any) {
   const [showCelebration, setShowCelebration] = useState(false)
   const [checkingId, setCheckingId] = useState<string | null>(null)
   const [loadingPlan, setLoadingPlan] = useState(true)
+  const [scoreViewMode, setScoreViewMode] = useState<'weekly' | 'monthly'>('weekly')
+  const [scoreRefDate, setScoreRefDate] = useState(new Date())
   const celebrationScale = useRef(new Animated.Value(0)).current
   const celebrationOpacity = useRef(new Animated.Value(0)).current
   const today = new Date().toISOString().split('T')[0]
@@ -63,6 +71,13 @@ export default function FeedingScreen({ route }: any) {
       setMeals([{ meal_name: 'Refeição 1', meal_time: (() => { const d = new Date(); d.setHours(8, 0, 0, 0); return d })(), quantity: '' }])
     }
   }, [plan, loadingPlan])
+
+  useEffect(() => {
+    if (mode !== 'check') return
+    const start = format(scoreViewMode === 'weekly' ? scoreRefDate : subMonths(scoreRefDate, 1), 'yyyy-MM-dd')
+    const end = format(scoreViewMode === 'weekly' ? scoreRefDate : addMonths(scoreRefDate, 1), 'yyyy-MM-dd')
+    dispatch(fetchFeedingScoreThunk({ petId, start, end }))
+  }, [mode, scoreViewMode, scoreRefDate, petId, dispatch])
 
   useEffect(() => {
     if (allChecked && logs.length > 0) {
@@ -276,6 +291,14 @@ export default function FeedingScreen({ route }: any) {
             <View style={[styles.progressFill, { backgroundColor: '#22C55E', width: logs.length > 0 ? `${(checkedCount / logs.length) * 100}%` : '0%' }]} />
           </View>
         </View>
+
+        <FeedingScoreCalendar
+          score={score}
+          viewMode={scoreViewMode}
+          onViewModeChange={setScoreViewMode}
+          referenceDate={scoreRefDate}
+          onReferenceDateChange={setScoreRefDate}
+        />
 
         {isLoadingLogs ? (
           <ActivityIndicator color={colors.primary} style={{ marginTop: 20 }} />

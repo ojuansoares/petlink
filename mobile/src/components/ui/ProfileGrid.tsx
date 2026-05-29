@@ -1,20 +1,16 @@
 import React from 'react'
 import {
   FlatList,
-  Dimensions,
   Pressable,
   StyleSheet,
   View,
   ActivityIndicator,
+  useWindowDimensions,
 } from 'react-native'
 import { Image } from 'expo-image'
 import { Ionicons } from '@expo/vector-icons'
 import { useTheme } from '../../hooks/useTheme'
 import { Post } from '../../store/slices/postsSlice'
-
-const { width } = Dimensions.get('window')
-const numColumns = 3
-const itemSize = width / numColumns
 
 interface ProfileGridProps {
   posts: Post[]
@@ -27,19 +23,19 @@ interface ProfileGridProps {
   onRefresh?: () => void
 }
 
-const PostItem = React.memo(({ post, onPress }: { post: Post; onPress: (p: Post) => void }) => {
+const PostItem = React.memo(({ post, onPress, size }: { post: Post; onPress: (p: Post) => void; size: number }) => {
   const { colors } = useTheme()
   return (
     <Pressable
       onPress={() => onPress(post)}
-      style={{ width: itemSize, height: itemSize, padding: 0.5 }}
+      style={{ width: size, height: size, padding: 0.5 }}
     >
       <Image
         source={{ uri: post.image_url }}
-        style={{ 
-          width: '100%', 
-          height: '100%', 
-          backgroundColor: colors.muted 
+        style={{
+          width: '100%',
+          height: '100%',
+          backgroundColor: colors.muted,
         }}
         contentFit="cover"
         transition={200}
@@ -54,7 +50,8 @@ const PostItem = React.memo(({ post, onPress }: { post: Post; onPress: (p: Post)
 })
 
 /**
- * Optimized Grid for displaying posts in a profile-style 3-column layout.
+ * Optimized Grid for displaying posts in a profile-style layout.
+ * Columns adjust based on screen width: 3 on phones, 4 on tablets.
  */
 export function ProfileGrid({
   posts,
@@ -67,10 +64,13 @@ export function ProfileGrid({
   onRefresh,
 }: ProfileGridProps) {
   const { colors } = useTheme()
+  const { width } = useWindowDimensions()
+  const numColumns = width >= 600 ? 4 : 3
+  const itemSize = width / numColumns
 
   const renderItem = React.useCallback(({ item }: { item: Post }) => (
-    <PostItem post={item} onPress={(p) => onPostPress?.(p)} />
-  ), [onPostPress])
+    <PostItem post={item} onPress={(p) => onPostPress?.(p)} size={itemSize} />
+  ), [onPostPress, itemSize])
 
   if (loading && posts.length === 0) {
     return (
@@ -86,6 +86,7 @@ export function ProfileGrid({
       renderItem={renderItem}
       keyExtractor={(item) => item.id}
       numColumns={numColumns}
+      key={numColumns}
       ListHeaderComponent={ListHeaderComponent}
       ListEmptyComponent={ListEmptyComponent}
       onEndReached={onEndReached}

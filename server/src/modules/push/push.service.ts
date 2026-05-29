@@ -35,6 +35,17 @@ async function saveNotification(
   })
 }
 
+async function getUserPreferences(userId: string): Promise<Record<string, boolean>> {
+  const { data } = await supabaseAdmin
+    .from('user_notification_preferences')
+    .select('*')
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  if (!data) return {}
+  return data as Record<string, boolean>
+}
+
 export async function sendPush(
   userId: string,
   type: 'vaccine_due' | 'geofence' | 'social',
@@ -42,6 +53,17 @@ export async function sendPush(
   body: string | null,
   data: Record<string, unknown> | null = null,
 ): Promise<void> {
+  const prefs = await getUserPreferences(userId)
+
+  if (prefs.enabled === false) return
+
+  if (type === 'vaccine_due' && prefs.vacinas === false) return
+  if (type === 'social') {
+    const screen = data?.screen as string | undefined
+    if (screen === 'PublicProfile' && prefs.social_follows === false) return
+    if (prefs.social_likes === false) return
+  }
+
   const token = await getPushToken(userId)
   if (!token) {
     await saveNotification(userId, type, title, body, data)

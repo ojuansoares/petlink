@@ -27,8 +27,10 @@ import {
 import { ptBR } from 'date-fns/locale'
 
 import { useTheme } from '../../../hooks/useTheme'
-import { Heading, Text } from '../../../components/ui/Typography'
+import { Button } from '../../../components/ui/Button'
 import { AppModal } from '../../../components/ui/AppModal'
+import { CreatePostModal } from '../../../components/ui/CreatePostModal'
+import { Heading, Text } from '../../../components/ui/Typography'
 import { getVaccinesByPetId, updateVaccine } from '../../../api/vaccine.api'
 import { getConsultationsByPetId } from '../../../api/consultation.api'
 import { fetchBatchMedia } from '../../../api/consultationMedia.api'
@@ -61,6 +63,10 @@ export function Calendar({ petId, petName, birthDate }: CalendarProps) {
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null)
   const [isDetailVisible, setIsDetailVisible] = useState(false)
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
+
+  // Post from consultation state
+  const [showPostModal, setShowPostModal] = useState(false)
+  const [postConsultationData, setPostConsultationData] = useState<{ photoUrl: string; petId: string } | null>(null)
 
   // Gesture State
   const [touchStart, setTouchStart] = useState({ x: 0, y: 0 })
@@ -417,6 +423,19 @@ export function Calendar({ petId, petName, birthDate }: CalendarProps) {
               <Text size="sm">"{c.notes}"</Text>
             </View>
           )}
+
+          {media?.type === 'photo' && (
+            <Button
+              onPress={() => {
+                setPostConsultationData({ photoUrl: media.value, petId: c.pet_id })
+                setShowPostModal(true)
+              }}
+              label="Postar consulta"
+              variant="outline"
+              leftIcon={<Ionicons name="share-outline" size={18} color={colors.primary} />}
+              style={{ marginTop: 12 }}
+            />
+          )}
         </View>
       )
     }
@@ -607,6 +626,18 @@ export function Calendar({ petId, petName, birthDate }: CalendarProps) {
       >
         {renderEventDetailsContent()}
       </AppModal>
+
+      {postConsultationData && (
+        <CreatePostModal
+          visible={showPostModal}
+          onClose={() => {
+            setShowPostModal(false)
+            setPostConsultationData(null)
+          }}
+          initialPhotoUrl={postConsultationData.photoUrl}
+          initialPetId={postConsultationData.petId}
+        />
+      )}
     </View>
   )
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { Modal, Pressable, ScrollView, StyleSheet, View, ActivityIndicator, KeyboardAvoidingView, Platform, Keyboard, useWindowDimensions, TextInput } from 'react-native'
+import { Modal, Pressable, ScrollView, StyleSheet, View, ActivityIndicator, KeyboardAvoidingView, Platform, Keyboard, TextInput } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import * as ImagePicker from 'expo-image-picker'
@@ -23,6 +23,8 @@ import { AppToast } from './AppToast'
 interface CreatePostModalProps {
   visible: boolean
   onClose: () => void
+  initialPhotoUrl?: string
+  initialPetId?: string
 }
 
 const BRAZIL_STATES = [
@@ -55,7 +57,7 @@ const BRAZIL_STATES = [
   { label: 'Tocantins', value: 'TO' },
 ]
 
-export function CreatePostModal({ visible, onClose }: Readonly<CreatePostModalProps>) {
+export function CreatePostModal({ visible, onClose, initialPhotoUrl, initialPetId }: Readonly<CreatePostModalProps>) {
   const { colors, withAlpha } = useTheme()
   const dispatch = useAppDispatch()
   const { isOnline } = useNetworkCheck()
@@ -100,6 +102,18 @@ export function CreatePostModal({ visible, onClose }: Readonly<CreatePostModalPr
       dispatch(fetchPetsThunk())
     }
   }, [visible, pets.length, dispatch])
+
+  useEffect(() => {
+    if (visible && initialPhotoUrl) {
+      setPhotoUrl(initialPhotoUrl)
+    }
+  }, [visible, initialPhotoUrl])
+
+  useEffect(() => {
+    if (visible && initialPetId) {
+      setPetId(initialPetId)
+    }
+  }, [visible, initialPetId])
 
   useEffect(() => {
     if (visible && !location && !suggestedLocation) {

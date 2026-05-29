@@ -53,4 +53,19 @@ export const feedingController = {
       return res.status(err.statusCode ?? 500).json({ error: err.message ?? 'Erro' })
     }
   },
+
+  async getScore(req: Request, res: Response) {
+    try {
+      const authReq = req as AuthRequest
+      if (!authReq.user) return res.status(401).json({ error: 'Não autenticado' })
+      const { petId } = req.params as { petId: string }
+      const start = req.query.start as string
+      const end = req.query.end as string
+      if (!start || !end) return res.status(400).json({ error: 'start e end são obrigatórios (YYYY-MM-DD)' })
+      const score = await feedingService.getScore(petId, authReq.user.id, start, end)
+      return res.json(score)
+    } catch (err: any) {
+      return res.status(err.statusCode ?? 500).json({ error: err.message ?? 'Erro' })
+    }
+  },
 }

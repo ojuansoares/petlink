@@ -6,7 +6,6 @@ import {
   ScrollView,
   StyleSheet,
   View,
-  Dimensions,
   ActivityIndicator,
   useWindowDimensions,
 } from 'react-native'
@@ -29,11 +28,10 @@ import { format, parseISO } from 'date-fns'
 
 type NavProp = StackNavigationProp<AppStackParamList>
 
-const { width } = Dimensions.get('window')
-const CARD_WIDTH = width - 32
-
 export default function HomeScreen() {
   const { colors, withAlpha, mode } = useTheme()
+  const { width: screenWidth } = useWindowDimensions()
+  const cardWidth = screenWidth - 32
   const navigation = useNavigation<NavProp>()
   const pets = useAppSelector(selectPetsList)
   const activePetId = useAppSelector(selectActivePetId)
@@ -50,8 +48,6 @@ export default function HomeScreen() {
   const bannerScrollRef = useRef<ScrollView>(null)
   const [bannerIndex, setBannerIndex] = useState(0)
   const bannerCount = 2
-  const { width: screenWidth } = useWindowDimensions()
-  const cardWidth = screenWidth - 32
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -316,10 +312,10 @@ export default function HomeScreen() {
 
       {/* QUICK ACTIONS */}
       {activePet && (
-        <View style={styles.quickActionsRow}>
+        <View style={[styles.quickActionsRow, screenWidth < 400 && styles.quickActionsRowNarrow]}>
           <Pressable
             onPress={() => navigation.navigate('Feed' as never)}
-            style={[styles.quickActionBtn, { backgroundColor: colors.card, borderColor: withAlpha(colors.border, 0.6) }]}
+            style={[styles.quickActionBtn, { backgroundColor: colors.card, borderColor: withAlpha(colors.border, 0.6) }, screenWidth < 400 && styles.quickActionBtnNarrow]}
           >
             <View style={[styles.quickActionIcon, { backgroundColor: withAlpha(colors.primary, 0.1) }]}>
               <Ionicons name="add-circle" size={22} color={colors.primary} />
@@ -328,18 +324,18 @@ export default function HomeScreen() {
           </Pressable>
 
           <Pressable
-            onPress={() => navigation.navigate('Pets' as never)}
-            style={[styles.quickActionBtn, { backgroundColor: colors.card, borderColor: withAlpha(colors.border, 0.6) }]}
+            onPress={() => navigation.navigate('Weight' as never)}
+            style={[styles.quickActionBtn, { backgroundColor: colors.card, borderColor: withAlpha(colors.border, 0.6) }, screenWidth < 400 && styles.quickActionBtnNarrow]}
           >
             <View style={[styles.quickActionIcon, { backgroundColor: withAlpha('#22C55E', 0.1) }]}>
-              <Ionicons name="scale" size={22} color="#22C55E" />
+              <Ionicons name="scale-outline" size={22} color="#22C55E" />
             </View>
             <Text size="xs" weight="700" style={{ marginTop: 4 }}>Registrar peso</Text>
           </Pressable>
 
           <Pressable
             onPress={() => navigation.navigate('Consultation', { petId: activePet.id, petName: activePet.name })}
-            style={[styles.quickActionBtn, { backgroundColor: colors.card, borderColor: withAlpha(colors.border, 0.6) }]}
+            style={[styles.quickActionBtn, { backgroundColor: colors.card, borderColor: withAlpha(colors.border, 0.6) }, screenWidth < 400 && styles.quickActionBtnNarrow]}
           >
             <View style={[styles.quickActionIcon, { backgroundColor: withAlpha('#3B82F6', 0.1) }]}>
               <Ionicons name="calendar" size={22} color="#3B82F6" />
@@ -349,7 +345,7 @@ export default function HomeScreen() {
 
           <Pressable
             onPress={() => navigation.navigate('FeedingPlan', { petId: activePet.id, petName: activePet.name })}
-            style={[styles.quickActionBtn, { backgroundColor: colors.card, borderColor: withAlpha(colors.border, 0.6) }]}
+            style={[styles.quickActionBtn, { backgroundColor: colors.card, borderColor: withAlpha(colors.border, 0.6) }, screenWidth < 400 && styles.quickActionBtnNarrow]}
           >
             <View style={[styles.quickActionIcon, { backgroundColor: withAlpha('#F97316', 0.1) }]}>
               <Ionicons name="restaurant" size={22} color="#F97316" />
@@ -364,17 +360,17 @@ export default function HomeScreen() {
         ref={bannerScrollRef}
         horizontal
         showsHorizontalScrollIndicator={false}
-        snapToInterval={CARD_WIDTH + 16}
+        snapToInterval={cardWidth + 16}
         decelerationRate="fast"
         contentContainerStyle={styles.bannerRow}
         onMomentumScrollEnd={(e) => {
-          const idx = Math.round(e.nativeEvent.contentOffset.x / (CARD_WIDTH + 16))
+          const idx = Math.round(e.nativeEvent.contentOffset.x / (cardWidth + 16))
           setBannerIndex(idx)
         }}
       >
         <ImageBackground
           source={require('../assets/banner_happy_dog.jpg')}
-          style={[styles.banner, { backgroundColor: colors.primary }]}
+          style={[styles.banner, { backgroundColor: colors.primary, width: cardWidth, aspectRatio: 1.8 }]}
           imageStyle={styles.bannerImage}
         >
           <View style={styles.bannerOverlay}>
@@ -392,7 +388,7 @@ export default function HomeScreen() {
           </View>
         </ImageBackground>
 
-        <View style={[styles.banner, { backgroundColor: '#7048E8' }]}>
+        <View style={[styles.banner, { backgroundColor: '#7048E8', width: cardWidth, aspectRatio: 1.8 }]}>
            <View style={styles.bannerContent}>
               <View style={[styles.badge, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
                 <Text size="xs" weight="700" style={{ color: '#fff' }}>PETLINK PLUS</Text>
@@ -417,7 +413,7 @@ export default function HomeScreen() {
             key={i}
             onPress={() => {
               setBannerIndex(i)
-              bannerScrollRef.current?.scrollTo({ x: i * (CARD_WIDTH + 16), animated: true })
+              bannerScrollRef.current?.scrollTo({ x: i * (cardWidth + 16), animated: true })
             }}
           >
             <View
@@ -526,7 +522,9 @@ const styles = StyleSheet.create({
   quickActionsRow: {
     flexDirection: 'row',
     gap: 10,
-    marginBottom: 24,
+  },
+  quickActionsRowNarrow: {
+    flexWrap: 'wrap',
   },
   quickActionBtn: {
     flex: 1,
@@ -534,6 +532,10 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 16,
     borderWidth: 1,
+  },
+  quickActionBtnNarrow: {
+    flex: undefined,
+    width: '47%',
   },
   quickActionIcon: {
     width: 40,
@@ -579,9 +581,7 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   banner: {
-    width: CARD_WIDTH,
-    height: 180,
-    borderRadius: 32,
+    borderRadius: 16,
     overflow: 'hidden',
     justifyContent: 'flex-end',
     padding: 24,

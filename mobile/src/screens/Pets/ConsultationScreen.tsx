@@ -27,6 +27,7 @@ import { DateInput } from '../../components/ui/DateInput';
 import { useSelector } from 'react-redux';
 import { selectUser } from '../../store/slices/authSlice';
 import { ActionOptionsModal } from '../../components/ui/ActionOptionsModal';
+import { CreatePostModal } from '../../components/ui/CreatePostModal';
 
 const DateTimePickerComponent = (() => {
   try {
@@ -78,6 +79,11 @@ export function ConsultationScreen() {
   const [mediaType, setMediaType] = useState<'photo' | 'color' | null>(null);
   const [mediaValue, setMediaValue] = useState('');
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+
+  const [showPostModal, setShowPostModal] = useState(false)
+  const [postFromConsultation, setPostFromConsultation] = useState<{ photoUrl: string; petId: string } | null>(null)
+
+  const [shouldPostAfterSave, setShouldPostAfterSave] = useState(false)
 
   const loadData = useCallback(async () => {
     try {
@@ -199,9 +205,14 @@ export function ConsultationScreen() {
         if (mediaType && mediaValue) {
           await saveMedia(created.id, mediaType, mediaValue)
         }
+        if (shouldPostAfterSave && mediaType === 'photo' && mediaValue) {
+          setPostFromConsultation({ photoUrl: mediaValue, petId })
+          setShowPostModal(true)
+        }
       }
       loadData()
       setModalVisible(false)
+      setShouldPostAfterSave(false)
     } catch (error) {
       console.error('Failed to save consultation:', error)
     }
@@ -270,8 +281,9 @@ export function ConsultationScreen() {
     const hasPhoto = media?.type === 'photo'
 
     return (
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {media?.type === 'photo' ? (
+      <View>
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {media?.type === 'photo' ? (
           <Image source={{ uri: media.value }} style={styles.detailPhoto} contentFit="cover" />
         ) : media?.type === 'color' ? (
           <View style={[styles.detailColorBanner, { backgroundColor: media.value }]} />
@@ -335,6 +347,20 @@ export function ConsultationScreen() {
           )}
         </View>
       </ScrollView>
+
+      {hasPhoto && (
+        <Button
+          onPress={() => {
+            setPostFromConsultation({ photoUrl: media!.value, petId: c.pet_id })
+            setShowPostModal(true)
+          }}
+          label="Postar consulta"
+          variant="outline"
+          leftIcon={<Ionicons name="share-outline" size={18} color={colors.primary} />}
+          style={{ marginTop: 12 }}
+        />
+      )}
+      </View>
     )
   }
 
@@ -441,6 +467,23 @@ export function ConsultationScreen() {
           <Input label="Exames Solicitados" value={examsRequested} onChangeText={setExamsRequested} placeholder="Lista de exames (opcional)" multiline leftIcon={<Ionicons name="list-outline" size={18} color={colors.mutedForeground} />} />
           <Input label="Prescrição" value={prescription} onChangeText={setPrescription} multiline placeholder="Remédios e dosagens" leftIcon={<Ionicons name="medkit-outline" size={18} color={colors.mutedForeground} />} />
           <Input label="Notas" value={notes} onChangeText={setNotes} multiline placeholder="Observações extras" leftIcon={<Ionicons name="document-text-outline" size={18} color={colors.mutedForeground} />} />
+
+          {mediaType === 'photo' && mediaValue && (
+            <Pressable
+              onPress={() => setShouldPostAfterSave(prev => !prev)}
+              style={[styles.checkboxRow, { backgroundColor: withAlpha(colors.primary, 0.06), borderRadius: 12, padding: 12, marginTop: 8 }]}
+            >
+              <Ionicons
+                name={shouldPostAfterSave ? 'checkbox' : 'square-outline'}
+                size={22}
+                color={shouldPostAfterSave ? colors.primary : colors.mutedForeground}
+              />
+              <Text size="sm" weight="600" style={{ marginLeft: 8, flex: 1 }}>
+                Postar consulta após salvar
+              </Text>
+            </Pressable>
+          )}
+
           <Button onPress={handleSave} style={{ marginTop: 16, marginBottom: 20 }} loading={isUploadingPhoto} label="Salvar" />
         </ScrollView>
 
@@ -461,6 +504,18 @@ export function ConsultationScreen() {
       >
         {renderDetailContent()}
       </AppModal>
+
+      {postFromConsultation && (
+        <CreatePostModal
+          visible={showPostModal}
+          onClose={() => {
+            setShowPostModal(false)
+            setPostFromConsultation(null)
+          }}
+          initialPhotoUrl={postFromConsultation.photoUrl}
+          initialPetId={postFromConsultation.petId}
+        />
+      )}
     </View>
   )
 }
@@ -521,7 +576,10 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 120,
     borderRadius: 12,
-    marginBottom: 8,
+  },
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   formSection: {
     marginBottom: 12,

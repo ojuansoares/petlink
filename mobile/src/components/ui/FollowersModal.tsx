@@ -6,7 +6,7 @@ import {
   Pressable,
   ActivityIndicator,
   StyleSheet,
-  Dimensions,
+  useWindowDimensions,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { Image } from 'expo-image'
@@ -37,6 +37,8 @@ type Props = {
 export function FollowersModal({ visible, onClose, userId, type, title }: Props) {
   const { colors, withAlpha } = useTheme()
   const navigation = useNavigation<NavigationProp>()
+  const { width } = useWindowDimensions()
+  const modalWidth = Math.min(width - 48, 420)
   const [users, setUsers] = useState<FollowUser[]>([])
   const [loading, setLoading] = useState(true)
   const [hasMore, setHasMore] = useState(false)
@@ -112,7 +114,7 @@ export function FollowersModal({ visible, onClose, userId, type, title }: Props)
       onRequestClose={onClose}
     >
       <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable style={[styles.container, { backgroundColor: colors.background }]}>
+        <Pressable style={[styles.container, { backgroundColor: colors.background, width: modalWidth, maxHeight: 520 }]}>
           {/* Header */}
           <View style={styles.header}>
             <Heading size="xl" weight="800">
@@ -177,10 +179,6 @@ export function FollowersModal({ visible, onClose, userId, type, title }: Props)
   )
 }
 
-const { width } = Dimensions.get('window')
-const MODAL_WIDTH = Math.min(width - 48, 420)
-const MODAL_MAX_HEIGHT = 520
-
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
@@ -189,8 +187,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   container: {
-    width: MODAL_WIDTH,
-    maxHeight: MODAL_MAX_HEIGHT,
     borderRadius: 24,
     paddingVertical: 20,
     overflow: 'hidden',
