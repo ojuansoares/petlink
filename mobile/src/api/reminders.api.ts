@@ -1,4 +1,5 @@
 import { api } from './axios'
+import { homeCacheRepository } from '../data/repositories/HomeCacheRepository'
 
 export type ReminderItem = {
   id: string
@@ -13,6 +14,13 @@ export type ReminderItem = {
 }
 
 export async function fetchReminders(): Promise<ReminderItem[]> {
-  const { data } = await api.get('/reminders')
-  return (data?.reminders ?? []) as ReminderItem[]
+  try {
+    const { data } = await api.get('/reminders')
+    const reminders = (data?.reminders ?? []) as ReminderItem[]
+    await homeCacheRepository.saveReminders(reminders)
+    return reminders
+  } catch {
+    const cached = await homeCacheRepository.getReminders<ReminderItem[]>()
+    return cached ?? []
+  }
 }

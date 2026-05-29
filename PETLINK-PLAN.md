@@ -332,14 +332,14 @@ server/src/
 | 49 | Inicializar notificações no `App.tsx` | ✅ | `configureNotifications()`, `createNotificationChannel()`, `requestNotificationPermission()`, `getExpoPushToken()`, `registerPushTokenOnServer()` pós-hydration, condicionado à preferência do usuário |
 | 50 | Conectar `SettingsNotificationsScreen` ao Redux | ✅ | Toggle persiste em AsyncStorage (`petlink.notifications.enabled`), lido no startup |
 
-#### 3.3 — FCM / EAS Build
+#### 3.3 — FCM / EAS Build ✅
 
 | # | Tarefa | Status | Detalhes |
 |---|--------|--------|----------|
-| 51 | Criar conta Firebase + configurar FCM | ❌ | Console Firebase → Cloud Messaging |
-| 52 | Baixar `google-services.json` e `GoogleService-Info.plist` | ❌ | Colocar em `mobile/` |
-| 53 | Configurar EAS Build para FCM | ❌ | `eas.json` + credentials |
-| 54 | Testar push em produção (APK + EAS) | ❌ | Validar recebimento em background/foreground/quiesce |
+| 51 | Criar conta Firebase + configurar FCM | ✅ | Console Firebase configurado |
+| 52 | Baixar `google-services.json` e `GoogleService-Info.plist` | ✅ | Em `mobile/google-services.json` |
+| 53 | Configurar EAS Build para FCM | ✅ | Chave FCM enviada via `eas credentials` |
+| 54 | Testar push em produção (APK + EAS) | ✅ | Push do servidor chega no app via FCM |
 
 ---
 
@@ -482,6 +482,8 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=
 - **FeedingScoreCalendar**: `GET /pets/:petId/feeding/score?start=&end=` (agregação diária), componente móvel com visão semanal (padrão) e mensal, dias coloridos por completude (verde/laranja/vermelho), integrado na tela de alimentação.
 - **H4 — Resumo da semana**: Card na HomeScreen com stats dos últimos 7 dias (refeições, peso, vacinas, consultas). Endpoint `GET /pets/:petId/weekly-summary`.
 - **H5 — Feed de atividades**: Timeline cronológica (peso, vacinas, consultas, posts) com paginação. Endpoint `GET /pets/:petId/timeline`. Botão "Atividades" na aba Controle do PetsScreen.
+- **H8 — Responsividade**: `useWindowDimensions` reativo substitui `Dimensions.get('window')` estático em toda a base. ProfileGrid adaptável (3 colunas phone / 4 tablets). Quick actions com `flexWrap` em telas estreitas. Imports mortos removidos.
+- **Offline HomeCache**: cache de reminders e weekly summary na tabela `sync_meta` do WatermelonDB. API functions salvam no cache após sucesso e retornam cache quando offline. HomeScreen permanece bonita sem internet.
 
 **Pendentes:**
 

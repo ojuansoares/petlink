@@ -16,6 +16,7 @@ if (isNativeDbEnabled && hasNativeBridge) {
     const { UserProfileModel } = require('../models/UserProfileModel')
     const { FeedPhotoModel } = require('../models/FeedPhotoModel')
     const { ProfilePhotoModel } = require('../models/ProfilePhotoModel')
+    const { SyncMetaModel } = require('../models/SyncMetaModel')
 
     const adapter = new SQLiteAdapter({
       schema: offlineSchema,
@@ -29,7 +30,7 @@ if (isNativeDbEnabled && hasNativeBridge) {
 
     offlineDatabase = new Database({
       adapter,
-      modelClasses: [PetModel, WeightRecordModel, UserProfileModel, FeedPhotoModel, ProfilePhotoModel],
+      modelClasses: [PetModel, WeightRecordModel, UserProfileModel, FeedPhotoModel, ProfilePhotoModel, SyncMetaModel],
     })
   } catch (error) {
     console.log('[OFFLINE][DB][INIT_ERROR]', error)
