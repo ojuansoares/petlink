@@ -24,6 +24,7 @@ import { getVaccinesByPetId } from '../api/vaccine.api'
 import { Vaccine } from '../data/models'
 import { AppStackParamList } from '../navigation/types'
 import { fetchReminders, ReminderItem } from '../api/reminders.api'
+import { WeeklySummaryCard } from '../components/WeeklySummaryCard'
 import { format, parseISO } from 'date-fns'
 
 type NavProp = StackNavigationProp<AppStackParamList>
@@ -428,6 +429,9 @@ export default function HomeScreen() {
           </Pressable>
         ))}
       </View>
+
+      {/* RESUMO DA SEMANA */}
+      {activePet && <WeeklySummaryCard petId={activePet.id} />}
 
       {/* LEMBRETES REAIS */}
       {activePet && (

@@ -68,4 +68,16 @@ export const feedingController = {
       return res.status(err.statusCode ?? 500).json({ error: err.message ?? 'Erro' })
     }
   },
+
+  async getWeeklySummary(req: Request, res: Response) {
+    try {
+      const authReq = req as AuthRequest
+      if (!authReq.user) return res.status(401).json({ error: 'Não autenticado' })
+      const { petId } = req.params as { petId: string }
+      const summary = await feedingService.getWeeklySummary(petId, authReq.user.id)
+      return res.json(summary)
+    } catch (err: any) {
+      return res.status(err.statusCode ?? 500).json({ error: err.message ?? 'Erro' })
+    }
+  },
 }

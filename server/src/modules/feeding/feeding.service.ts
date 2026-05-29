@@ -29,6 +29,30 @@ export const feedingService = {
     return feedingRepository.getScoreInRange(petId, start, end)
   },
 
+  async getWeeklySummary(petId: string, userId: string) {
+    await this.verifyOwnership(petId, userId)
+
+    const today = new Date()
+    const sevenDaysAgo = new Date(today)
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6)
+
+    const sevenDaysLater = new Date(today)
+    sevenDaysLater.setDate(sevenDaysLater.getDate() + 7)
+
+    const startStr = sevenDaysAgo.toISOString().split('T')[0]
+    const todayStr = today.toISOString().split('T')[0]
+    const endStr = sevenDaysLater.toISOString().split('T')[0]
+
+    const [meals, weight, upcomingVaccines, upcomingConsultations] = await Promise.all([
+      feedingRepository.getWeeklyMealSummary(petId, startStr, todayStr),
+      feedingRepository.getWeightVariation(petId),
+      feedingRepository.getUpcomingVaccinesCount(petId, endStr),
+      feedingRepository.getUpcomingConsultationsCount(petId, endStr),
+    ])
+
+    return { meals, weight, upcoming: { vaccines: upcomingVaccines, consultations: upcomingConsultations } }
+  },
+
   async verifyOwnership(petId: string, userId: string) {
     const pet = await petsRepository.findById(petId)
     if (!pet || pet.owner_id !== userId) {

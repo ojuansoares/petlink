@@ -186,4 +186,73 @@ export const feedingRepository = {
 
     return result
   },
+
+  async getWeeklyMealSummary(petId: string, startDate: string, endDate: string): Promise<{ total: number; completed: number }> {
+    const scores = await this.getScoreInRange(petId, startDate, endDate)
+    let total = 0
+    let completed = 0
+    for (const day of scores) {
+      total += day.total
+      completed += day.completed
+    }
+    return { total, completed }
+  },
+
+  async getWeightVariation(petId: string): Promise<{ current: number | null; previous: number | null; variation: number | null }> {
+    const { data, error } = await supabaseAdmin
+      .from('weight_records')
+      .select('weight_kg, recorded_at')
+      .eq('pet_id', petId)
+      .order('recorded_at', { ascending: false })
+      .limit(2)
+
+    if (error) throw error
+
+    if (!data || data.length === 0) {
+      return { current: null, previous: null, variation: null }
+    }
+
+    const current = data[0].weight_kg as number
+    const previous = data.length > 1 ? (data[1].weight_kg as number) : null
+    const variation = previous !== null ? parseFloat((current - previous).toFixed(2)) : null
+
+    return { current, previous, variation }
+  },
+
+  async getUpcomingVaccinesCount(petId: string, endDate: string): Promise<number> {
+    const today = new Date().toISOString().split('T')[0]
+    const { data, error } = await supabaseAdmin
+      .from('vaccines')
+      .select('id, is_completed, doses, next_dose_at')
+      .eq('pet_id', petId)
+
+    if (error) throw error
+
+    let count = 0
+    for (const v of data ?? []) {
+      if (v.is_completed) continue
+      const doses = (v.doses && v.doses.length > 0)
+        ? v.doses
+        : [{ date: v.next_dose_at, applied: false }]
+      const nextDose = doses.find((d: any) => !d.applied)
+      if (!nextDose?.date) continue
+      if (nextDose.date >= today && nextDose.date <= endDate) {
+        count += 1
+      }
+    }
+    return count
+  },
+
+  async getUpcomingConsultationsCount(petId: string, endDate: string): Promise<number> {
+    const today = new Date().toISOString().split('T')[0]
+    const { data, error } = await supabaseAdmin
+      .from('consultations')
+      .select('id, consulted_at')
+      .eq('pet_id', petId)
+      .gte('consulted_at', today)
+      .lte('consulted_at', endDate)
+
+    if (error) throw error
+    return data?.length ?? 0
+  },
 }
