@@ -1,6 +1,6 @@
 <div align="center">
 
-<span style="font-size: 3em; font-weight: 800;">PetLink</span>
+# PetLink
 
 **Gestão de saúde animal e rede social para tutores de pets**
 
