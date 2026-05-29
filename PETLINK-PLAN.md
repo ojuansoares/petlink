@@ -101,8 +101,9 @@ server/src/
 | H1 | **Dashboard do pet ativo**: foto, nome, espécie, peso atual, próxima vacina — puxado do Redux (pets + health) | ✅ |
 | H2 | **Lembretes reais**: endpoint `GET /reminders` no servidor — vacinas vencendo/próximas + consultas futuras. Consumido na Home. | ✅ |
 | H3 | **Quick actions**: botões de ação rápida — "Criar post", "Registrar peso", "Agendar consulta", "Alimentação" | ✅ |
+| H4 | **Resumo da semana**: card com stats dos últimos 7 dias (refeições, peso, vacinas, consultas) — endpoint `GET /pets/:petId/weekly-summary` | ✅ |
 | H7 | **Empty state inteligente**: se não tem pet, CTA pra cadastrar. Se tem pet sem dados, onboarding gentil | ✅ |
-| H8 | **Responsividade**: adaptar layout para diferentes tamanhos de tela (ScrollView com seções flexíveis, sem hardcoded heights) | Alta |
+| H8 | **Responsividade**: adaptar layout para diferentes tamanhos de tela (ScrollView com seções flexíveis, sem hardcoded heights) | ✅ |
 
 ### Mobile (Expo + React Native) — Demais features
 - [x] Auth: login, registro, Google, Facebook, biometria
@@ -478,14 +479,13 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=
 - **Postar consulta**: botão "Postar consulta" no modal de detalhes (com foto) + checkbox "Postar após salvar" no formulário de criação. Abre CreatePostModal pré-preenchido com foto e pet da consulta.
 - **Config notificações funcionando**: migration `004_notification_preferences.sql` (tabela `user_notification_preferences`), `GET/PUT /notifications/preferences`, server filtra pushes por preferência (enabled, vacinas, social_likes, social_follows), mobile Settings sincroniza com servidor, toggles: Alimentação, Vacinas, Aniversário (novo), Curtidas/comentários, Seguidores (replace do mock "Posts de amigos").
 - **FeedingScoreCalendar**: `GET /pets/:petId/feeding/score?start=&end=` (agregação diária), componente móvel com visão semanal (padrão) e mensal, dias coloridos por completude (verde/laranja/vermelho), integrado na tela de alimentação.
+- **H4 — Resumo da semana**: Card na HomeScreen com stats dos últimos 7 dias (refeições, peso, vacinas, consultas). Endpoint `GET /pets/:petId/weekly-summary`.
 
 **Pendentes:**
 
 | # | Tarefa | Descrição | Prioridade |
 |---|--------|-----------|------------|
-| H4 | **Resumo da semana** | Card na HomeScreen com stats dos últimos 7 dias: total de refeições, variação de peso, próximas vacinas/consultas da semana. Puxar de múltiplos endpoints (weights, feeding_logs, vaccines, consultations) e agregar. | Média |
 | H5 | **Feed de atividades** | Timeline cronológica de tudo do pet: posts criados, pesos registrados, vacinas aplicadas, consultas realizadas. Ícone + data + descrição por evento. Ordenação por data descendente. | Média |
-| H8 | **Responsividade** | Adaptar layouts para tablets/telas grandes. Substituir valores fixos por `useWindowDimensions`, FlexBox, grid adaptável. Garantir usabilidade em landscape. | Alta |
 
 ---
 
