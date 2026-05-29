@@ -1,6 +1,6 @@
 <div align="center">
 
-<h1 align="center"><svg width="48" height="48" viewBox="0 0 48 48" style="vertical-align: middle; margin-right: 12px;"><mask id="cm"><circle cx="24" cy="24" r="24" fill="white"/></mask><image href="mobile/src/assets/icon.png" width="48" height="48" mask="url(#cm)"/></svg> PetLink</h1>
+<h1 align="center"><img src="mobile/src/assets/icon.png" width="48" align="absmiddle" /> PetLink</h1>
 
 **Gestão de saúde animal e rede social para tutores de pets**
 
