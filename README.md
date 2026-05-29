@@ -1,6 +1,9 @@
 <div align="center">
 
-<img src="mobile/src/assets/icon.png" width="48" style="border-radius: 50%; vertical-align: middle; margin-right: 12px;" /> <h1 style="display: inline; vertical-align: middle;">PetLink</h1>
+<table><tr>
+<td><img src="mobile/src/assets/icon.png" width="48" style="border-radius: 50%;" /></td>
+<td><h1>PetLink</h1></td>
+</tr></table>
 
 **Gestão de saúde animal e rede social para tutores de pets**
 
