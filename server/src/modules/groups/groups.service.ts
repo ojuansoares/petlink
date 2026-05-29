@@ -1,5 +1,6 @@
 import { AppError } from '../../shared/AppError'
 import { groupsRepository, type CreateGroupInput } from './groups.repository'
+import { postsRepository } from '../posts/posts.repository'
 
 export const groupsService = {
   async create(input: CreateGroupInput, userId: string) {
@@ -57,5 +58,84 @@ export const groupsService = {
 
     const members = await groupsRepository.getMembers(groupId)
     return { ...group, members, my_role: membership?.role ?? null }
+  },
+
+  async getPosts(groupId: string, userId: string, page: number, limit: number) {
+    const membership = await groupsRepository.findMembership(groupId, userId)
+    if (!membership) throw new AppError('Você não é membro deste grupo', 403)
+
+    return postsRepository.listByGroup(groupId, page, limit, userId)
+  },
+
+  async togglePinPost(groupId: string, postId: string, userId: string) {
+    const membership = await groupsRepository.findMembership(groupId, userId)
+    if (!membership || (membership.role !== 'admin' && membership.role !== 'owner')) {
+      throw new AppError('Apenas administradores podem fixar posts', 403)
+    }
+
+    const post = await postsRepository.findByIdInGroup(postId, groupId)
+    if (!post) throw new AppError('Post não encontrado no grupo', 404)
+
+    const pinCount = await postsRepository.countPinnedByGroup(groupId)
+
+    const isCurrentlyPinned = post.is_pinned
+    if (!isCurrentlyPinned && pinCount >= 2) {
+      throw new AppError('Máximo de 2 posts fixados por grupo', 400)
+    }
+
+    return postsRepository.togglePinInGroup(postId, groupId)
+  },
+
+  async deletePost(groupId: string, postId: string, userId: string) {
+    const membership = await groupsRepository.findMembership(groupId, userId)
+    if (!membership) throw new AppError('Você não é membro deste grupo', 403)
+
+    const post = await postsRepository.findByIdInGroup(postId, groupId)
+    if (!post) throw new AppError('Post não encontrado no grupo', 404)
+
+    const isAuthor = post.author_id === userId
+    const isAdmin = membership.role === 'admin' || membership.role === 'owner'
+    if (!isAuthor && !isAdmin) {
+      throw new AppError('Você não pode deletar este post', 403)
+    }
+
+    await postsRepository.deleteByIdAndAuthor(post.author_id, postId)
+    return true
+  },
+
+  async changeMemberRole(groupId: string, targetUserId: string, newRole: string, requesterId: string) {
+    if (!['admin', 'member'].includes(newRole)) {
+      throw new AppError('Cargo inválido. Use admin ou member', 400)
+    }
+
+    const requester = await groupsRepository.findMembership(groupId, requesterId)
+    if (!requester || (requester.role !== 'owner' && requester.role !== 'admin')) {
+      throw new AppError('Apenas administradores podem alterar cargos', 403)
+    }
+
+    const target = await groupsRepository.findMembership(groupId, targetUserId)
+    if (!target) throw new AppError('Usuário não é membro do grupo', 404)
+    if (target.role === 'owner') throw new AppError('Não é possível alterar o cargo do dono', 400)
+
+    await groupsRepository.updateMemberRole(groupId, targetUserId, newRole)
+    return { success: true }
+  },
+
+  async removeMember(groupId: string, targetUserId: string, requesterId: string) {
+    const requester = await groupsRepository.findMembership(groupId, requesterId)
+    if (!requester) throw new AppError('Você não é membro deste grupo', 403)
+
+    if (requesterId !== targetUserId) {
+      if (requester.role !== 'owner' && requester.role !== 'admin') {
+        throw new AppError('Apenas administradores podem remover membros', 403)
+      }
+
+      const target = await groupsRepository.findMembership(groupId, targetUserId)
+      if (!target) throw new AppError('Usuário não é membro do grupo', 404)
+      if (target.role === 'owner') throw new AppError('Não é possível remover o dono do grupo', 400)
+    }
+
+    await groupsRepository.removeMember(groupId, targetUserId)
+    return { success: true }
   },
 }

@@ -31,3 +31,16 @@ export async function sharePet(ownerId: string, petId: string, petName: string) 
     url: Platform.OS === 'ios' ? url : undefined,
   })
 }
+
+export function groupLink(groupId: string): string {
+  return `${DEEP_LINK_BASE}group/${groupId}`
+}
+
+export async function shareGroup(groupId: string, groupName: string) {
+  const url = groupLink(groupId)
+  await Share.share({
+    message: `Participe do grupo "${groupName}" no PetLink! 🐾\n\n${url}`,
+    title: 'Grupo PetLink',
+    url: Platform.OS === 'ios' ? url : undefined,
+  })
+}

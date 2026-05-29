@@ -157,7 +157,7 @@ export default function SearchScreen() {
   const renderGroupItem = ({ item }: { item: Group }) => (
     <Pressable
       style={[styles.resultItem, { borderBottomColor: withAlpha(colors.border, 0.5) }]}
-      onPress={() => navigation.navigate('Groups')}
+      onPress={() => navigation.navigate('GroupDetail', { groupId: item.id, groupName: item.name })}
     >
       <Avatar name={item.name} source={item.photo_url ? { uri: item.photo_url } : undefined} size={48} />
       <View style={styles.resultInfo}>

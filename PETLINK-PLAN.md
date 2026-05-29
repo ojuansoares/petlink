@@ -361,29 +361,132 @@ server/src/
 
 ---
 
-### Grupos — Plano de Implementação
+### Grupos — Plano de Implementação (v2 — Feed + Membros)
 
-**Ideia:** Grupos de tutores com interesses em comum (espécie, raça, localidade). Botão "Grupos" no header do Feed, tela interna com "Meus Grupos" / "Descobrir", dropdown de busca incluindo Grupos.
+**Ideia:** Grupos de tutores com interesses em comum. Dentro do grupo: feed de posts (foto ou texto) com comentários e likes, lista de membros, e papéis (admin/membro).
 
-#### Servidor (Express + Supabase)
+**NOVOS ARQUIVOS:**
+- `mobile/src/screens/GroupDetailScreen.tsx` — tela principal do grupo (Posts | Membros)
+- `mobile/src/components/ui/CreateGroupPostModal.tsx` — criar post no grupo
+- `mobile/src/components/ui/CreateGroupModal.tsx` — criar grupo com foto
 
-- [x] Migration `005_groups.sql` — tabelas `groups` (nome, descrição, foto, species, is_public, created_by) + `group_members` (group_id, user_id, role, joined_at) com RLS
-- [x] Módulo `groups/` (routes, controller, service, repository):
-  - `GET /groups` — listar grupos do usuário
-  - `GET /groups/discover` — descobrir grupos públicos (paginado)
-  - `GET /groups/search?q=` — search por nome (para SearchScreen)
-  - `POST /groups` — criar grupo
-  - `POST /groups/:id/join` — entrar em grupo público
-  - `POST /groups/:id/leave` — sair
-  - `GET /groups/:id` — detalhe do grupo + membros
+**ARQUIVOS MODIFICADOS:**
+- `server/src/models/Post.ts` — campo `groupId` opcional
+- `server/src/modules/posts/posts.repository.ts` — `listByGroup`, `togglePinInGroup`, `findByIdInGroup`, feed filtra group posts
+- `server/src/modules/posts/posts.service.ts` — group post validation (texto ou foto, membership, pet opcional)
+- `server/src/modules/groups/groups.routes.ts` — +5 rotas (posts, pin, member mgmt)
+- `server/src/modules/groups/groups.controller.ts` — handlers novos
+- `server/src/modules/groups/groups.service.ts` — `getPosts`, `deletePost`, `togglePinPost`, `changeMemberRole`, `removeMember`
+- `server/src/modules/groups/groups.repository.ts` — `updateMemberRole`
+- `mobile/src/screens/GroupsScreen.tsx` — GroupDetailModal, CreateGroupModal, FAB, cards Pressable
+- `mobile/src/screens/SearchScreen.tsx` — resultado de grupo navega direto pro GroupDetail
+- `mobile/src/store/slices/groupsSlice.ts` — thunks p/ posts, pin, roles
+- `mobile/src/api/groups.api.ts` — endpoints novos (posts, pin, roles)
+- `mobile/src/utils/shareLink.ts` — `shareGroup`
+- `mobile/src/navigation/types.ts` + `RootNavigator.tsx` — rota GroupDetail + deep link
+- `mobile/src/store/slices/postsSlice.ts` — `Post.image_url` e `pet_id` opcionais
+- `mobile/src/components/ui/PostOptionsModal.tsx` — guard image_url undefined
+
+**SEM ALTERAÇÕES EM SUPABASE** — tudo que já existia (migração 005).
+
+#### Fluxo de navegação
+
+```
+GroupsScreen (tela inicial)
+  ├── "Meus Grupos" tab → card do grupo → DETAIL MODAL (info do grupo)
+  │                                          └── "Entrar no grupo" → GroupDetailScreen
+  │
+  └── "Descobrir" tab  → card do grupo → DETAIL MODAL (info do grupo)
+                                             └── "Entrar no grupo" → GroupDetailScreen
+
+GroupDetailScreen
+  ├── Header: nome, foto, descrição
+  │   └── "⋯" menu: Sair do grupo | Denunciar
+  │
+  ├── Tab "Posts"
+  │   ├── "O que você está pensando?" — input que abre modal de criar post (foto ou texto)
+  │   └── Feed de posts do grupo (foto ou texto), cada um com:
+  │       ├── Comentários (tap abre CommentSheet existente)
+  │       └── Like (LikesButton existente)
+  │
+  └── Tab "Membros"
+      ├── Lista de membros (avatar, nome, role)
+      ├── Se você é admin: botão "⋯" em cada membro → Tornar admin | Remover
+      └── Botão "Convidar" (abre share sheet com link do grupo)
+```
+
+#### Servidor (Express)
+
+##### Posts em grupo (MongoDB)
+
+- [x] Adicionar campo opcional `groupId` ao modelo `Post` (Mongoose) — `server/src/models/Post.ts`
+- [x] `POST /posts` aceitar `group_id` opcional no payload (texto ou foto) — `server/src/modules/posts/posts.service.ts`
+- [x] `GET /groups/:id/posts?page=&limit=` — listar posts do grupo (enriquecido, paginado, sem day-grouping) — `server/src/modules/groups/groups.routes.ts`
+- [x] `DELETE /groups/:id/posts/:postId` — deletar post (autor ou admin do grupo) — `server/src/modules/groups/groups.routes.ts`
+
+##### Membros (Supabase — já existe `group_members`)
+
+- [x] `PATCH /groups/:id/members/:userId/role` — alterar role (`admin` | `member`) — só admin pode
+- [x] `DELETE /groups/:id/members/:userId` — remover membro (admin remove alguém, ou usuário sai sozinho)
+
+##### Grupo
+
+- [x] `GET /groups/:id` já retorna `my_role` e lista de membros
+
+##### Filtro de group posts no feed global
+
+- [x] Feed global (`/posts/feed` e `/posts/followed`) exclui posts com `groupId` (`$exists: false`)
 
 #### Mobile
 
-- [x] Rota `Groups` no `AppStack` (root stack, mesma estrutura do Search)
-- [x] `GroupsScreen.tsx` — sub-tabs "Meus Grupos" | "Descobrir" usando `SegmentedTabs`, dois FlatLists separados
-- [x] Botão "Grupos" no header do `FeedScreen` (ao lado do SegmentedTabs ou headerRight)
-- [x] `SearchScreen.tsx` — substituir `SegmentedTabs` por dropdown seletor com setinha (Pessoas / Pets / Grupos)
-- [x] `groupsSlice.ts` — store Redux para listar grupos
+##### Navegação
+
+- [x] Rota `GroupDetail` em `AppStackParamList` + `RootNavigator.tsx` + deep link `petlink://group/:groupId`
+
+##### GroupsScreen
+
+- [x] Cards são `Pressable` → abrem `GroupDetailModal` (info do grupo com foto, nome, descrição, membros)
+- [x] `GroupDetailModal` — Se é membro: "Ir para o grupo" → `GroupDetail`; se não: "Entrar" → joinThunk → `GroupDetail`
+- [x] FAB "Criar grupo" → `CreateGroupModal` com upload de foto
+
+##### GroupDetailScreen
+
+- [x] Header fixo: foto, nome, descrição, "⋯" (Sair / Denunciar)
+- [x] SegmentedTabs: "Posts" | "Membros"
+
+##### Aba Posts
+
+- [x] Input fixo "O que você está pensando?" → `CreateGroupPostModal`
+- [x] `CreateGroupPostModal`: texto (obrigatório se sem foto), foto opcional, publicar
+- [x] Feed FlatList com posts (texto e/ou foto), LikesButton, CommentSheet
+
+##### Fixar posts no grupo
+
+- [x] Só admin pode fixar/desafixar posts no grupo
+- [x] Máx. 2 posts fixados por grupo
+- [x] `PATCH /groups/:id/posts/:postId/pin` — toggle isPinned para admin
+- [x] Posts fixados sobem no topo (`sort: { isPinned: -1, createdAt: -1 }`)
+- [x] Botão pin no GroupDetailScreen + pin indicator no post header
+
+##### Aba Membros
+
+- [x] FlatList de membros com avatar, nome, role
+- [x] Se admin: "⋯" em cada membro → Tornar admin | Remover
+- [x] Botão "Convidar" → share sheet com link do grupo
+
+##### Convidar / Compartilhar
+
+- [x] `shareLink.ts` — `shareGroup(groupId, groupName)` com `petlink://group/${groupId}`
+
+##### Criar grupo com foto
+
+- [x] `CreateGroupModal` — nome, descrição, espécie, upload de foto via Cloudinary
+
+##### Busca por grupos
+
+- [x] `SearchScreen` já filtra por Grupos (dropdown Pessoas/Pets/Grupos)
+- [x] Tapping resultado navega direto para `GroupDetail`
+- [x] `GET /groups/search?q=` já existia (migração 005 + `pg_trgm`)
 
 ---
 

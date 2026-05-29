@@ -88,4 +88,67 @@ export const groupsController = {
       return res.status(err.statusCode ?? 500).json({ error: err.message ?? 'Erro' })
     }
   },
+
+  async getPosts(req: Request, res: Response) {
+    try {
+      const authReq = req as AuthRequest
+      if (!authReq.user) return res.status(401).json({ error: 'Não autenticado' })
+      const { id } = req.params as { id: string }
+      const page = parseInt(req.query.page as string) || 1
+      const limit = parseInt(req.query.limit as string) || 20
+      const result = await groupsService.getPosts(id, authReq.user.id, page, limit)
+      return res.json(result)
+    } catch (err: any) {
+      return res.status(err.statusCode ?? 500).json({ error: err.message ?? 'Erro' })
+    }
+  },
+
+  async deletePost(req: Request, res: Response) {
+    try {
+      const authReq = req as AuthRequest
+      if (!authReq.user) return res.status(401).json({ error: 'Não autenticado' })
+      const { id, postId } = req.params as { id: string; postId: string }
+      await groupsService.deletePost(id, postId, authReq.user.id)
+      return res.status(204).send()
+    } catch (err: any) {
+      return res.status(err.statusCode ?? 500).json({ error: err.message ?? 'Erro' })
+    }
+  },
+
+  async togglePinPost(req: Request, res: Response) {
+    try {
+      const authReq = req as AuthRequest
+      if (!authReq.user) return res.status(401).json({ error: 'Não autenticado' })
+      const { id, postId } = req.params as { id: string; postId: string }
+      const post = await groupsService.togglePinPost(id, postId, authReq.user.id)
+      return res.json({ post })
+    } catch (err: any) {
+      return res.status(err.statusCode ?? 500).json({ error: err.message ?? 'Erro' })
+    }
+  },
+
+  async changeMemberRole(req: Request, res: Response) {
+    try {
+      const authReq = req as AuthRequest
+      if (!authReq.user) return res.status(401).json({ error: 'Não autenticado' })
+      const { id, userId } = req.params as { id: string; userId: string }
+      const { role } = req.body as { role: string }
+      await groupsService.changeMemberRole(id, userId, role, authReq.user.id)
+      return res.json({ success: true })
+    } catch (err: any) {
+      return res.status(err.statusCode ?? 500).json({ error: err.message ?? 'Erro' })
+    }
+  },
+
+  async removeMember(req: Request, res: Response) {
+    try {
+      const authReq = req as AuthRequest
+      if (!authReq.user) return res.status(401).json({ error: 'Não autenticado' })
+      const { id, userId } = req.params as { id: string; userId: string }
+      await groupsService.removeMember(id, userId, authReq.user.id)
+      return res.json({ success: true })
+    } catch (err: any) {
+      return res.status(err.statusCode ?? 500).json({ error: err.message ?? 'Erro' })
+    }
+  },
 }

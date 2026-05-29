@@ -80,6 +80,7 @@ export function PostOptionsModal({ post, visible, onClose, isOwnPost, context = 
         dispatch(showToast({ type: 'error', title: 'Permissão', message: 'Permissão necessária para salvar na galeria' }))
         return
       }
+      if (!post.image_url) return
       dispatch(showToast({ type: 'info', title: 'Download', message: 'Salvando imagem...' }))
       const dest = new File(Paths.cache, `petlink-post-${post.id}.jpg`)
       const file = await File.downloadFileAsync(post.image_url, dest)

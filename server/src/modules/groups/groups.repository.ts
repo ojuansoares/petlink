@@ -67,6 +67,16 @@ export const groupsRepository = {
     await supabaseAdmin.rpc('decrement_group_member_count', { group_id: groupId })
   },
 
+  async updateMemberRole(groupId: string, userId: string, role: string): Promise<void> {
+    const { error } = await supabaseAdmin
+      .from('group_members')
+      .update({ role })
+      .eq('group_id', groupId)
+      .eq('user_id', userId)
+
+    if (error) throw error
+  },
+
   async findById(id: string): Promise<Group | null> {
     const { data, error } = await supabaseAdmin
       .from('groups')

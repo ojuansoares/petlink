@@ -7,8 +7,8 @@ import { toggleLikeThunk } from './likesSlice'
 export interface Post {
   id: string
   author_id: string
-  pet_id: string
-  image_url: string
+  pet_id?: string
+  image_url?: string
   caption: string | null
   location: string | null
   is_pinned: boolean

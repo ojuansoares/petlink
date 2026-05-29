@@ -4,10 +4,11 @@ import { supabaseAdmin } from '../../config/supabase'
 import { mapId } from '../../shared/mapId'
 
 export type PostCreateInput = {
-  pet_id: string
-  image_url: string
+  pet_id?: string
+  image_url?: string
   caption?: string | null
   location?: string | null
+  group_id?: string
 }
 
 type ProfileInfo = { name: string; avatar_url: string | null; level: number }
@@ -39,7 +40,7 @@ async function enrichWithProfilesAndPets(
   if (docs.length === 0) return []
 
   const authorIds = [...new Set(docs.map((d) => d[authorField]))]
-  const petIds = [...new Set(docs.map((d) => d[petField]))]
+  const petIds = [...new Set(docs.map((d) => d[petField]).filter(Boolean))]
   const postIds = docs.map((d) => d._id)
 
   const [profilesRes, petsRes] = await Promise.all([
@@ -90,10 +91,11 @@ export const postsRepository = {
   async create(authorId: string, input: PostCreateInput) {
     const post = await Post.create({
       authorId,
-      petId: input.pet_id,
-      imageUrl: input.image_url,
+      petId: input.pet_id ?? undefined,
+      imageUrl: input.image_url ?? undefined,
       caption: input.caption ?? null,
       location: input.location ?? null,
+      groupId: input.group_id ?? undefined,
     })
 
     const enriched = await enrichWithProfilesAndPets([post.toJSON()])
@@ -109,10 +111,11 @@ export const postsRepository = {
 
   async listFeed(page: number, limit: number, currentUserId?: string) {
     const skip = (page - 1) * limit
-    const total = await Post.countDocuments()
+    const query = { groupId: { $exists: false } }
+    const total = await Post.countDocuments(query)
     if (total === 0) return { posts: [], hasMore: false }
 
-    const docs = await Post.find()
+    const docs = await Post.find(query)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
@@ -125,10 +128,24 @@ export const postsRepository = {
 
   async listByAuthor(authorId: string, page: number, limit: number, currentUserId?: string) {
     const skip = (page - 1) * limit
+    const authorQuery = { authorId, groupId: { $exists: false } }
 
     const [docs, total] = await Promise.all([
-      Post.find({ authorId }).sort({ isPinned: -1, createdAt: -1 }).skip(skip).limit(limit).lean(),
-      Post.countDocuments({ authorId }),
+      Post.find(authorQuery).sort({ isPinned: -1, createdAt: -1 }).skip(skip).limit(limit).lean(),
+      Post.countDocuments(authorQuery),
+    ])
+
+    const hasMore = skip + limit < total
+    const posts = await enrichWithProfilesAndPets(docs, currentUserId)
+    return { posts, hasMore }
+  },
+
+  async listByGroup(groupId: string, page: number, limit: number, currentUserId?: string) {
+    const skip = (page - 1) * limit
+
+    const [docs, total] = await Promise.all([
+      Post.find({ groupId }).sort({ isPinned: -1, createdAt: -1 }).skip(skip).limit(limit).lean(),
+      Post.countDocuments({ groupId }),
     ])
 
     const hasMore = skip + limit < total
@@ -174,8 +191,35 @@ export const postsRepository = {
     await Post.findOneAndDelete({ _id: postId, authorId })
   },
 
+  async findByIdInGroup(postId: string, groupId: string) {
+    const doc = await Post.findOne({ _id: postId, groupId }).lean()
+    if (!doc) return null
+    const enriched = await enrichWithProfilesAndPets([doc])
+    return enriched[0]
+  },
+
   async countPinnedByAuthor(authorId: string): Promise<number> {
     return Post.countDocuments({ authorId, isPinned: true })
+  },
+
+  async countPinnedByGroup(groupId: string): Promise<number> {
+    return Post.countDocuments({ groupId, isPinned: true })
+  },
+
+  async togglePinInGroup(postId: string, groupId: string): Promise<EnrichedPost | null> {
+    const doc = await Post.findOne({ _id: postId, groupId }).lean()
+    if (!doc) return null
+
+    const newPinStatus = !doc.isPinned
+    const updated = await Post.findOneAndUpdate(
+      { _id: postId, groupId },
+      { $set: { isPinned: newPinStatus } },
+      { new: true }
+    ).lean()
+
+    if (!updated) return null
+    const enriched = await enrichWithProfilesAndPets([updated])
+    return enriched[0]
   },
 
   async listFollowed(followerId: string, page: number, limit: number, currentUserId?: string) {
@@ -192,13 +236,14 @@ export const postsRepository = {
       return { posts: [], hasMore: false }
     }
 
+    const followQuery = { authorId: { $in: followedIds }, groupId: { $exists: false } }
     const [docs, total] = await Promise.all([
-      Post.find({ authorId: { $in: followedIds } })
+      Post.find(followQuery)
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
         .lean(),
-      Post.countDocuments({ authorId: { $in: followedIds } }),
+      Post.countDocuments(followQuery),
     ])
 
     const hasMore = skip + limit < total

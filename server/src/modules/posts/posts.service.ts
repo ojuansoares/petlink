@@ -1,6 +1,7 @@
 import { AppError } from '../../shared/AppError'
 import { postsRepository, type PostCreateInput } from './posts.repository'
 import { petsRepository } from '../pets/pets.repository'
+import { groupsRepository } from '../groups/groups.repository'
 import { uploadsService } from '../uploads/uploads.service'
 import { optimizePostUrls } from '../../shared/cloudinaryUtils'
 
@@ -23,16 +24,36 @@ function groupAndShuffleByDay(posts: any[]): any[] {
 
 export const postsService = {
   async create(authorId: string, payload: PostCreateInput) {
-    if (!payload.image_url?.trim()) {
-      throw new AppError('Imagem do post é obrigatória', 400)
-    }
-    if (!payload.pet_id) {
-      throw new AppError('O post deve ser associado a um pet', 400)
-    }
+    const isGroupPost = !!payload.group_id
 
-    const pet = await petsRepository.findByIdAndOwner(authorId, payload.pet_id)
-    if (!pet) {
-      throw new AppError('Pet não encontrado ou não pertence a você', 404)
+    if (isGroupPost) {
+      if (!payload.caption?.trim() && !payload.image_url?.trim()) {
+        throw new AppError('Adicione um texto ou uma foto para publicar', 400)
+      }
+
+      const membership = await groupsRepository.findMembership(payload.group_id!, authorId)
+      if (!membership) {
+        throw new AppError('Você não é membro deste grupo', 403)
+      }
+
+      if (payload.pet_id) {
+        const pet = await petsRepository.findByIdAndOwner(authorId, payload.pet_id)
+        if (!pet) {
+          throw new AppError('Pet não encontrado ou não pertence a você', 404)
+        }
+      }
+    } else {
+      if (!payload.image_url?.trim()) {
+        throw new AppError('Imagem do post é obrigatória', 400)
+      }
+      if (!payload.pet_id) {
+        throw new AppError('O post deve ser associado a um pet', 400)
+      }
+
+      const pet = await petsRepository.findByIdAndOwner(authorId, payload.pet_id)
+      if (!pet) {
+        throw new AppError('Pet não encontrado ou não pertence a você', 404)
+      }
     }
 
     const post = await postsRepository.create(authorId, {
@@ -40,6 +61,7 @@ export const postsService = {
       image_url: payload.image_url,
       caption: payload.caption?.trim() || null,
       location: payload.location?.trim() || null,
+      group_id: payload.group_id,
     })
 
     return post

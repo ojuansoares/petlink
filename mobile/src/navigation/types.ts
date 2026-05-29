@@ -9,6 +9,7 @@ export type AuthStackParamList = {
 export type AppStackParamList = {
   Tabs: undefined
   Groups: undefined
+  GroupDetail: { groupId: string; groupName?: string }
   Search: undefined
   SettingsMenu: undefined
   SettingsTheme: undefined

@@ -14,6 +14,7 @@ import PublicProfileScreen from '../screens/PublicProfileScreen'
 import ProfileFeedScreen from '../screens/ProfileFeedScreen'
 import SearchScreen from '../screens/SearchScreen'
 import GroupsScreen from '../screens/GroupsScreen'
+import GroupDetailScreen from '../screens/GroupDetailScreen'
 import { AppStackParamList } from './types'
 import { navigationRef } from './navigationRef'
 import { VaccineScreen } from '../screens/Pets/VaccineScreen';
@@ -27,6 +28,7 @@ const linking: LinkingOptions<AppStackParamList> = {
   config: {
     screens: {
       PublicProfile: 'profile/:userId',
+      GroupDetail: 'group/:groupId',
     },
   },
 }
@@ -99,6 +101,14 @@ function AuthenticatedNavigator() {
           title: 'Grupos',
           headerLeft: PublicProfileBackButton,
         }}
+      />
+      <AppStack.Screen
+        name="GroupDetail"
+        component={GroupDetailScreen}
+        options={({ route }) => ({
+          title: route.params.groupName || 'Grupo',
+          headerLeft: PublicProfileBackButton,
+        })}
       />
       <AppStack.Screen
         name="SettingsMenu"
