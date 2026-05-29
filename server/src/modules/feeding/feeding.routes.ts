@@ -10,5 +10,6 @@ router.get('/:petId/feeding/logs', authMiddleware, feedingController.getLogs)
 router.post('/:petId/feeding/logs/:logId/check', authMiddleware, feedingController.checkMeal)
 router.get('/:petId/feeding/score', authMiddleware, feedingController.getScore)
 router.get('/:petId/weekly-summary', authMiddleware, feedingController.getWeeklySummary)
+router.get('/:petId/timeline', authMiddleware, feedingController.getTimeline)
 
 export default router

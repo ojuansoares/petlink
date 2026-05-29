@@ -18,6 +18,7 @@ import { navigationRef } from './navigationRef'
 import { VaccineScreen } from '../screens/Pets/VaccineScreen';
 import { ConsultationScreen } from '../screens/Pets/ConsultationScreen';
 import FeedingScreen from '../screens/Pets/FeedingScreen';
+import ActivityTimelineScreen from '../screens/ActivityTimelineScreen';
 import ResetPasswordScreen from '../screens/ResetPasswordScreen';
 
 const AppStack = createStackNavigator<AppStackParamList>()
@@ -142,6 +143,14 @@ function AuthenticatedNavigator() {
         component={FeedingScreen}
         options={{
           title: 'Alimentação',
+          headerLeft: SettingsBackButton,
+        }}
+      />
+      <AppStack.Screen
+        name="ActivityTimeline"
+        component={ActivityTimelineScreen}
+        options={{
+          title: 'Atividades',
           headerLeft: SettingsBackButton,
         }}
       />

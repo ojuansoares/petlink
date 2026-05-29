@@ -80,4 +80,18 @@ export const feedingController = {
       return res.status(err.statusCode ?? 500).json({ error: err.message ?? 'Erro' })
     }
   },
+
+  async getTimeline(req: Request, res: Response) {
+    try {
+      const authReq = req as AuthRequest
+      if (!authReq.user) return res.status(401).json({ error: 'Não autenticado' })
+      const { petId } = req.params as { petId: string }
+      const page = parseInt(req.query.page as string) || 1
+      const limit = parseInt(req.query.limit as string) || 20
+      const events = await feedingService.getTimeline(petId, authReq.user.id, page, limit)
+      return res.json(events)
+    } catch (err: any) {
+      return res.status(err.statusCode ?? 500).json({ error: err.message ?? 'Erro' })
+    }
+  },
 }

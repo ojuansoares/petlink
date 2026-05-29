@@ -604,6 +604,16 @@ export default function PetsScreen() {
               badge="Em breve"
               onPress={() => dispatch(showToast({ type: 'info', title: 'Passeios', message: 'Passeios em breve!' }))}
             />
+            <ControlCard
+              title="Atividades"
+              subtitle={`Timeline de ${activePet.name}`}
+              icon="time-outline"
+              color={colors.card}
+              borderColor={colors.primary}
+              iconColor={colors.primary}
+              badge="Histórico"
+              onPress={() => navigation.navigate('ActivityTimeline', { petId: activePet.id, petName: activePet.name })}
+            />
           </View>
         ) : (
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 }}>

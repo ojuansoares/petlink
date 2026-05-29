@@ -20,4 +20,5 @@ export type AppStackParamList = {
   Consultation: { petId: string; petName: string }
   FeedingPlan: { petId: string; petName: string }
   FeedingCheck: { petId: string; petName: string }
+  ActivityTimeline: { petId: string; petName: string }
 }

@@ -53,6 +53,11 @@ export const feedingService = {
     return { meals, weight, upcoming: { vaccines: upcomingVaccines, consultations: upcomingConsultations } }
   },
 
+  async getTimeline(petId: string, userId: string, page: number, limit: number) {
+    await this.verifyOwnership(petId, userId)
+    return feedingRepository.getTimeline(petId, page, limit)
+  },
+
   async verifyOwnership(petId: string, userId: string) {
     const pet = await petsRepository.findById(petId)
     if (!pet || pet.owner_id !== userId) {

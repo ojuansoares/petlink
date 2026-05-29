@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '../../config/supabase'
+import { Post } from '../../models/Post'
 
 export type FeedingPlan = {
   id: string
@@ -254,5 +255,92 @@ export const feedingRepository = {
 
     if (error) throw error
     return data?.length ?? 0
+  },
+
+  async getTimeline(petId: string, page: number, limit: number): Promise<{ events: { id: string; type: string; title: string; description: string; date: string; icon: string }[]; hasMore: boolean }> {
+    const events: { id: string; type: string; title: string; description: string; date: string; icon: string }[] = []
+
+    const { data: weights } = await supabaseAdmin
+      .from('weight_records')
+      .select('id, weight_kg, recorded_at')
+      .eq('pet_id', petId)
+      .order('recorded_at', { ascending: false })
+      .limit(50)
+
+    for (const w of weights ?? []) {
+      events.push({
+        id: `weight-${w.id}`,
+        type: 'weight',
+        title: 'Peso registrado',
+        description: `${w.weight_kg} kg`,
+        date: w.recorded_at as string,
+        icon: 'scale-outline',
+      })
+    }
+
+    const { data: vaccines } = await supabaseAdmin
+      .from('vaccines')
+      .select('id, name, doses, next_dose_at')
+      .eq('pet_id', petId)
+
+    for (const v of vaccines ?? []) {
+      const doses = (v.doses && v.doses.length > 0) ? v.doses : []
+      for (let i = 0; i < doses.length; i++) {
+        const dose = doses[i]
+        if (dose.applied && dose.applied_at) {
+          events.push({
+            id: `vaccine-${v.id}-dose-${i}`,
+            type: 'vaccine',
+            title: `${v.name} aplicada`,
+            description: `Dose ${i + 1}`,
+            date: dose.applied_at,
+            icon: 'medical',
+          })
+        }
+      }
+    }
+
+    const { data: consultations } = await supabaseAdmin
+      .from('consultations')
+      .select('id, vet_name, clinic, consulted_at, reason')
+      .eq('pet_id', petId)
+
+    for (const c of consultations ?? []) {
+      const cDate = c.consulted_at?.split('T')[0]
+      if (!cDate) continue
+      events.push({
+        id: `consultation-${c.id}`,
+        type: 'consultation',
+        title: c.reason || 'Consulta veterinária',
+        description: c.vet_name ? `Dr. ${c.vet_name}` : 'Sem veterinário',
+        date: c.consulted_at as string,
+        icon: 'calendar',
+      })
+    }
+
+    const posts = await Post.find({ petId })
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .lean()
+
+    for (const p of posts) {
+      events.push({
+        id: `post-${(p as any).id || (p as any)._id}`,
+        type: 'post',
+        title: 'Post publicado',
+        description: (p as any).caption || 'Sem legenda',
+        date: (p as any).createdAt?.toISOString?.() || (p as any).createdAt,
+        icon: 'image',
+      })
+    }
+
+    events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+
+    const total = events.length
+    const offset = (page - 1) * limit
+    const paginated = events.slice(offset, offset + limit)
+    const hasMore = offset + limit < total
+
+    return { events: paginated, hasMore }
   },
 }
