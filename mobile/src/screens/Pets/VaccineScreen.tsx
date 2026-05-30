@@ -412,9 +412,8 @@ export function VaccineScreen() {
             onPress={() => setCertModalVisible(true)}
             label="Gerar Carteirinha"
             variant="outline"
-            size="sm"
             leftIcon={<Ionicons name="document-text-outline" size={16} color={colors.primary} />}
-            style={{ alignSelf: 'flex-end' }}
+            style={{ width: '100%' }}
           />
         </View>
         <SegmentedTabs

@@ -90,7 +90,7 @@ export function CommentSheet({ visible, onClose, post }: CommentSheetProps) {
       onClose()
       requestAnimationFrame(() => {
         if (userId === currentUserId) {
-          navigation.getParent()?.navigate('Tabs', { screen: 'Profile' })
+          (navigation as any).navigate('Tabs', { screen: 'Profile' })
         } else {
           navigation.navigate('PublicProfile', { userId })
         }

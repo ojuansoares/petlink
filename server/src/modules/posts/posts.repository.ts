@@ -98,7 +98,7 @@ export const postsRepository = {
       groupId: input.group_id ?? undefined,
     })
 
-    const enriched = await enrichWithProfilesAndPets([post.toJSON()])
+    const enriched = await enrichWithProfilesAndPets([post])
     return enriched[0]
   },
 

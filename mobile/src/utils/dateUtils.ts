@@ -8,27 +8,25 @@ export function getRelativeTime(iso: string): string {
   const date = new Date(iso)
   const now = new Date()
   
-  // Calculate difference in days (ignoring hours/minutes for simplicity in "days")
   const diffInMs = now.getTime() - date.getTime()
-  const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24))
-
+  const absDiffInMs = Math.abs(diffInMs)
+  const diffInDays = Math.floor(absDiffInMs / (1000 * 60 * 60 * 24))
+  const isFuture = diffInMs < 0
   let relative = ''
-  
-  if (diffInDays < 7) {
-    if (diffInDays === 0) {
-      // If it's the same day, check hours/minutes for better "Hoje" experience
-      const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60))
-      if (diffInHours === 0) {
-        const diffInMins = Math.floor(diffInMs / (1000 * 60))
-        relative = diffInMins <= 1 ? 'Agora mesmo' : `há ${diffInMins} min`
-      } else {
-        relative = `há ${diffInHours}h`
-      }
-    } else if (diffInDays === 1) {
-      relative = 'Ontem'
+
+  if (isFuture) relative = 'Agora mesmo'
+  else if (diffInDays === 0) {
+    const diffInHours = Math.floor(absDiffInMs / (1000 * 60 * 60))
+    if (diffInHours === 0) {
+      const diffInMins = Math.floor(absDiffInMs / (1000 * 60))
+      relative = diffInMins <= 1 ? 'Agora mesmo' : `há ${diffInMins} min`
     } else {
-      relative = `há ${diffInDays} dias`
+      relative = `há ${diffInHours}h`
     }
+  } else if (diffInDays === 1) {
+    relative = 'Ontem'
+  } else if (diffInDays < 7) {
+    relative = `há ${diffInDays} dias`
   } else if (diffInDays < 30) {
     const weeks = Math.floor(diffInDays / 7)
     relative = `há ${weeks} ${weeks === 1 ? 'semana' : 'semanas'}`

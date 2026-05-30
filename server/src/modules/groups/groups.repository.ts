@@ -131,10 +131,24 @@ export const groupsRepository = {
     return (data ?? []).map((m: any) => m.group_id)
   },
 
+  async getUserGroupIdsWithInvites(userId: string): Promise<string[]> {
+    const memberIds = await this.getUserGroupIds(userId)
+
+    const { data: invites } = await supabaseAdmin
+      .from('group_invites')
+      .select('group_id')
+      .eq('invited_user_id', userId)
+      .eq('status', 'pending')
+
+    const inviteGroupIds = (invites ?? []).map((i: any) => i.group_id)
+
+    return [...new Set([...memberIds, ...inviteGroupIds])]
+  },
+
   async discover(userId: string, page: number = 1, limit: number = 20): Promise<{ groups: Group[]; hasMore: boolean }> {
     const from = (page - 1) * limit
     const to = from + limit - 1
-    const excludeIds = await this.getUserGroupIds(userId)
+    const excludeIds = await this.getUserGroupIdsWithInvites(userId)
 
     let query = supabaseAdmin
       .from('groups')
@@ -160,7 +174,7 @@ export const groupsRepository = {
   async search(q: string, userId: string, page: number = 1, limit: number = 10): Promise<{ groups: Group[]; hasMore: boolean }> {
     const from = (page - 1) * limit
     const to = from + limit - 1
-    const excludeIds = await this.getUserGroupIds(userId)
+    const excludeIds = await this.getUserGroupIdsWithInvites(userId)
 
     let query = supabaseAdmin
       .from('groups')
@@ -211,24 +225,55 @@ export const groupsRepository = {
   },
 
   async listPendingInvites(userId: string): Promise<(GroupInvite & { group: Group; invited_by_name: string })[]> {
-    const { data, error } = await supabaseAdmin
+    const { data: invites, error: invError } = await supabaseAdmin
       .from('group_invites')
-      .select('*, groups(*), invited_by_profile:profiles!invited_by(name)')
+      .select('*')
       .eq('invited_user_id', userId)
       .eq('status', 'pending')
       .order('created_at', { ascending: false })
 
-    if (error) throw error
+    if (invError) throw invError
 
-    return ((data ?? []) as any[]).map((inv: any) => ({
+    if (!invites || invites.length === 0) return []
+
+    const groupIds = (invites as any[]).map((i) => i.group_id)
+    const inviterIds = (invites as any[]).map((i) => i.invited_by)
+
+    const { data: groups, error: groupsError } = await supabaseAdmin
+      .from('groups')
+      .select('*')
+      .in('id', groupIds)
+
+    const { data: profiles, error: profilesError } = await supabaseAdmin
+      .from('profiles')
+      .select('id, name')
+      .in('id', inviterIds)
+
+    if (groupsError || profilesError) throw groupsError || profilesError
+
+    const groupMap = {} as Record<string, Group>
+    const profileMap = {} as Record<string, string>
+
+    const groupList = groups ?? []
+    const profileList = profiles ?? []
+
+    for (const g of groupList) {
+      groupMap[g.id] = g as Group
+    }
+
+    for (const p of profileList) {
+      profileMap[p.id] = p.name
+    }
+
+    return (invites as any[]).map((inv) => ({
       id: inv.id,
       group_id: inv.group_id,
       invited_user_id: inv.invited_user_id,
       invited_by: inv.invited_by,
       status: inv.status,
       created_at: inv.created_at,
-      group: inv.groups as Group,
-      invited_by_name: inv.invited_by_profile?.name ?? 'Alguém',
+      group: groupMap[inv.group_id] || ({} as Group),
+      invited_by_name: profileMap[inv.invited_by] || 'Alguém',
     }))
   },
 
@@ -250,7 +295,7 @@ export const groupsRepository = {
     if (error) throw error
   },
 
-  async searchUsersForGroup(query: string, groupId: string): Promise<{ id: string; name: string; avatar_url: string | null }[]> {
+  async searchUsersForGroup(query: string, groupId: string): Promise<{ id: string; name: string; avatar_url: string | null; previousInviteStatus?: 'rejected' | 'pending' }[]> {
     const { data: members } = await supabaseAdmin
       .from('group_members')
       .select('user_id')
@@ -258,26 +303,57 @@ export const groupsRepository = {
 
     const memberIds = (members ?? []).map((m: any) => m.user_id)
 
-    let supQuery = supabaseAdmin
+    const { data: allInvites } = await supabaseAdmin
+      .from('group_invites')
+      .select('invited_user_id, status')
+      .eq('group_id', groupId)
+
+    const pendingInviteIds = (allInvites ?? []).filter((i: any) => i.status === 'pending').map((i: any) => i.invited_user_id)
+    const rejectedInviteMap: { [key: string]: boolean } = {}
+    ;(allInvites ?? []).filter((i: any) => i.status === 'rejected').forEach((i: any) => {
+      rejectedInviteMap[i.invited_user_id] = true
+    })
+
+    const excludeSet = new Set([...memberIds, ...pendingInviteIds])
+
+    const { data: profiles, error } = await supabaseAdmin
       .from('profiles')
       .select('id, name, avatar_url')
       .ilike('name', `%${query}%`)
       .limit(20)
 
-    if (memberIds.length > 0) {
-      supQuery = supQuery.not('id', 'in', memberIds)
+    if (error) throw error
+
+    return ((profiles ?? []) as any[]).filter((p) => !excludeSet.has(p.id)).map((p) => ({
+      ...p,
+      previousInviteStatus: rejectedInviteMap[p.id] ? 'rejected' : undefined,
+    })) as { id: string; name: string; avatar_url: string | null; previousInviteStatus?: 'rejected' | 'pending' }[]
+  },
+
+  async delete(groupId: string): Promise<void> {
+    const { data: groupPosts } = await supabaseAdmin
+      .from('posts')
+      .select('id')
+      .eq('group_id', groupId)
+
+    const postIds = (groupPosts ?? []).map((p: any) => p.id)
+
+    if (postIds.length > 0) {
+      await supabaseAdmin.from('feed_photos').delete().in('post_id', postIds)
+      await supabaseAdmin.from('post_comments').delete().in('post_id', postIds)
+      await supabaseAdmin.from('post_likes').delete().in('post_id', postIds)
     }
 
-    const { data, error } = await supQuery
-
-    if (error) throw error
-    return (data ?? []) as { id: string; name: string; avatar_url: string | null }[]
+    await supabaseAdmin.from('posts').delete().eq('group_id', groupId)
+    await supabaseAdmin.from('group_members').delete().eq('group_id', groupId)
+    await supabaseAdmin.from('group_invites').delete().eq('group_id', groupId)
+    await supabaseAdmin.from('groups').delete().eq('id', groupId)
   },
 
   async getMembers(groupId: string): Promise<(GroupMember & { name: string; avatar_url: string | null })[]> {
     const { data, error } = await supabaseAdmin
       .from('group_members')
-      .select('*, auth.users!inner(id, raw_user_meta_data)')
+      .select('*, profile:profiles(name, avatar_url)')
       .eq('group_id', groupId)
 
     if (error) throw error
@@ -288,8 +364,8 @@ export const groupsRepository = {
       user_id: m.user_id,
       role: m.role,
       joined_at: m.joined_at,
-      name: m.raw_user_meta_data?.name ?? m.raw_user_meta_data?.full_name ?? 'Usuário',
-      avatar_url: m.raw_user_meta_data?.avatar_url ?? null,
+      name: m.profile?.name ?? 'Usuário',
+      avatar_url: m.profile?.avatar_url ?? null,
     }))
   },
 }

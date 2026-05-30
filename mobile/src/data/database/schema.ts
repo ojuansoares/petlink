@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export const offlineSchema = appSchema({
-  version: 3,
+  version: 6,
   tables: [
     tableSchema({
       name: 'pets',
@@ -46,10 +46,10 @@ export const offlineSchema = appSchema({
         { name: 'name', type: 'string' },
         { name: 'email', type: 'string', isOptional: true },
         { name: 'location', type: 'string', isOptional: true },
-        { name: 'created_at', type: 'string' },
+        { name: 'created_at', type: 'number' },
         { name: 'avatar_url', type: 'string', isOptional: true },
         { name: 'bio', type: 'string', isOptional: true },
-        { name: 'updated_at', type: 'string', isOptional: true },
+        { name: 'updated_at', type: 'number' },
         { name: 'pets_count', type: 'number' },
         { name: 'birth_date', type: 'string', isOptional: true },
       ],
@@ -64,8 +64,8 @@ export const offlineSchema = appSchema({
         { name: 'caption', type: 'string', isOptional: true },
         { name: 'location', type: 'string', isOptional: true },
         { name: 'is_pinned', type: 'boolean', isOptional: true },
-        { name: 'created_at', type: 'string' },
-        { name: 'updated_at', type: 'string', isOptional: true },
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
         { name: 'author_name', type: 'string', isOptional: true },
         { name: 'author_avatar_url', type: 'string', isOptional: true },
         { name: 'pet_name', type: 'string', isOptional: true },
@@ -79,7 +79,7 @@ export const offlineSchema = appSchema({
         { name: 'image_url', type: 'string' },
         { name: 'pet_name', type: 'string', isOptional: true },
         { name: 'caption', type: 'string', isOptional: true },
-        { name: 'created_at', type: 'string' },
+        { name: 'created_at', type: 'number' },
         { name: 'is_pinned', type: 'boolean', isOptional: true },
       ],
     }),

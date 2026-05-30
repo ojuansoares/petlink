@@ -216,6 +216,18 @@ export const rejectInviteThunk = createAsyncThunk(
   }
 )
 
+export const deleteGroupThunk = createAsyncThunk(
+  'groups/deleteGroup',
+  async (groupId: string, { rejectWithValue }) => {
+    try {
+      await groupsApi.deleteGroup(groupId)
+      return groupId
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.error ?? 'Erro ao deletar grupo')
+    }
+  }
+)
+
 export const removeMemberThunk = createAsyncThunk(
   'groups/removeMember',
   async (payload: { groupId: string; userId: string }, { rejectWithValue }) => {
@@ -282,7 +294,19 @@ const groupsSlice = createSlice({
       })
       .addCase(leaveGroupThunk.rejected, (s, a) => { s.isJoining[a.meta.arg] = false; s.error = a.payload as string })
 
-      .addCase(createGroupThunk.fulfilled, (s, a) => { s.myGroups.unshift({ ...a.payload, role: 'owner' }) })
+      .addCase(deleteGroupThunk.fulfilled, (s, a) => {
+        s.myGroups = s.myGroups.filter((g) => g.id !== a.payload)
+        delete s.myRoles[a.payload]
+        delete s.groupPosts[a.payload]
+        delete s.groupMembers[a.payload]
+      })
+
+      .addCase(createGroupThunk.pending, (s) => { s.isJoining['__create__'] = true })
+      .addCase(createGroupThunk.fulfilled, (s, a) => {
+        s.isJoining['__create__'] = false
+        s.myGroups.unshift({ ...a.payload, role: 'owner' })
+      })
+      .addCase(createGroupThunk.rejected, (s) => { s.isJoining['__create__'] = false })
 
       // --- Group posts ---
       .addCase(fetchGroupPostsThunk.pending, (s, a) => { s.isLoadingGroupPosts[a.meta.arg] = true })
@@ -374,13 +398,16 @@ export const selectIsLoadingMyGroups = (s: any) => s.groups.isLoadingMy as boole
 export const selectIsLoadingDiscover = (s: any) => s.groups.isLoadingDiscover as boolean
 export const selectIsJoiningGroup = (groupId: string) => (s: any) => s.groups.isJoining[groupId] ?? false
 
-export const selectGroupPosts = (groupId: string) => (s: any) => (s.groups.groupPosts[groupId] ?? []) as GroupPost[]
+const EMPTY_POSTS: GroupPost[] = []
+const EMPTY_MEMBERS: GroupMember[] = []
+
+export const selectGroupPosts = (groupId: string) => (s: any) => s.groups.groupPosts[groupId] ?? EMPTY_POSTS
 export const selectGroupPostsHasMore = (groupId: string) => (s: any) => s.groups.groupPostsHasMore[groupId] ?? false
 export const selectGroupPostsPage = (groupId: string) => (s: any) => s.groups.groupPostsPage[groupId] ?? 1
 export const selectIsLoadingGroupPosts = (groupId: string) => (s: any) => s.groups.isLoadingGroupPosts[groupId] ?? false
 export const selectIsLoadingMoreGroupPosts = (groupId: string) => (s: any) => s.groups.isLoadingMoreGroupPosts[groupId] ?? false
 
-export const selectGroupMembers = (groupId: string) => (s: any) => (s.groups.groupMembers[groupId] ?? []) as GroupMember[]
+export const selectGroupMembers = (groupId: string) => (s: any) => s.groups.groupMembers[groupId] ?? EMPTY_MEMBERS
 export const selectMyRole = (groupId: string) => (s: any) => s.groups.myRoles[groupId] ?? null
 export const selectIsChangingRole = (userId: string) => (s: any) => s.groups.isChangingRole[userId] ?? false
 

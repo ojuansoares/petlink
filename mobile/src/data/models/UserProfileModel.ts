@@ -7,10 +7,10 @@ export class UserProfileModel extends Model {
   @text('name') name!: string
   @text('email') email!: string | null
   @text('location') location!: string | null
-  @text('created_at') createdAt!: string
+  @field('created_at') createdAt!: number
   @text('avatar_url') avatarUrl!: string | null
   @text('bio') bio!: string | null
-  @text('updated_at') updatedAt!: string | null
+  @field('updated_at') updatedAt!: number
   @field('pets_count') petsCount!: number
   @text('birth_date') birthDate!: string | null
 }

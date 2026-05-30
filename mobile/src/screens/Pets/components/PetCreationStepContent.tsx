@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { Input } from '../../../components/ui/Input'
 import { OptionSelect } from '../../../components/ui/OptionSelect'
 import { Text } from '../../../components/ui/Typography'
+import { Button } from '../../../components/ui/Button'
 import { Avatar } from '../../../components/ui/Avatar'
 import { usePetsStyles } from '../usePetsStyles'
 import { useTheme } from '../../../hooks/useTheme'
@@ -202,34 +203,18 @@ export function PetCreationStepContent({
     return (
       <View style={{ alignItems: 'center', gap: 16 }}>
         <Avatar
-          size={160}
+          size={120}
           name={name || 'Novo Pet'}
           source={photoUrl ? { uri: photoUrl } : undefined}
         />
-        <Pressable
+        <Button
+          label={photoUrl ? 'Alterar Foto' : 'Escolher Foto'}
+          variant="outline"
+          size="sm"
           onPress={onPickPhoto}
-          disabled={isUploadingPhoto}
-          style={{
-            paddingHorizontal: 20,
-            paddingVertical: 10,
-            borderRadius: 999,
-            backgroundColor: colors.primary,
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 8
-          }}
-        >
-          {isUploadingPhoto ? (
-            <ActivityIndicator size="small" color={colors.card} />
-          ) : (
-            <>
-              <Ionicons name="camera" size={20} color={colors.card} />
-              <Text weight="700" style={{ color: colors.card }}>
-                {photoUrl ? 'Alterar Foto' : 'Escolher Foto'}
-              </Text>
-            </>
-          )}
-        </Pressable>
+          loading={isUploadingPhoto}
+          leftIcon={<Ionicons name="camera" size={16} />}
+        />
       </View>
     )
   }

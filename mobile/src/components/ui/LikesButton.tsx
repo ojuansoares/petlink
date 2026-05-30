@@ -25,6 +25,7 @@ export function LikesButton({ postId, likesCount, size = 36, initialLiked, onCou
 
   // Use global state when toggled in this session; fall back to initial from server
   const liked = globalLiked !== undefined ? globalLiked : !!initialLiked
+  const displayCount = likesCount + (liked ? 1 : 0) - (initialLiked ? 1 : 0)
 
   const handlePress = useCallback(() => {
     if (!isOnline) return
@@ -36,7 +37,7 @@ export function LikesButton({ postId, likesCount, size = 36, initialLiked, onCou
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
         <ActivityIndicator size={size - 8} color={colors.mutedForeground} />
         <Text size="sm" weight="600" color="mutedForeground">
-          {formatCount(likesCount)}
+          {formatCount(displayCount)}
         </Text>
       </View>
     )
@@ -53,7 +54,7 @@ export function LikesButton({ postId, likesCount, size = 36, initialLiked, onCou
       </Pressable>
       <Pressable onPress={onCountPress} hitSlop={8} disabled={!onCountPress} style={{ padding: 2 }}>
         <Text size="sm" weight="600" color="mutedForeground">
-          {formatCount(likesCount)}
+          {formatCount(displayCount)}
         </Text>
       </Pressable>
     </View>

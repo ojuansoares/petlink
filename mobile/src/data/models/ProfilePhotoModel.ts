@@ -9,6 +9,6 @@ export class ProfilePhotoModel extends Model {
   @text('image_url') imageUrl!: string
   @text('pet_name') petName!: string | null
   @text('caption') caption!: string | null
-  @text('created_at') createdAt!: string
+  @field('created_at') createdAt!: number
   @field('is_pinned') isPinned!: boolean | null
 }

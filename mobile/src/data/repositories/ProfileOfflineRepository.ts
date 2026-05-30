@@ -33,16 +33,26 @@ async function findProfileModelById(id: string): Promise<ProfileModelLike | null
   }
 }
 
+function toTimestamp(iso?: string | null): number {
+  if (!iso) return Date.now()
+  const ms = Date.parse(iso)
+  return isNaN(ms) ? Date.now() : ms
+}
+
+function toIso(ts: number): string {
+  return new Date(ts).toISOString()
+}
+
 function toOfflineProfile(record: ProfileModelLike): OfflineUserProfile {
   return {
     id: record.id,
     name: record.name,
     email: record.email ?? null,
     location: record.location ?? null,
-    created_at: record.createdAt,
+    created_at: toIso(record.createdAt),
     avatar_url: record.avatarUrl ?? null,
     bio: record.bio ?? null,
-    updated_at: record.updatedAt ?? null,
+    updated_at: record.updatedAt ? toIso(record.updatedAt) : null,
     pets_count: record.petsCount ?? 0,
     birth_date: record.birthDate ?? null,
   }
@@ -78,10 +88,10 @@ export const ProfileOfflineRepository = {
           record.name = profile.name
           record.email = profile.email ?? null
           record.location = profile.location ?? null
-          record.createdAt = profile.created_at
+          record.createdAt = toTimestamp(profile.created_at)
           record.avatarUrl = profile.avatar_url ?? null
           record.bio = profile.bio ?? null
-          record.updatedAt = profile.updated_at ?? null
+          record.updatedAt = toTimestamp(profile.updated_at)
           record.petsCount = profile.pets_count ?? 0
           record.birthDate = profile.birth_date ?? null
         })
@@ -91,10 +101,10 @@ export const ProfileOfflineRepository = {
           record.name = profile.name
           record.email = profile.email ?? null
           record.location = profile.location ?? null
-          record.createdAt = profile.created_at
+          record.createdAt = toTimestamp(profile.created_at)
           record.avatarUrl = profile.avatar_url ?? null
           record.bio = profile.bio ?? null
-          record.updatedAt = profile.updated_at ?? null
+          record.updatedAt = toTimestamp(profile.updated_at)
           record.petsCount = profile.pets_count ?? 0
           record.birthDate = profile.birth_date ?? null
         })

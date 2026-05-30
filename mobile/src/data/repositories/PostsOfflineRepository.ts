@@ -38,8 +38,8 @@ export const offlinePostsRepository = {
             record.caption = post.caption
             record.location = post.location
             record.isPinned = post.is_pinned
-            record.createdAt = post.created_at
-            record.updatedAt = post.updated_at
+            record.createdAt = Date.parse(post.created_at)
+            record.updatedAt = Date.parse(post.updated_at)
             record.authorName = post.profiles?.name ?? null
             record.authorAvatarUrl = post.profiles?.avatar_url ?? null
             record.petName = post.pets?.name ?? null
@@ -65,8 +65,8 @@ export const offlinePostsRepository = {
         caption: r.caption,
         location: r.location,
         is_pinned: r.isPinned,
-        created_at: r.createdAt,
-        updated_at: r.updatedAt,
+        created_at: new Date(r.createdAt).toISOString(),
+        updated_at: r.updatedAt ? new Date(r.updatedAt).toISOString() : new Date().toISOString(),
         profiles: r.authorName ? { name: r.authorName, avatar_url: r.authorAvatarUrl, level: 1 } : undefined,
         pets: r.petName ? { name: r.petName } : undefined,
       }))
@@ -106,7 +106,7 @@ export const offlinePostsRepository = {
             record.imageUrl = post.image_url
             record.petName = post.pets?.name ?? null
             record.caption = post.caption
-            record.createdAt = post.created_at
+            record.createdAt = Date.parse(post.created_at)
             record.isPinned = post.is_pinned
           })
         }
@@ -129,7 +129,7 @@ export const offlinePostsRepository = {
         image_url: r.imageUrl,
         pet_id: null,
         caption: r.caption,
-        created_at: r.createdAt,
+        created_at: new Date(r.createdAt).toISOString(),
         is_pinned: r.isPinned,
         pets: r.petName ? { name: r.petName } : undefined,
       }))

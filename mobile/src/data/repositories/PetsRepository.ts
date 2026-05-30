@@ -55,11 +55,10 @@ function getCollections() {
   }
 }
 
-function parseIsoToMillis(iso?: string): number {
+function toTimestamp(iso?: string): number {
   if (!iso) return Date.now()
-
-  const parsed = new Date(iso).getTime()
-  return Number.isFinite(parsed) ? parsed : Date.now()
+  const ms = Date.parse(iso)
+  return isNaN(ms) ? Date.now() : ms
 }
 
 async function findPetModelById(id: string): Promise<PetModelLike | null> {
@@ -106,7 +105,7 @@ function toOfflinePet(record: PetModelLike, weightMap: Map<string, PetWeightHist
     observations: record.observations ?? null,
     tags: record.tags ? record.tags.split(',') : [],
     is_active: record.isActive ?? undefined,
-    created_at: new Date(record.createdAt).toISOString(),
+    created_at: record.createdAt ? new Date(record.createdAt).toISOString() : new Date().toISOString(),
   }
 }
 
@@ -163,7 +162,7 @@ async function upsertPet(pet: OfflinePet) {
       record.observations = pet.observations ?? null
       record.tags = pet.tags ? pet.tags.join(',') : null
       record.isActive = pet.is_active ?? null
-      record.createdAt = parseIsoToMillis(pet.created_at)
+      record.createdAt = toTimestamp(pet.created_at)
       record.updatedAtRemote = new Date().toISOString()
       record.isDeletedLocal = false
     })
@@ -182,7 +181,7 @@ async function upsertPet(pet: OfflinePet) {
       record.observations = pet.observations ?? null
       record.tags = pet.tags ? pet.tags.join(',') : null
       record.isActive = pet.is_active ?? null
-      record.createdAt = parseIsoToMillis(pet.created_at)
+      record.createdAt = toTimestamp(pet.created_at)
       record.updatedAtRemote = new Date().toISOString()
       record.isDeletedLocal = false
     })

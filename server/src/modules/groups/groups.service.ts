@@ -138,7 +138,7 @@ export const groupsService = {
     if (existing) throw new AppError('Usuário já é membro do grupo', 409)
 
     const pending = await groupsRepository.findPendingInvite(groupId, invitedUserId)
-    if (pending) throw new AppError('Convite já enviado para este usuário', 409)
+    if (pending) return pending
 
     return groupsRepository.createInvite(groupId, invitedUserId, requesterId)
   },
@@ -169,6 +169,16 @@ export const groupsService = {
   async searchUsersForGroup(query: string, groupId: string) {
     if (!query?.trim()) return []
     return groupsRepository.searchUsersForGroup(query.trim(), groupId)
+  },
+
+  async deleteGroup(groupId: string, userId: string) {
+    const membership = await groupsRepository.findMembership(groupId, userId)
+    if (!membership || membership.role !== 'owner') {
+      throw new AppError('Apenas o dono pode deletar o grupo', 403)
+    }
+
+    await groupsRepository.delete(groupId)
+    return { success: true }
   },
 
   async removeMember(groupId: string, targetUserId: string, requesterId: string) {

@@ -11,8 +11,8 @@ export class FeedPhotoModel extends Model {
   @text('caption') caption!: string | null
   @text('location') location!: string | null
   @field('is_pinned') isPinned!: boolean | null
-  @text('created_at') createdAt!: string
-  @text('updated_at') updatedAt!: string | null
+  @field('created_at') createdAt!: number
+  @field('updated_at') updatedAt!: number
   @text('author_name') authorName!: string | null
   @text('author_avatar_url') authorAvatarUrl!: string | null
   @text('pet_name') petName!: string | null

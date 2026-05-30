@@ -19,7 +19,7 @@ export const profileRepository = {
 
     if (countError) throw countError
 
-    const postsCount = await Post.countDocuments({ authorId: id })
+    const postsCount = await Post.countDocuments({ authorId: id, groupId: null })
 
     const { count: followersCount, error: followersCountError } = await supabaseAdmin
       .from('follows')
@@ -61,7 +61,7 @@ export const profileRepository = {
 
     if (petsCountError) throw petsCountError
 
-    const postsCount = await Post.countDocuments({ authorId: id })
+    const postsCount = await Post.countDocuments({ authorId: id, groupId: null })
 
     const { count: followersCount, error: followersCountError } = await supabaseAdmin
       .from('follows')

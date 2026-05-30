@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useCallback } from 'react'
-import { View, FlatList, Pressable, StyleSheet, ActivityIndicator, TextInput } from 'react-native'
+import React, { useEffect, useState, useCallback, useRef } from 'react'
+import { View, FlatList, ScrollView, Pressable, StyleSheet, ActivityIndicator, TextInput, Modal } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native'
 import { StackNavigationProp } from '@react-navigation/stack'
@@ -24,6 +24,7 @@ import {
   changeMemberRoleThunk,
   removeMemberThunk,
   leaveGroupThunk,
+  deleteGroupThunk,
   joinGroupThunk,
   selectGroupPosts,
   selectGroupPostsHasMore,
@@ -49,23 +50,36 @@ type NavigationProp = StackNavigationProp<AppStackParamList>
 function MemberRow({
   item,
   currentUserId,
-  isAdmin,
+  canManage,
+  isCurrentUserOwner,
   handleUserPress,
   handleChangeRole,
   handleRemoveMember,
 }: {
   item: GroupMember
   currentUserId: string
-  isAdmin: boolean
+  canManage: boolean
+  isCurrentUserOwner: boolean
   handleUserPress: (userId: string) => void
   handleChangeRole: (userId: string, role: 'admin' | 'member') => void
   handleRemoveMember: (userId: string) => void
 }) {
   const { colors } = useTheme()
   const [showMenu, setShowMenu] = useState(false)
-  const isSelf = item.user_id === currentUserId
-  const isOwner = item.role === 'owner'
-  const canManage = isAdmin && !isSelf && !isOwner
+  const triggerRef = useRef<any>(null)
+  const [menuPos, setMenuPos] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
+  const isOwnerMember = item.role === 'owner'
+  const onToggleMenu = () => {
+    if (!triggerRef.current) {
+      setShowMenu((p) => !p)
+      return
+    }
+    // measure position in window to place modal menu above everything
+    triggerRef.current.measureInWindow((x: number, y: number, w: number, h: number) => {
+      setMenuPos({ x, y, w, h })
+      setShowMenu((p) => !p)
+    })
+  }
 
   return (
     <View style={[s.memberRow, { borderBottomColor: colors.border }]}>
@@ -80,30 +94,44 @@ function MemberRow({
       </Pressable>
       {canManage && (
         <View style={{ position: 'relative' }}>
-          <Pressable onPress={() => setShowMenu((p) => !p)} hitSlop={8} style={{ padding: 4 }}>
+          <Pressable ref={triggerRef} onPress={onToggleMenu} hitSlop={8} style={{ padding: 4 }}>
             <Ionicons name="ellipsis-vertical" size={18} color={colors.mutedForeground} />
           </Pressable>
-          {showMenu && (
-            <View style={[s.memberMenu, { backgroundColor: colors.background, borderColor: colors.border }]}>
-              {item.role === 'member' && (
-                <Pressable onPress={() => { setShowMenu(false); handleChangeRole(item.user_id, 'admin') }} style={s.menuItem}>
-                  <Ionicons name="shield-outline" size={16} color={colors.foreground} />
-                  <Text size="sm">Tornar admin</Text>
-                </Pressable>
-              )}
-              {item.role === 'admin' && (
-                <Pressable onPress={() => { setShowMenu(false); handleChangeRole(item.user_id, 'member') }} style={s.menuItem}>
-                  <Ionicons name="arrow-down-circle-outline" size={16} color={colors.foreground} />
-                  <Text size="sm">Remover admin</Text>
-                </Pressable>
-              )}
-              <Pressable onPress={() => { setShowMenu(false); handleRemoveMember(item.user_id) }} style={s.menuItem}>
-                <Ionicons name="person-remove-outline" size={16} color={colors.destructive} />
-                <Text size="sm" style={{ color: colors.destructive }}>Remover</Text>
-              </Pressable>
-            </View>
-          )}
         </View>
+      )}
+
+      {/* Menu rendered in Modal so it sits above other modals */}
+      {canManage && (
+        <Modal transparent visible={showMenu} onRequestClose={() => setShowMenu(false)} animationType="none">
+          <Pressable style={{ flex: 1 }} onPress={() => setShowMenu(false)}>
+            {menuPos && (
+              <View
+                style={[
+                  s.memberMenu,
+                  { backgroundColor: colors.background, borderColor: colors.border },
+                  { position: 'absolute', top: menuPos.y + menuPos.h + 4, left: Math.max(8, menuPos.x + menuPos.w - 180) },
+                ]}
+              >
+                {isCurrentUserOwner && item.role === 'member' && (
+                  <Pressable onPress={() => { setShowMenu(false); handleChangeRole(item.user_id, 'admin') }} style={s.menuItem}>
+                    <Ionicons name="shield-outline" size={16} color={colors.foreground} />
+                    <Text size="sm">Tornar admin</Text>
+                  </Pressable>
+                )}
+                {isCurrentUserOwner && item.role === 'admin' && (
+                  <Pressable onPress={() => { setShowMenu(false); handleChangeRole(item.user_id, 'member') }} style={s.menuItem}>
+                    <Ionicons name="arrow-down-circle-outline" size={16} color={colors.foreground} />
+                    <Text size="sm">Remover admin</Text>
+                  </Pressable>
+                )}
+                <Pressable onPress={() => { setShowMenu(false); handleRemoveMember(item.user_id) }} style={s.menuItem}>
+                  <Ionicons name="person-remove-outline" size={16} color={colors.destructive} />
+                  <Text size="sm" style={{ color: colors.destructive }}>Remover</Text>
+                </Pressable>
+              </View>
+            )}
+          </Pressable>
+        </Modal>
       )}
     </View>
   )
@@ -121,31 +149,37 @@ function AddMemberModal({
   const { colors, withAlpha } = useTheme()
   const dispatch = useAppDispatch()
   const [query, setQuery] = useState('')
-  const [results, setResults] = useState<{ id: string; name: string; avatar_url: string | null }[]>([])
+  const [results, setResults] = useState<{ id: string; name: string; avatar_url: string | null; previousInviteStatus?: 'rejected' | 'pending' }[]>([])
   const [loading, setLoading] = useState(false)
   const [sending, setSending] = useState<Record<string, boolean>>({})
+  const [searched, setSearched] = useState(false)
 
-  useEffect(() => {
-    if (!query.trim()) { setResults([]); return }
-    const timer = setTimeout(async () => {
-      setLoading(true)
-      try {
-        const users = await groupsApi.searchUsersForGroup(groupId, query.trim())
-        setResults(users)
-      } catch { setResults([]) }
-      setLoading(false)
-    }, 300)
-    return () => clearTimeout(timer)
-  }, [query, groupId])
+  const handleSearch = async () => {
+    const q = query.trim()
+    if (!q) return
+    setLoading(true)
+    setSearched(true)
+    try {
+      const users = await groupsApi.searchUsersForGroup(groupId, q)
+      setResults(users)
+    } catch { setResults([]) }
+    setLoading(false)
+  }
 
   const handleInvite = async (userId: string) => {
     setSending((p) => ({ ...p, [userId]: true }))
     try {
       await groupsApi.inviteUser(groupId, userId)
-      dispatch(showToast({ type: 'success', title: 'Convite enviado', message: 'Convite enviado com sucesso!' }))
+      const wasRejected = results.find((u) => u.id === userId)?.previousInviteStatus === 'rejected'
+      dispatch(showToast({ 
+        type: 'success', 
+        title: wasRejected ? 'Convite reenviado' : 'Convite enviado', 
+        message: wasRejected ? 'Convite reenviado com sucesso!' : 'Convite enviado com sucesso!' 
+      }))
       setResults((prev) => prev.filter((u) => u.id !== userId))
-    } catch {
-      dispatch(showToast({ type: 'error', title: 'Erro', message: 'Erro ao enviar convite' }))
+    } catch (err: any) {
+      const msg = err?.response?.data?.error || err?.message || 'Erro ao enviar convite'
+      dispatch(showToast({ type: 'error', title: 'Erro', message: msg }))
     }
     setSending((p) => ({ ...p, [userId]: false }))
   }
@@ -157,17 +191,21 @@ function AddMemberModal({
           <View style={[s.handleBar, { backgroundColor: withAlpha(colors.border, 0.6) }]} />
         </View>
         <Text weight="800" size="lg" style={{ textAlign: 'center', marginBottom: 16 }}>Adicionar membros</Text>
-        <TextInput
-          placeholder="Buscar usuários..."
-          placeholderTextColor={colors.mutedForeground}
-          value={query}
-          onChangeText={setQuery}
-          style={[s.searchInput, { backgroundColor: colors.card, color: colors.foreground, borderColor: colors.border }]}
-          autoFocus
-        />
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <TextInput
+            placeholder="Buscar usuários..."
+            placeholderTextColor={colors.mutedForeground}
+            value={query}
+            onChangeText={setQuery}
+            onSubmitEditing={handleSearch}
+            returnKeyType="search"
+            style={[s.searchInput, { backgroundColor: colors.card, color: colors.foreground, borderColor: colors.border, flex: 1 }]}
+          />
+          <Button label="Pesquisar" size="sm" onPress={handleSearch} loading={loading} />
+        </View>
         {loading ? (
           <ActivityIndicator color={colors.primary} style={{ marginTop: 20 }} />
-        ) : results.length === 0 && query.trim() ? (
+        ) : searched && results.length === 0 ? (
           <Text color="mutedForeground" style={{ textAlign: 'center', marginTop: 20 }}>Nenhum usuário encontrado</Text>
         ) : (
           <FlatList
@@ -176,9 +214,14 @@ function AddMemberModal({
             style={{ marginTop: 8 }}
             renderItem={({ item }) => (
               <View style={[s.userRow, { borderBottomColor: colors.border }]}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
                   <Avatar size={32} name={item.name} source={item.avatar_url ? { uri: item.avatar_url } : undefined} />
-                  <Text weight="600" size="sm">{item.name}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text weight="600" size="sm">{item.name}</Text>
+                    {item.previousInviteStatus === 'rejected' && (
+                      <Text size="xs" color="mutedForeground">Convite anterior rejeitado</Text>
+                    )}
+                  </View>
                 </View>
                 <Pressable
                   onPress={() => handleInvite(item.id)}
@@ -188,7 +231,9 @@ function AddMemberModal({
                   {sending[item.id] ? (
                     <ActivityIndicator size="small" color={colors.primary} />
                   ) : (
-                    <Text size="xs" weight="700" style={{ color: colors.primary }}>Convidar</Text>
+                    <Text size="xs" weight="700" style={{ color: colors.primary }}>
+                      {item.previousInviteStatus === 'rejected' ? 'Reenviar' : 'Convidar'}
+                    </Text>
                   )}
                 </Pressable>
               </View>
@@ -220,14 +265,18 @@ export default function GroupDetailScreen() {
   const [groupInfo, setGroupInfo] = useState<any>(null)
   const [showMenu, setShowMenu] = useState(false)
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showCreatePost, setShowCreatePost] = useState(false)
   const [commentPost, setCommentPost] = useState<Post | null>(null)
   const [likesPost, setLikesPost] = useState<Post | null>(null)
   const [showAddMember, setShowAddMember] = useState(false)
   const [showReportConfirm, setShowReportConfirm] = useState(false)
   const [joining, setJoining] = useState(false)
+  const [menuPostId, setMenuPostId] = useState<string | null>(null)
+  const [deletePostId, setDeletePostId] = useState<string | null>(null)
 
-  const isAdmin = myRole === 'owner' || myRole === 'admin'
+  const isOwner = myRole === 'owner'
+  const isAdmin = isOwner || myRole === 'admin'
 
   useEffect(() => {
     loadGroupDetails()
@@ -248,12 +297,20 @@ export default function GroupDetailScreen() {
     dispatch(fetchMoreGroupPostsThunk({ groupId, page: page + 1 }))
   }, [hasMore, isLoadingMore, dispatch, groupId, page])
 
-  const handleDeletePost = useCallback((postId: string) => {
-    dispatch(deleteGroupPostThunk({ groupId, postId }))
-  }, [dispatch, groupId])
+  const handleConfirmDeletePost = useCallback(() => {
+    if (deletePostId) {
+      dispatch(deleteGroupPostThunk({ groupId, postId: deletePostId }))
+      setDeletePostId(null)
+    }
+  }, [dispatch, groupId, deletePostId])
 
   const handleLeave = useCallback(() => {
     dispatch(leaveGroupThunk(groupId))
+    navigation.goBack()
+  }, [dispatch, groupId, navigation])
+
+  const handleDeleteGroup = useCallback(() => {
+    dispatch(deleteGroupThunk(groupId))
     navigation.goBack()
   }, [dispatch, groupId, navigation])
 
@@ -277,7 +334,7 @@ export default function GroupDetailScreen() {
 
   const handleUserPress = useCallback((userId: string) => {
     if (userId === currentUserId) {
-      navigation.getParent()?.navigate('Tabs', { screen: 'Profile' })
+      (navigation as any).navigate('Tabs', { screen: 'Profile' })
     } else {
       navigation.navigate('PublicProfile', { userId })
     }
@@ -285,8 +342,7 @@ export default function GroupDetailScreen() {
 
   const renderPost = useCallback(({ item }: { item: Post }) => {
     const isOwnPost = item.author_id === currentUserId
-    const canDelete = isOwnPost || isAdmin
-    const handlePin = () => dispatch(pinGroupPostThunk({ groupId, postId: item.id }))
+    const isMenuOpen = menuPostId === item.id
     return (
       <View style={[s.postCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <View style={s.postHeader}>
@@ -305,18 +361,35 @@ export default function GroupDetailScreen() {
               {item.pets?.name && <Text size="xs" color="mutedForeground">{item.pets.name}</Text>}
             </View>
           </Pressable>
-          <View style={{ flexDirection: 'row', gap: 4 }}>
-            {isAdmin && (
-              <Pressable onPress={handlePin} hitSlop={8} style={{ padding: 4 }}>
-                <Ionicons name={item.is_pinned ? 'pin' : 'pin-outline'} size={18} color={item.is_pinned ? colors.primary : colors.mutedForeground} />
+          {(isAdmin || isOwnPost) && (
+            <View style={{ position: 'relative' }}>
+              <Pressable onPress={() => setMenuPostId(isMenuOpen ? null : item.id)} hitSlop={8} style={{ padding: 4 }}>
+                <Ionicons name="ellipsis-vertical" size={18} color={colors.mutedForeground} />
               </Pressable>
-            )}
-            {canDelete && (
-              <Pressable onPress={() => handleDeletePost(item.id)} hitSlop={8} style={{ padding: 4 }}>
-                <Ionicons name="trash-outline" size={18} color={colors.destructive} />
-              </Pressable>
-            )}
-          </View>
+              {isMenuOpen && (
+                <View style={[s.memberMenu, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                  {isAdmin && (
+                    <Pressable
+                      onPress={() => { setMenuPostId(null); dispatch(pinGroupPostThunk({ groupId, postId: item.id })) }}
+                      style={s.menuItem}
+                    >
+                      <Ionicons name={item.is_pinned ? 'pin' : 'pin-outline'} size={16} color={colors.foreground} />
+                      <Text size="sm">{item.is_pinned ? 'Desfixar' : 'Fixar'}</Text>
+                    </Pressable>
+                  )}
+                  {(isAdmin || isOwnPost) && (
+                    <Pressable
+                      onPress={() => { setMenuPostId(null); setDeletePostId(item.id) }}
+                      style={s.menuItem}
+                    >
+                      <Ionicons name="trash-outline" size={16} color={colors.destructive} />
+                      <Text size="sm" style={{ color: colors.destructive }}>Deletar</Text>
+                    </Pressable>
+                  )}
+                </View>
+              )}
+            </View>
+          )}
         </View>
 
         {item.image_url && (
@@ -336,14 +409,40 @@ export default function GroupDetailScreen() {
         <Text size="xs" color="mutedForeground" style={s.date}>{getRelativeTime(item.created_at)}</Text>
       </View>
     )
-  }, [colors, currentUserId, isAdmin, handleDeletePost, handleUserPress, dispatch, groupId])
+  }, [colors, currentUserId, isAdmin, handleUserPress, dispatch, groupId, menuPostId])
 
-  const renderPostsHeader = () => (
+  const renderPostsHeader = useCallback(() => (
     <Pressable style={[s.createPostInput, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={() => setShowCreatePost(true)}>
       <Ionicons name="pencil-outline" size={20} color={colors.mutedForeground} />
       <Text color="mutedForeground" size="sm">O que você está pensando?</Text>
     </Pressable>
-  )
+  ), [colors])
+
+  const isMember = !!myRole
+
+  const renderMembersHeader = useCallback(() => {
+    if (!isMember) return <View />
+    return (
+      <View>
+        {isAdmin && (
+          <Pressable
+            style={[s.inviteButton, { borderColor: colors.primary }]}
+            onPress={() => setShowAddMember(true)}
+          >
+            <Ionicons name="person-add-outline" size={18} color={colors.primary} />
+            <Text color="primary" weight="600" size="sm">Adicionar membros</Text>
+          </Pressable>
+        )}
+        <Pressable
+          style={[s.inviteButton, { borderColor: colors.primary, marginTop: 8 }]}
+          onPress={() => shareGroup(groupId, groupInfo?.name ?? '')}
+        >
+          <Ionicons name="share-outline" size={18} color={colors.primary} />
+          <Text color="primary" weight="600" size="sm">Compartilhar link do grupo</Text>
+        </Pressable>
+      </View>
+    )
+  }, [isMember, isAdmin, colors, groupId, groupInfo])
 
   if (!groupInfo) {
     return (
@@ -353,8 +452,6 @@ export default function GroupDetailScreen() {
     )
   }
 
-  const isMember = !!myRole
-
   return (
     <View style={[s.container, { backgroundColor: colors.background }]}>
       <AppToast />
@@ -362,11 +459,11 @@ export default function GroupDetailScreen() {
       {/* Group header */}
       <View style={[s.groupHeader, { borderBottomColor: colors.border }]}>
         <View style={s.groupInfo}>
-          <Avatar name={groupInfo.name} source={groupInfo.photo_url ? { uri: groupInfo.photo_url } : undefined} size={56} />
+          <Avatar name={groupInfo.name} source={groupInfo.photo_url ? { uri: groupInfo.photo_url } : undefined} size={64} />
           <View style={s.groupMeta}>
-            <Text weight="800" size="lg">{groupInfo.name}</Text>
+            <Text weight="800" size="xl">{groupInfo.name}</Text>
             {groupInfo.description && <Text size="sm" color="mutedForeground" numberOfLines={2}>{groupInfo.description}</Text>}
-            <Text size="xs" color="mutedForeground">
+            <Text size="sm" color="mutedForeground">
               {groupInfo.member_count} {groupInfo.member_count === 1 ? 'membro' : 'membros'}
             </Text>
           </View>
@@ -392,13 +489,15 @@ export default function GroupDetailScreen() {
         onChange={(id: any) => setActiveTab(id)}
       />
 
-      {activeTab === 'posts' ? (
+      {activeTab === 'posts' && (
         <FlatList
+          key="posts-list"
           data={posts}
           renderItem={renderPost}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
-          ListHeaderComponent={isMember ? renderPostsHeader : null}
+          style={{ flex: 1 }}
+          ListHeaderComponent={isMember ? renderPostsHeader : <View />}
           ListEmptyComponent={
             isLoadingPosts ? (
               <View style={s.emptyState}><ActivityIndicator color={colors.primary} /></View>
@@ -413,53 +512,53 @@ export default function GroupDetailScreen() {
           onEndReachedThreshold={0.5}
           refreshing={isLoadingPosts && page === 1}
           onRefresh={() => dispatch(fetchGroupPostsThunk(groupId))}
-          ListFooterComponent={isLoadingMore ? <ActivityIndicator style={{ padding: 16 }} color={colors.primary} /> : null}
+          onScrollBeginDrag={() => setMenuPostId(null)}
+          ListFooterComponent={isLoadingMore ? <ActivityIndicator style={{ padding: 16 }} color={colors.primary} /> : <View />}
         />
-      ) : (
-        <FlatList
-          data={members}
-          renderItem={({ item }) => (
-            <MemberRow
-              item={item}
-              currentUserId={currentUserId}
-              isAdmin={isAdmin}
-              handleUserPress={handleUserPress}
-              handleChangeRole={handleChangeRole}
-              handleRemoveMember={handleRemoveMember}
-            />
-          )}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40 }}
-          ListHeaderComponent={
-            isMember ? (
-              <View>
-                {isAdmin && (
-                  <Pressable
-                    style={[s.inviteButton, { borderColor: colors.primary }]}
-                    onPress={() => setShowAddMember(true)}
-                  >
-                    <Ionicons name="person-add-outline" size={18} color={colors.primary} />
-                    <Text color="primary" weight="600" size="sm">Adicionar membros</Text>
-                  </Pressable>
-                )}
-                <Pressable
-                  style={[s.inviteButton, { borderColor: colors.primary, marginTop: 8 }]}
-                  onPress={() => shareGroup(groupId, groupInfo.name)}
-                >
-                  <Ionicons name="share-outline" size={18} color={colors.primary} />
-                  <Text color="primary" weight="600" size="sm">Compartilhar link do grupo</Text>
-                </Pressable>
+      )}
+      {activeTab === 'members' && (
+        <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40, flexGrow: 1 }} style={{ flex: 1 }}>
+          <View key="header">{renderMembersHeader()}</View>
+          {members.length === 0 ? (
+            <View key="empty" style={s.emptyState}>
+              <Text color="mutedForeground">Nenhum membro encontrado</Text>
+            </View>
+          ) : (
+            <View key="list" style={[s.memberCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View style={s.memberSectionHeader}>
+                <Text weight="700" size="base">Membros · {members.length}</Text>
               </View>
-            ) : null
-          }
-        />
+              {members.map((item: GroupMember) => (
+                <MemberRow
+                  key={item.user_id}
+                  item={item}
+                  currentUserId={currentUserId}
+                  canManage={isAdmin && item.user_id !== currentUserId && item.role !== 'owner'}
+                  isCurrentUserOwner={isOwner}
+                  handleUserPress={handleUserPress}
+                  handleChangeRole={handleChangeRole}
+                  handleRemoveMember={handleRemoveMember}
+                />
+              ))}
+            </View>
+          )}
+        </ScrollView>
       )}
 
       {/* ⋯ menu modal */}
       {showMenu && (
         <Pressable style={s.backdrop} onPress={() => setShowMenu(false)}>
           <View style={[s.menuOverlay, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            {isMember && (
+            {isOwner && (
+              <>
+                <Pressable onPress={() => { setShowMenu(false); setShowDeleteConfirm(true) }} style={s.menuOverlayItem}>
+                  <Ionicons name="trash-outline" size={20} color={colors.destructive} />
+                  <Text style={{ color: colors.destructive }} weight="600">Deletar grupo</Text>
+                </Pressable>
+                <View style={[s.menuDivider, { backgroundColor: colors.border }]} />
+              </>
+            )}
+            {isMember && !isOwner && (
               <>
                 <Pressable onPress={() => { setShowMenu(false); setShowLeaveConfirm(true) }} style={s.menuOverlayItem}>
                   <Ionicons name="exit-outline" size={20} color={colors.destructive} />
@@ -501,6 +600,28 @@ export default function GroupDetailScreen() {
         destructive
         onConfirm={() => { setShowLeaveConfirm(false); handleLeave() }}
         onCancel={() => setShowLeaveConfirm(false)}
+      />
+
+      {/* Delete confirm */}
+      <ConfirmModal
+        visible={showDeleteConfirm}
+        title="Deletar grupo"
+        message="Tem certeza que deseja deletar este grupo? Esta ação não pode ser desfeita."
+        confirmLabel="Deletar"
+        destructive
+        onConfirm={() => { setShowDeleteConfirm(false); handleDeleteGroup() }}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
+
+      {/* Delete post confirm */}
+      <ConfirmModal
+        visible={!!deletePostId}
+        title="Deletar post"
+        message="Tem certeza que deseja deletar este post?"
+        confirmLabel="Deletar"
+        destructive
+        onConfirm={handleConfirmDeletePost}
+        onCancel={() => setDeletePostId(null)}
       />
 
       {/* Report confirm */}
@@ -555,9 +676,16 @@ const s = StyleSheet.create({
   postActions: { flexDirection: 'row', alignItems: 'center', gap: 20, marginBottom: 4 },
   date: { marginTop: 4 },
   emptyState: { padding: 40, alignItems: 'center' },
+  memberCard: {
+    borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden',
+    marginTop: 8,
+  },
+  memberSectionHeader: {
+    paddingHorizontal: 16, paddingVertical: 12,
+  },
   memberRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingVertical: 12, paddingHorizontal: 16, borderBottomWidth: StyleSheet.hairlineWidth,
   },
   memberInfo: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   memberMenu: {

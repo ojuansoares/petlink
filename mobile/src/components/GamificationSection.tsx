@@ -232,7 +232,7 @@ export default function GamificationSection() {
   return (
     <>
       <BadgeDetailModal achievement={detailAchievement} visible={!!detailAchievement} onClose={() => setDetailAchievement(null)} />
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
+      <View style={{ padding: 16 }}>
         {/* Level Card */}
         <View style={[styles.levelCard, { backgroundColor: getLevelColor(stats.level), borderColor: getLevelColor(stats.level) }]}>
           <View style={styles.levelHeader}>
@@ -298,7 +298,7 @@ export default function GamificationSection() {
             ))}
           </View>
         )}
-      </ScrollView>
+      </View>
     </>
   )
 }

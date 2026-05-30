@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react'
-import { View, FlatList, TouchableOpacity, StyleSheet } from 'react-native'
+import { View, ScrollView, TouchableOpacity, StyleSheet } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { File, Paths } from 'expo-file-system'
 import * as Sharing from 'expo-sharing'
@@ -139,18 +139,21 @@ export function VaccinationCardModal({
           </Text>
         </TouchableOpacity>
 
-        <FlatList
-          data={allItems}
-          renderItem={renderItem}
-          keyExtractor={(item) => item.id}
+        <ScrollView
           style={{ maxHeight: 400 }}
           showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
+          nestedScrollEnabled
+        >
+          {allItems.length === 0 ? (
             <View style={{ padding: 20, alignItems: 'center' }}>
               <Text color="mutedForeground">Nenhum registro disponível</Text>
             </View>
-          }
-        />
+          ) : (
+            allItems.map((item) => (
+              <View key={item.id}>{renderItem({ item })}</View>
+            ))
+          )}
+        </ScrollView>
 
         <Button
           label={generating ? 'Gerando...' : 'Gerar PDF'}

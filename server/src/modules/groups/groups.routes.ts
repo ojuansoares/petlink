@@ -23,6 +23,7 @@ router.get('/:id/posts', authMiddleware, groupsController.getPosts)
 router.delete('/:id/posts/:postId', authMiddleware, groupsController.deletePost)
 router.patch('/:id/posts/:postId/pin', authMiddleware, groupsController.togglePinPost)
 router.patch('/:id/members/:userId/role', authMiddleware, groupsController.changeMemberRole)
+router.delete('/:id', authMiddleware, groupsController.deleteGroup)
 router.delete('/:id/members/:userId', authMiddleware, groupsController.removeMember)
 
 export default router

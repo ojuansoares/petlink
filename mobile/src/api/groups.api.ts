@@ -139,8 +139,13 @@ export const groupsApi = {
     return data
   },
 
-  async searchUsersForGroup(groupId: string, q: string): Promise<{ id: string; name: string; avatar_url: string | null }[]> {
+  async deleteGroup(groupId: string): Promise<{ success: boolean }> {
+    const { data } = await api.delete(`/groups/${groupId}`)
+    return data as { success: boolean }
+  },
+
+  async searchUsersForGroup(groupId: string, q: string): Promise<{ id: string; name: string; avatar_url: string | null; previousInviteStatus?: 'rejected' | 'pending' }[]> {
     const { data } = await api.get(`/groups/${groupId}/search-users?q=${encodeURIComponent(q)}`)
-    return data as { id: string; name: string; avatar_url: string | null }[]
+    return data as { id: string; name: string; avatar_url: string | null; previousInviteStatus?: 'rejected' | 'pending' }[]
   },
 }

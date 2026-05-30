@@ -47,6 +47,7 @@ export default function HomeScreen() {
 
   const [showCreatePost, setShowCreatePost] = useState(false)
   const [bannerUrl, setBannerUrl] = useState<string | null>(null)
+  const [webViewLoading, setWebViewLoading] = useState(false)
   const [petCarouselIndex, setPetCarouselIndex] = useState(0)
   const petCarouselRef = useRef<ScrollView>(null)
   const activePet = pets.length > 0
@@ -498,24 +499,29 @@ export default function HomeScreen() {
           <ImageBackground
             key={i}
             source={b.image}
-            style={[styles.banner, { width: cardWidth, aspectRatio: 1.8 }]}
+            style={[styles.banner, { width: cardWidth, aspectRatio: 1.6 }]}
             imageStyle={styles.bannerImage}
           >
             <View style={styles.bannerOverlay}>
-              <View style={[styles.badge, { backgroundColor: 'rgba(0,0,0,0.35)' }]}>
-                <Text size="xs" weight="700" style={{ color: '#fff' }}>{b.badge}</Text>
+              <View style={styles.bannerShade} />
+              <View style={styles.bannerContent}>
+                <View style={[styles.badge, { backgroundColor: 'rgba(0,0,0,0.45)' }]}>
+                  <Text size="xs" weight="700" style={{ color: '#fff' }}>{b.badge}</Text>
+                </View>
+                <View style={styles.bannerText}>
+                  <Heading size="base" weight="800" style={styles.bannerTitle}>
+                    {b.title}
+                  </Heading>
+                  {b.subtitle && (
+                    <Text size="xs" style={{ color: '#fff', opacity: 0.95 }} numberOfLines={1}>
+                      {b.subtitle}
+                    </Text>
+                  )}
+                </View>
+                <Pressable style={[styles.bannerButton, { backgroundColor: 'rgba(255,255,255,0.9)' }]} onPress={() => setBannerUrl(b.url)}>
+                  <Text size="xs" weight="700" style={{ color: '#000' }}>Ler mais</Text>
+                </Pressable>
               </View>
-              <Heading size="xl" weight="800" style={styles.bannerTitle}>
-                {b.title}
-              </Heading>
-              {b.subtitle && (
-                <Text size="sm" style={{ color: '#fff', opacity: 0.9, marginTop: 2 }} numberOfLines={2}>
-                  {b.subtitle}
-                </Text>
-              )}
-              <Pressable style={[styles.bannerButton, { backgroundColor: 'rgba(255,255,255,0.9)' }]} onPress={() => setBannerUrl(b.url)}>
-                <Text size="sm" weight="700" style={{ color: '#000' }}>Ler mais</Text>
-              </Pressable>
             </View>
           </ImageBackground>
         ))}
@@ -546,7 +552,7 @@ export default function HomeScreen() {
 
       {/* RESUMO DA SEMANA */}
       {pets.length > 0 && (
-        <View style={{ marginTop: 28 }}>
+        <View style={{ marginTop: 12 }}>
           <WeeklySummaryCard pets={pets} />
         </View>
       )}
@@ -584,7 +590,18 @@ export default function HomeScreen() {
                 <Ionicons name="close" size={24} color={colors.foreground} />
               </Pressable>
             </View>
-            <WebView source={{ uri: bannerUrl }} style={{ flex: 1 }} />
+            {webViewLoading && (
+              <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background, zIndex: 1 }}>
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text size="sm" color="mutedForeground" style={{ marginTop: 12 }}>Carregando artigo...</Text>
+              </View>
+            )}
+            <WebView
+              source={{ uri: bannerUrl }}
+              style={{ flex: 1 }}
+              onLoadStart={() => setWebViewLoading(true)}
+              onLoadEnd={() => setWebViewLoading(false)}
+            />
           </View>
         </Modal>
       )}
@@ -720,24 +737,29 @@ const styles = StyleSheet.create({
   banner: {
     borderRadius: 16,
     overflow: 'hidden',
-    justifyContent: 'flex-end',
-    padding: 24,
   },
   bannerImage: {
-    opacity: 0.85,
   },
   bannerOverlay: {
     ...StyleSheet.absoluteFillObject,
-    justifyContent: 'flex-end',
-    padding: 24,
-    gap: 8,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  bannerShade: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.35)',
   },
   bannerContent: {
-    gap: 8,
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'space-between',
+    padding: 24,
+  },
+  bannerText: {
+    alignItems: 'flex-start',
   },
   bannerTitle: {
     color: '#fff',
-    lineHeight: 28,
+    marginBottom: 1,
   },
   badge: {
     alignSelf: 'flex-start',

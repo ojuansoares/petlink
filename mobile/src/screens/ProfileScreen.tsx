@@ -227,6 +227,8 @@ export default function ProfileScreen() {
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             {gamificationStats.unlockedAchievements.map((ach: any, i: number) => {
               const badgeColor = getBadgeColor(ach.xp_reward)
+              const total = gamificationStats.unlockedAchievements.length
+              const opacity = total <= 3 ? 1 : Math.max(0.4, 1 - (i / (total - 1)) * 0.6)
               return (
                 <View
                   key={ach.id}
@@ -237,8 +239,9 @@ export default function ProfileScreen() {
                     backgroundColor: badgeColor,
                     alignItems: 'center',
                     justifyContent: 'center',
-                    marginLeft: i > 0 ? -10 : 0,
-                    zIndex: gamificationStats.unlockedAchievements.length - i,
+                    marginLeft: i > 0 ? -14 : 0,
+                    zIndex: total - i,
+                    opacity,
                     shadowColor: badgeColor,
                     shadowOffset: { width: 0, height: 0 },
                     shadowOpacity: 0.8,

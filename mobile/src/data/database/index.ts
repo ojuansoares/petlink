@@ -24,7 +24,7 @@ if (isNativeDbEnabled && hasNativeBridge) {
       dbName: 'petlink_offline',
       jsi: false,
       onSetUpError: (error: unknown) => {
-        console.log('[OFFLINE][DB][ERROR]', error)
+        console.log('[OFFLINE][DB][SETUP_ERROR]', error)
       },
     })
 
@@ -32,8 +32,8 @@ if (isNativeDbEnabled && hasNativeBridge) {
       adapter,
       modelClasses: [PetModel, WeightRecordModel, UserProfileModel, FeedPhotoModel, ProfilePhotoModel, SyncMetaModel],
     })
-  } catch (error) {
-    console.log('[OFFLINE][DB][INIT_ERROR]', error)
+  } catch (error: any) {
+    console.log('[OFFLINE][DB] FALHA:', error?.message, error?.stack)
     offlineDatabase = null
   }
 } else if (!isNativeDbEnabled) {

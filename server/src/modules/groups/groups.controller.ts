@@ -203,6 +203,18 @@ export const groupsController = {
     }
   },
 
+  async deleteGroup(req: Request, res: Response) {
+    try {
+      const authReq = req as AuthRequest
+      if (!authReq.user) return res.status(401).json({ error: 'Não autenticado' })
+      const { id } = req.params as { id: string }
+      const result = await groupsService.deleteGroup(id, authReq.user.id)
+      return res.json(result)
+    } catch (err: any) {
+      return res.status(err.statusCode ?? 500).json({ error: err.message ?? 'Erro' })
+    }
+  },
+
   async removeMember(req: Request, res: Response) {
     try {
       const authReq = req as AuthRequest
