@@ -5,6 +5,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { api } from '../api/axios'
 import type { AppNotification } from '../store/slices/notificationsSlice'
 
+function getLocalDateString(date: Date = new Date()): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 // ─── Config inicial (chamar no app root) ──────────────────────
 export function configureNotifications() {
   Notifications.setNotificationHandler({
@@ -227,7 +234,7 @@ const VACCINE_MILESTONES = {
 function addDays(dateStr: string, days: number): string {
   const d = new Date(dateStr)
   d.setDate(d.getDate() + days)
-  return d.toISOString().split('T')[0]
+  return getLocalDateString(d)
 }
 
 export async function scheduleVaccineNotifications(
@@ -267,7 +274,7 @@ export async function scheduleVaccineNotifications(
 
       for (const ms of milestones) {
         const targetDate = addDays(dose.date, ms.daysBefore)
-        const today = new Date().toISOString().split('T')[0]
+        const today = getLocalDateString()
 
         // não agenda se a data já passou
         if (targetDate < today) continue
@@ -537,7 +544,7 @@ export async function handleFeedingNotificationAction(
   if (!petId || !mealName) return
 
   try {
-    const today = new Date().toISOString().split('T')[0]
+    const today = getLocalDateString()
     const res = await api.get(`/pets/${petId}/feeding/logs`, { params: { date: today } })
     const logs: any[] = Array.isArray(res.data) ? res.data : []
     const log = logs.find((l: any) => l.meal_name === mealName)
@@ -548,7 +555,7 @@ export async function handleFeedingNotificationAction(
     if (err?.isOffline) {
       try {
         const { feedingQueueRepository } = await import('../data/repositories/FeedingQueueRepository')
-        const today = new Date().toISOString().split('T')[0]
+        const today = getLocalDateString()
         const res = await api.get(`/pets/${petId}/feeding/logs`, { params: { date: today } })
         const logs: any[] = Array.isArray(res.data) ? res.data : []
         const log = logs.find((l: any) => l.meal_name === mealName)
@@ -557,7 +564,7 @@ export async function handleFeedingNotificationAction(
         }
       } catch {
         const { feedingQueueRepository } = await import('../data/repositories/FeedingQueueRepository')
-        const today = new Date().toISOString().split('T')[0]
+        const today = getLocalDateString()
         await feedingQueueRepository.addDeferred(petId, mealName, today)
       }
     } else {

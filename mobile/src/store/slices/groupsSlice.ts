@@ -1,5 +1,5 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
-import { groupsApi, type Group, type GroupPost, type GroupMember } from '../../api/groups.api'
+import { groupsApi, type Group, type GroupPost, type GroupMember, type GroupInvite } from '../../api/groups.api'
 import { api } from '../../api/axios'
 
 interface GroupsState {
@@ -21,6 +21,9 @@ interface GroupsState {
   groupMembers: Record<string, GroupMember[]>
   myRoles: Record<string, 'owner' | 'admin' | 'member' | null>
   isChangingRole: Record<string, boolean>
+
+  pendingInvites: GroupInvite[]
+  isLoadingInvites: boolean
 }
 
 const initialState: GroupsState = {
@@ -42,6 +45,9 @@ const initialState: GroupsState = {
   groupMembers: {},
   myRoles: {},
   isChangingRole: {},
+
+  pendingInvites: [],
+  isLoadingInvites: false,
 }
 
 export const fetchMyGroupsThunk = createAsyncThunk(
@@ -175,6 +181,41 @@ export const changeMemberRoleThunk = createAsyncThunk(
   }
 )
 
+export const fetchPendingInvitesThunk = createAsyncThunk(
+  'groups/fetchPendingInvites',
+  async (_, { rejectWithValue }) => {
+    try {
+      return await groupsApi.listPendingInvites()
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.error ?? 'Erro ao carregar convites')
+    }
+  }
+)
+
+export const acceptInviteThunk = createAsyncThunk(
+  'groups/acceptInvite',
+  async (invite: GroupInvite, { rejectWithValue }) => {
+    try {
+      await groupsApi.acceptInvite(invite.id)
+      return invite
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.error ?? 'Erro ao aceitar convite')
+    }
+  }
+)
+
+export const rejectInviteThunk = createAsyncThunk(
+  'groups/rejectInvite',
+  async (inviteId: string, { rejectWithValue }) => {
+    try {
+      await groupsApi.rejectInvite(inviteId)
+      return inviteId
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.error ?? 'Erro ao recusar convite')
+    }
+  }
+)
+
 export const removeMemberThunk = createAsyncThunk(
   'groups/removeMember',
   async (payload: { groupId: string; userId: string }, { rejectWithValue }) => {
@@ -194,6 +235,9 @@ const groupsSlice = createSlice({
     clearGroups: () => initialState,
     setMyRole: (s, a: { payload: { groupId: string; role: 'owner' | 'admin' | 'member' | null } }) => {
       s.myRoles[a.payload.groupId] = a.payload.role
+    },
+    setGroupMembers: (s, a: { payload: { groupId: string; members: GroupMember[] } }) => {
+      s.groupMembers[a.payload.groupId] = a.payload.members
     },
   },
   extraReducers: (builder) => {
@@ -282,6 +326,21 @@ const groupsSlice = createSlice({
         }
       })
 
+      // --- Invites ---
+      .addCase(fetchPendingInvitesThunk.pending, (s) => { s.isLoadingInvites = true })
+      .addCase(fetchPendingInvitesThunk.fulfilled, (s, a) => { s.isLoadingInvites = false; s.pendingInvites = a.payload })
+      .addCase(fetchPendingInvitesThunk.rejected, (s) => { s.isLoadingInvites = false })
+
+      .addCase(acceptInviteThunk.fulfilled, (s, a) => {
+        s.pendingInvites = s.pendingInvites.filter((i) => i.id !== a.payload.id)
+        s.myGroups.unshift({ ...a.payload.group, role: 'member' })
+        s.myRoles[a.payload.group_id] = 'member'
+      })
+
+      .addCase(rejectInviteThunk.fulfilled, (s, a) => {
+        s.pendingInvites = s.pendingInvites.filter((i) => i.id !== a.payload)
+      })
+
       // --- Member management ---
       .addCase(changeMemberRoleThunk.pending, (s, a) => { s.isChangingRole[a.meta.arg.userId] = true })
       .addCase(changeMemberRoleThunk.fulfilled, (s, a) => {
@@ -304,7 +363,7 @@ const groupsSlice = createSlice({
   },
 })
 
-export const { clearGroups, setMyRole } = groupsSlice.actions
+export const { clearGroups, setMyRole, setGroupMembers } = groupsSlice.actions
 export default groupsSlice.reducer
 
 export const selectMyGroups = (s: any) => s.groups.myGroups as Group[]
@@ -324,3 +383,6 @@ export const selectIsLoadingMoreGroupPosts = (groupId: string) => (s: any) => s.
 export const selectGroupMembers = (groupId: string) => (s: any) => (s.groups.groupMembers[groupId] ?? []) as GroupMember[]
 export const selectMyRole = (groupId: string) => (s: any) => s.groups.myRoles[groupId] ?? null
 export const selectIsChangingRole = (userId: string) => (s: any) => s.groups.isChangingRole[userId] ?? false
+
+export const selectPendingInvites = (s: any) => s.groups.pendingInvites as GroupInvite[]
+export const selectIsLoadingInvites = (s: any) => s.groups.isLoadingInvites as boolean

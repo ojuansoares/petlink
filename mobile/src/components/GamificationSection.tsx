@@ -31,6 +31,8 @@ function BadgeDetailModal({ achievement, visible, onClose }: { achievement: Achi
   const { colors, withAlpha } = useTheme()
   if (!achievement) return null
   const badgeColor = getBadgeColor(achievement.xp_reward)
+  const isInProgress = !achievement.unlocked && achievement.progress > 0
+  const isLocked = !achievement.unlocked && achievement.progress <= 0
 
   return (
     <Modal visible={visible} transparent animationType="fade" statusBarTranslucent>
@@ -44,6 +46,19 @@ function BadgeDetailModal({ achievement, visible, onClose }: { achievement: Achi
             />
           </View>
           <Text weight="800" size="lg" style={{ marginTop: 12, textAlign: 'center' }}>{achievement.name}</Text>
+          {/* Status badge */}
+          {isInProgress && (
+            <View style={[styles.statusBadge, { backgroundColor: withAlpha('#F97316', 0.15) }]}>
+              <Ionicons name="time-outline" size={12} color="#F97316" />
+              <Text size="xs" weight="700" style={{ color: '#F97316', marginLeft: 4 }}>Em andamento — {Math.round(achievement.progress * 100)}%</Text>
+            </View>
+          )}
+          {isLocked && (
+            <View style={[styles.statusBadge, { backgroundColor: withAlpha(colors.mutedForeground, 0.1) }]}>
+              <Ionicons name="lock-closed-outline" size={12} color={colors.mutedForeground} />
+              <Text size="xs" weight="700" style={{ color: colors.mutedForeground, marginLeft: 4 }}>Bloqueada</Text>
+            </View>
+          )}
           {achievement.description && (
             <Text size="sm" color="mutedForeground" style={{ textAlign: 'center', marginTop: 6, lineHeight: 18 }}>
               {achievement.description}
@@ -53,6 +68,12 @@ function BadgeDetailModal({ achievement, visible, onClose }: { achievement: Achi
             <Ionicons name="flash" size={16} color={colors.primary} />
             <Text weight="700" size="sm" style={{ marginLeft: 4 }}>+{achievement.xp_reward} XP</Text>
           </View>
+          {/* Progress bar for in-progress */}
+          {isInProgress && (
+            <View style={{ width: '100%', height: 8, borderRadius: 4, backgroundColor: withAlpha(colors.muted, 0.4), marginTop: 12 }}>
+              <View style={{ width: `${achievement.progress * 100}%`, height: '100%', borderRadius: 4, backgroundColor: '#F97316' }} />
+            </View>
+          )}
           {achievement.unlocked && achievement.unlocked_at && (
             <Text size="xs" color="mutedForeground" style={{ marginTop: 10 }}>
               Desbloqueada em {format(parseISO(achievement.unlocked_at), 'dd/MM/yyyy')}
@@ -129,27 +150,28 @@ function AchievementBadge({ achievement, size = 'small', newlyUnlocked = false, 
   )
 }
 
-function AchievementProgressRow({ achievement }: { achievement: AchievementData }) {
+function AchievementProgressRow({ achievement, onPress }: { achievement: AchievementData; onPress?: () => void }) {
   const { colors, withAlpha } = useTheme()
   const pct = Math.min(achievement.progress, 1)
+  const badgeColor = getBadgeColor(achievement.xp_reward)
 
   return (
-    <View style={[styles.progressCard, { backgroundColor: withAlpha(colors.muted, 0.4), borderColor: colors.border }]}>
+    <TouchableOpacity onPress={onPress} activeOpacity={0.7} style={[styles.progressCard, { backgroundColor: withAlpha(colors.muted, 0.4), borderColor: colors.border }]}>
       <View style={styles.progressHeader}>
-        <View style={[styles.progressIconWrap, { backgroundColor: withAlpha(colors.muted, 0.5) }]}>
+        <View style={[styles.progressIconWrap, { backgroundColor: withAlpha(badgeColor, 0.15), borderColor: badgeColor, borderWidth: 1 }]}>
           <Ionicons
             name={(achievement.icon || 'trophy-outline') as any}
             size={20}
-            color={colors.mutedForeground}
+            color={badgeColor}
           />
         </View>
         <View style={{ flex: 1, marginLeft: 10 }}>
           <Text weight="700" size="sm">{achievement.name}</Text>
           <Text size="xs" color="mutedForeground" numberOfLines={1}>{achievement.description}</Text>
         </View>
-        <View style={styles.progressXpBadge}>
-          <Ionicons name="flash" size={12} color={colors.primary} />
-          <Text weight="700" size="xs" style={{ marginLeft: 2 }}>+{achievement.xp_reward}</Text>
+        <View style={[styles.progressXpBadge, { backgroundColor: withAlpha(badgeColor, 0.1), paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8, flexDirection: 'row', alignItems: 'center' }]}>
+          <Ionicons name="flash" size={12} color={badgeColor} />
+          <Text weight="700" size="xs" style={{ marginLeft: 2, color: badgeColor }}>+{achievement.xp_reward}</Text>
         </View>
       </View>
       <View style={styles.progressRow}>
@@ -159,7 +181,7 @@ function AchievementProgressRow({ achievement }: { achievement: AchievementData 
               styles.progressFill,
               {
                 width: `${pct * 100}%`,
-                backgroundColor: pct >= 1 ? '#22c55e' : colors.primary,
+                backgroundColor: badgeColor,
               },
             ]}
           />
@@ -168,7 +190,7 @@ function AchievementProgressRow({ achievement }: { achievement: AchievementData 
           {Math.round(pct * 100)}%
         </Text>
       </View>
-    </View>
+    </TouchableOpacity>
   )
 }
 
@@ -262,7 +284,7 @@ export default function GamificationSection() {
           <View style={{ marginTop: 24 }}>
             <Text weight="800" size="sm" style={{ marginBottom: 12 }}>EM ANDAMENTO</Text>
             {inProgress.map((ach) => (
-              <AchievementProgressRow key={ach.id} achievement={ach} />
+              <AchievementProgressRow key={ach.id} achievement={ach} onPress={() => setDetailAchievement(ach)} />
             ))}
           </View>
         )}
@@ -272,7 +294,7 @@ export default function GamificationSection() {
           <View style={{ marginTop: 24 }}>
             <Text weight="800" size="sm" style={{ marginBottom: 12 }}>BLOQUEADAS</Text>
             {locked.map((ach) => (
-              <AchievementProgressRow key={ach.id} achievement={ach} />
+              <AchievementProgressRow key={ach.id} achievement={ach} onPress={() => setDetailAchievement(ach)} />
             ))}
           </View>
         )}
@@ -426,5 +448,14 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 32,
     borderRadius: 12,
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginTop: 10,
   },
 })

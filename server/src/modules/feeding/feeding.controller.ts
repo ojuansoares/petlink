@@ -1,5 +1,6 @@
 import { Request, Response } from 'express'
 import { feedingService } from './feeding.service'
+import { getLocalDateString } from './feeding.repository'
 
 type AuthRequest = Request & { user?: { id: string } }
 
@@ -45,7 +46,7 @@ export const feedingController = {
       const authReq = req as AuthRequest
       if (!authReq.user) return res.status(401).json({ error: 'Não autenticado' })
       const { petId } = req.params as { petId: string }
-      const date = (req.query.date as string) || new Date().toISOString().split('T')[0]
+      const date = (req.query.date as string) || getLocalDateString()
       const logs = await feedingService.getLogs(petId, authReq.user.id, date)
       return res.json(logs)
     } catch (err: any) {

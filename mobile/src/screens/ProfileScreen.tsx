@@ -404,7 +404,7 @@ export default function ProfileScreen() {
         <ScrollView style={styles.editForm} showsVerticalScrollIndicator={false}>
           <View style={styles.editAvatarSection}>
             <View style={styles.avatarPressable}>
-              <Avatar size={90} name={name} source={avatarUrl ? { uri: avatarUrl } : undefined} />
+            <Avatar size={120} name={name} source={avatarUrl ? { uri: avatarUrl } : undefined} />
             </View>
             <Button label="Alterar Foto" variant="outline" size="sm" onPress={handlePickAvatar} loading={isUploadingAvatar} />
           </View>

@@ -4,7 +4,7 @@ import {
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker'
-import { format, subMonths, addMonths } from 'date-fns'
+import { format, startOfMonth, endOfMonth, isSameMonth } from 'date-fns'
 import { useAppDispatch, useAppSelector } from '../../store'
 import {
   fetchFeedingPlanThunk, saveFeedingPlanThunk,
@@ -49,9 +49,11 @@ export default function FeedingScreen({ route }: any) {
   const [refreshing, setRefreshing] = useState(false)
   const [scoreViewMode, setScoreViewMode] = useState<'weekly' | 'monthly'>('weekly')
   const [scoreRefDate, setScoreRefDate] = useState(new Date())
+  // Track which months have already been fetched to avoid duplicate requests
+  const fetchedMonthsRef = useRef<Set<string>>(new Set())
   const celebrationScale = useRef(new Animated.Value(0)).current
   const celebrationOpacity = useRef(new Animated.Value(0)).current
-  const today = new Date().toISOString().split('T')[0]
+  const today = format(new Date(), 'yyyy-MM-dd')
   const checkedCount = logs.filter((l) => l.checked_at).length
   const allChecked = logs.length > 0 && checkedCount === logs.length
 
@@ -59,6 +61,7 @@ export default function FeedingScreen({ route }: any) {
     setLoadingPlan(true)
     setMode('loading')
     setMeals([])
+    fetchedMonthsRef.current = new Set() // reset month cache for new pet
     dispatch(fetchFeedingPlanThunk(petId)).then(() => setLoadingPlan(false))
   }, [dispatch, petId])
 
@@ -75,10 +78,14 @@ export default function FeedingScreen({ route }: any) {
 
   useEffect(() => {
     if (mode !== 'check') return
-    const start = format(scoreViewMode === 'weekly' ? scoreRefDate : subMonths(scoreRefDate, 1), 'yyyy-MM-dd')
-    const end = format(scoreViewMode === 'weekly' ? scoreRefDate : addMonths(scoreRefDate, 1), 'yyyy-MM-dd')
+    // Build month key (YYYY-MM) and only fetch if not already fetched
+    const monthKey = format(scoreRefDate, 'yyyy-MM')
+    if (fetchedMonthsRef.current.has(monthKey)) return
+    fetchedMonthsRef.current.add(monthKey)
+    const start = format(startOfMonth(scoreRefDate), 'yyyy-MM-dd')
+    const end = format(endOfMonth(scoreRefDate), 'yyyy-MM-dd')
     dispatch(fetchFeedingScoreThunk({ petId, start, end }))
-  }, [mode, scoreViewMode, scoreRefDate, petId, dispatch])
+  }, [mode, scoreRefDate, petId, dispatch])
 
   useEffect(() => {
     if (allChecked && logs.length > 0) {
@@ -168,7 +175,7 @@ export default function FeedingScreen({ route }: any) {
 
   const sortedLogs = useMemo(() =>
     [...logs].sort((a, b) => a.order_index - b.order_index),
-  [logs])
+    [logs])
 
   const handleCheck = async (log: FeedingLog) => {
     const willCheck = !log.checked_at

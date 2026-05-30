@@ -17,10 +17,9 @@ interface FeedingScoreCalendarProps {
 
 function getScoreColor(dayScore: DayScore | undefined, colors: any, withAlpha: any): string {
   if (!dayScore || dayScore.total === 0) return withAlpha(colors.mutedForeground, 0.12)
-  const ratio = dayScore.completed / dayScore.total
-  if (ratio >= 1) return '#22C55E'
-  if (ratio >= 0.5) return '#F97316'
-  return '#EF4444'
+  if (dayScore.completed === 0) return '#9CA3AF'          // cinza = não alimentado
+  if (dayScore.completed >= dayScore.total) return '#22C55E' // verde = completo
+  return '#F97316'                                           // laranja = parcial
 }
 
 export function FeedingScoreCalendar({
@@ -151,7 +150,7 @@ export function FeedingScoreCalendar({
           <Text size="xs" color="mutedForeground">Parcial</Text>
         </View>
         <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: '#EF4444' }]} />
+          <View style={[styles.legendDot, { backgroundColor: '#9CA3AF' }]} />
           <Text size="xs" color="mutedForeground">Não alimentado</Text>
         </View>
       </View>

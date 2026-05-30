@@ -46,6 +46,17 @@ export interface GroupPost {
   liked_by_user?: boolean
 }
 
+export interface GroupInvite {
+  id: string
+  group_id: string
+  invited_user_id: string
+  invited_by: string
+  status: 'pending' | 'accepted' | 'rejected'
+  created_at: string
+  group: Group
+  invited_by_name: string
+}
+
 export const groupsApi = {
   async listMyGroups(): Promise<Group[]> {
     const { data } = await api.get('/groups')
@@ -104,5 +115,32 @@ export const groupsApi = {
   async removeMember(groupId: string, userId: string): Promise<{ success: boolean }> {
     const { data } = await api.delete(`/groups/${groupId}/members/${userId}`)
     return data
+  },
+
+  // --- Invites ---
+
+  async inviteUser(groupId: string, userId: string): Promise<GroupInvite> {
+    const { data } = await api.post(`/groups/${groupId}/invite`, { userId })
+    return data as GroupInvite
+  },
+
+  async listPendingInvites(): Promise<GroupInvite[]> {
+    const { data } = await api.get('/groups/invites/pending')
+    return data as GroupInvite[]
+  },
+
+  async acceptInvite(inviteId: string): Promise<{ success: boolean }> {
+    const { data } = await api.post(`/groups/invites/${inviteId}/accept`)
+    return data
+  },
+
+  async rejectInvite(inviteId: string): Promise<{ success: boolean }> {
+    const { data } = await api.post(`/groups/invites/${inviteId}/reject`)
+    return data
+  },
+
+  async searchUsersForGroup(groupId: string, q: string): Promise<{ id: string; name: string; avatar_url: string | null }[]> {
+    const { data } = await api.get(`/groups/${groupId}/search-users?q=${encodeURIComponent(q)}`)
+    return data as { id: string; name: string; avatar_url: string | null }[]
   },
 }

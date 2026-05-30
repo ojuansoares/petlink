@@ -1,6 +1,13 @@
 import { supabaseAdmin } from '../../config/supabase'
 import { Post } from '../../models/Post'
 
+export function getLocalDateString(date: Date = new Date()): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 export type FeedingPlan = {
   id: string
   pet_id: string
@@ -64,7 +71,7 @@ export const feedingRepository = {
     const existingIds = new Set((existing ?? []).map((p: any) => p.id))
     const incomingIds = new Set(meals.filter((m) => m.id).map((m) => m.id))
 
-    const today = new Date().toISOString().split('T')[0]
+    const today = getLocalDateString()
 
     const toDelete = [...existingIds].filter((id) => !incomingIds.has(id))
     if (toDelete.length > 0) {
@@ -198,6 +205,16 @@ export const feedingRepository = {
   },
 
   async getWeeklyMealSummary(petId: string, startDate: string, endDate: string): Promise<{ total: number; completed: number }> {
+    const cursor = new Date(startDate)
+    const end = new Date(endDate)
+    const promises = []
+    while (cursor <= end) {
+      const dateStr = cursor.toISOString().split('T')[0]
+      promises.push(this.getOrCreateLogs(petId, dateStr))
+      cursor.setDate(cursor.getDate() + 1)
+    }
+    await Promise.all(promises)
+
     const scores = await this.getScoreInRange(petId, startDate, endDate)
     let total = 0
     let completed = 0
@@ -230,7 +247,7 @@ export const feedingRepository = {
   },
 
   async getUpcomingVaccinesCount(petId: string, endDate: string): Promise<number> {
-    const today = new Date().toISOString().split('T')[0]
+    const today = getLocalDateString()
     const { data, error } = await supabaseAdmin
       .from('vaccines')
       .select('id, is_completed, doses, next_dose_at')
@@ -254,7 +271,7 @@ export const feedingRepository = {
   },
 
   async getUpcomingConsultationsCount(petId: string, endDate: string): Promise<number> {
-    const today = new Date().toISOString().split('T')[0]
+    const today = getLocalDateString()
     const { data, error } = await supabaseAdmin
       .from('consultations')
       .select('id, consulted_at')

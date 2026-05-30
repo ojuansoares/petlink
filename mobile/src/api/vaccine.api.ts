@@ -1,6 +1,7 @@
 import { supabase } from '../config/supabase';
 import { Vaccine } from '../data/models';
 import { vaccineCacheRepository } from '../data/repositories/VaccineCacheRepository';
+import { api } from './axios';
 
 export const getVaccinesByPetId = async (petId: string): Promise<Vaccine[]> => {
   try {
@@ -80,4 +81,16 @@ export const deleteVaccine = async (vaccineId: string): Promise<void> => {
     console.error('Error deleting vaccine:', error);
     throw new Error(error.message);
   }
+};
+
+export const generateVaccinationCard = async (
+  petId: string,
+  vaccineIds: string[]
+): Promise<ArrayBuffer> => {
+  const response = await api.post(
+    `/pets/${petId}/vaccination-card`,
+    { vaccineIds },
+    { responseType: 'arraybuffer' }
+  )
+  return response.data as ArrayBuffer
 };

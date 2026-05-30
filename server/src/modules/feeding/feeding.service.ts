@@ -1,5 +1,5 @@
 import { AppError } from '../../shared/AppError'
-import { feedingRepository, type UpsertPlanInput } from './feeding.repository'
+import { feedingRepository, getLocalDateString, type UpsertPlanInput } from './feeding.repository'
 import { petsRepository } from '../pets/pets.repository'
 
 export const feedingService = {
@@ -44,9 +44,9 @@ export const feedingService = {
     const sevenDaysLater = new Date(today)
     sevenDaysLater.setDate(sevenDaysLater.getDate() + 7)
 
-    const startStr = sevenDaysAgo.toISOString().split('T')[0]
-    const todayStr = today.toISOString().split('T')[0]
-    const endStr = sevenDaysLater.toISOString().split('T')[0]
+    const startStr = getLocalDateString(sevenDaysAgo)
+    const todayStr = getLocalDateString(today)
+    const endStr = getLocalDateString(sevenDaysLater)
 
     const [meals, weight, upcomingVaccines, upcomingConsultations] = await Promise.all([
       feedingRepository.getWeeklyMealSummary(petId, startStr, todayStr),

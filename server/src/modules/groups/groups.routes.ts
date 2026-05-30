@@ -7,9 +7,17 @@ const router = Router()
 router.get('/', authMiddleware, groupsController.listMyGroups)
 router.get('/discover', authMiddleware, groupsController.discover)
 router.get('/search', authMiddleware, groupsController.search)
+
+// Invites — must be BEFORE /:id routes
+router.get('/invites/pending', authMiddleware, groupsController.listPendingInvites)
+router.post('/invites/:inviteId/accept', authMiddleware, groupsController.acceptInvite)
+router.post('/invites/:inviteId/reject', authMiddleware, groupsController.rejectInvite)
+
 router.post('/', authMiddleware, groupsController.create)
 router.post('/:id/join', authMiddleware, groupsController.join)
 router.post('/:id/leave', authMiddleware, groupsController.leave)
+router.post('/:id/invite', authMiddleware, groupsController.inviteUser)
+router.get('/:id/search-users', authMiddleware, groupsController.searchUsersForGroup)
 router.get('/:id', authMiddleware, groupsController.getDetails)
 router.get('/:id/posts', authMiddleware, groupsController.getPosts)
 router.delete('/:id/posts/:postId', authMiddleware, groupsController.deletePost)

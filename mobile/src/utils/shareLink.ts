@@ -1,17 +1,14 @@
 import { Share, Platform } from 'react-native'
 
-const DEEP_LINK_BASE = 'petlink://'
+const DEEP_LINK_BASE = 'https://petlink.app'
+const DEEP_LINK_FALLBACK = 'petlink://'
 
 export function profileLink(userId: string): string {
-  return `${DEEP_LINK_BASE}profile/${userId}`
+  return `${DEEP_LINK_BASE}/profile/${userId}`
 }
 
 export function petLink(ownerId: string, petId: string): string {
-  return `${DEEP_LINK_BASE}profile/${ownerId}?petId=${petId}`
-}
-
-export function webFallbackProfile(userId: string): string {
-  return `https://petlink.app/profile/${userId}`
+  return `${DEEP_LINK_BASE}/profile/${ownerId}?petId=${petId}`
 }
 
 export async function shareProfile(userId: string, userName: string) {
@@ -33,7 +30,7 @@ export async function sharePet(ownerId: string, petId: string, petName: string) 
 }
 
 export function groupLink(groupId: string): string {
-  return `${DEEP_LINK_BASE}group/${groupId}`
+  return `${DEEP_LINK_BASE}/group/${groupId}`
 }
 
 export async function shareGroup(groupId: string, groupName: string) {

@@ -343,6 +343,19 @@ export function Calendar({ petId, petName, birthDate }: CalendarProps) {
             <View style={[styles.detailColorBanner, { backgroundColor: media.value }]} />
           ) : null}
 
+          {media?.type === 'photo' && (
+            <Button
+              onPress={() => {
+                setPostConsultationData({ photoUrl: media.value, petId: c.pet_id })
+                setShowPostModal(true)
+              }}
+              label="Postar consulta"
+              variant="outline"
+              leftIcon={<Ionicons name="share-outline" size={16} color={colors.primary} />}
+              style={{ marginTop: 2, borderRadius: 10 }}
+            />
+          )}
+
           <View style={[styles.detailSection, { borderLeftColor: colors.info }]}>
             <Text size="xs" color="mutedForeground" weight="800">
               TIPO DE REGISTRO
@@ -422,19 +435,6 @@ export function Calendar({ petId, petName, birthDate }: CalendarProps) {
               </Text>
               <Text size="sm">"{c.notes}"</Text>
             </View>
-          )}
-
-          {media?.type === 'photo' && (
-            <Button
-              onPress={() => {
-                setPostConsultationData({ photoUrl: media.value, petId: c.pet_id })
-                setShowPostModal(true)
-              }}
-              label="Postar consulta"
-              variant="outline"
-              leftIcon={<Ionicons name="share-outline" size={18} color={colors.primary} />}
-              style={{ marginTop: 12 }}
-            />
           )}
         </View>
       )

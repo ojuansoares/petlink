@@ -56,7 +56,7 @@ export const groupsController = {
       if (!authReq.user) return res.status(401).json({ error: 'Não autenticado' })
       const page = parseInt(req.query.page as string) || 1
       const limit = parseInt(req.query.limit as string) || 20
-      const result = await groupsService.discover(page, limit)
+      const result = await groupsService.discover(authReq.user.id, page, limit)
       return res.json(result)
     } catch (err: any) {
       return res.status(err.statusCode ?? 500).json({ error: err.message ?? 'Erro' })
@@ -70,7 +70,7 @@ export const groupsController = {
       const q = (req.query.q as string) || ''
       const page = parseInt(req.query.page as string) || 1
       const limit = parseInt(req.query.limit as string) || 10
-      const result = await groupsService.search(q, page, limit)
+      const result = await groupsService.search(q, authReq.user.id, page, limit)
       return res.json(result)
     } catch (err: any) {
       return res.status(err.statusCode ?? 500).json({ error: err.message ?? 'Erro' })
@@ -135,6 +135,69 @@ export const groupsController = {
       const { role } = req.body as { role: string }
       await groupsService.changeMemberRole(id, userId, role, authReq.user.id)
       return res.json({ success: true })
+    } catch (err: any) {
+      return res.status(err.statusCode ?? 500).json({ error: err.message ?? 'Erro' })
+    }
+  },
+
+  // --- Invites ---
+
+  async inviteUser(req: Request, res: Response) {
+    try {
+      const authReq = req as AuthRequest
+      if (!authReq.user) return res.status(401).json({ error: 'Não autenticado' })
+      const { id } = req.params as { id: string }
+      const { userId } = req.body as { userId: string }
+      const invite = await groupsService.inviteUser(id, userId, authReq.user.id)
+      return res.status(201).json(invite)
+    } catch (err: any) {
+      return res.status(err.statusCode ?? 500).json({ error: err.message ?? 'Erro' })
+    }
+  },
+
+  async listPendingInvites(req: Request, res: Response) {
+    try {
+      const authReq = req as AuthRequest
+      if (!authReq.user) return res.status(401).json({ error: 'Não autenticado' })
+      const invites = await groupsService.listPendingInvites(authReq.user.id)
+      return res.json(invites)
+    } catch (err: any) {
+      return res.status(err.statusCode ?? 500).json({ error: err.message ?? 'Erro' })
+    }
+  },
+
+  async acceptInvite(req: Request, res: Response) {
+    try {
+      const authReq = req as AuthRequest
+      if (!authReq.user) return res.status(401).json({ error: 'Não autenticado' })
+      const { inviteId } = req.params as { inviteId: string }
+      const result = await groupsService.acceptInvite(inviteId, authReq.user.id)
+      return res.json(result)
+    } catch (err: any) {
+      return res.status(err.statusCode ?? 500).json({ error: err.message ?? 'Erro' })
+    }
+  },
+
+  async rejectInvite(req: Request, res: Response) {
+    try {
+      const authReq = req as AuthRequest
+      if (!authReq.user) return res.status(401).json({ error: 'Não autenticado' })
+      const { inviteId } = req.params as { inviteId: string }
+      const result = await groupsService.rejectInvite(inviteId, authReq.user.id)
+      return res.json(result)
+    } catch (err: any) {
+      return res.status(err.statusCode ?? 500).json({ error: err.message ?? 'Erro' })
+    }
+  },
+
+  async searchUsersForGroup(req: Request, res: Response) {
+    try {
+      const authReq = req as AuthRequest
+      if (!authReq.user) return res.status(401).json({ error: 'Não autenticado' })
+      const { id } = req.params as { id: string }
+      const q = (req.query.q as string) || ''
+      const users = await groupsService.searchUsersForGroup(q, id)
+      return res.json(users)
     } catch (err: any) {
       return res.status(err.statusCode ?? 500).json({ error: err.message ?? 'Erro' })
     }

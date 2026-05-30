@@ -1,12 +1,19 @@
 import { supabaseAdmin } from '../../config/supabase'
 
+function getLocalDateString(date: Date = new Date()): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 export const remindersService = {
   async getReminders(userId: string) {
-    const today = new Date().toISOString().split('T')[0]
+    const today = getLocalDateString()
 
     const future = new Date()
     future.setDate(future.getDate() + 30)
-    const futureDate = future.toISOString().split('T')[0]
+    const futureDate = getLocalDateString(future)
 
     const { data: pets } = await supabaseAdmin
       .from('pets')

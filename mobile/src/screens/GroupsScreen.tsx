@@ -14,6 +14,9 @@ import { useAppDispatch, useAppSelector } from '../store'
 import {
   fetchMyGroupsThunk,
   fetchDiscoverGroupsThunk,
+  fetchPendingInvitesThunk,
+  acceptInviteThunk,
+  rejectInviteThunk,
   joinGroupThunk,
   leaveGroupThunk,
   selectMyGroups,
@@ -23,10 +26,13 @@ import {
   selectIsLoadingMyGroups,
   selectIsLoadingDiscover,
   selectIsJoiningGroup,
+  selectPendingInvites,
+  selectIsLoadingInvites,
 } from '../store/slices/groupsSlice'
-import type { Group } from '../api/groups.api'
+import type { Group, GroupInvite } from '../api/groups.api'
 import { groupsApi, type GroupDetails } from '../api/groups.api'
 import { AppStackParamList } from '../navigation/types'
+import { showToast } from '../store/slices/uiSlice'
 
 type Tab = 'mine' | 'discover'
 type NavigationProp = StackNavigationProp<AppStackParamList>
@@ -42,6 +48,8 @@ export default function GroupsScreen() {
   const discoverPage = useAppSelector(selectDiscoverPage)
   const isLoadingMy = useAppSelector(selectIsLoadingMyGroups)
   const isLoadingDiscover = useAppSelector(selectIsLoadingDiscover)
+  const pendingInvites = useAppSelector(selectPendingInvites)
+  const isLoadingInvites = useAppSelector(selectIsLoadingInvites)
 
   const [activeTab, setActiveTab] = useState<Tab>('mine')
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -52,10 +60,20 @@ export default function GroupsScreen() {
   useEffect(() => {
     dispatch(fetchMyGroupsThunk())
     dispatch(fetchDiscoverGroupsThunk(1))
+    dispatch(fetchPendingInvitesThunk())
   }, [dispatch])
 
   const handleJoin = useCallback((groupId: string) => {
     dispatch(joinGroupThunk(groupId))
+  }, [dispatch])
+
+  const handleAcceptInvite = useCallback((invite: GroupInvite) => {
+    dispatch(acceptInviteThunk(invite))
+    dispatch(showToast({ type: 'success', title: 'Convite aceito', message: `Você entrou em "${invite.group.name}"` }))
+  }, [dispatch])
+
+  const handleRejectInvite = useCallback((inviteId: string) => {
+    dispatch(rejectInviteThunk(inviteId))
   }, [dispatch])
 
   const handleCardPress = useCallback(async (group: Group) => {
@@ -134,10 +152,53 @@ export default function GroupsScreen() {
           )}
           keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={false}
+          ListHeaderComponent={
+            pendingInvites.length > 0 ? (
+              <View style={{ paddingHorizontal: 16, paddingTop: 8 }}>
+                <Text weight="800" size="sm" style={{ marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>
+                  Solicitações de entrada
+                </Text>
+                {isLoadingInvites ? (
+                  <ActivityIndicator color={colors.primary} />
+                ) : (
+                  pendingInvites.map((inv) => (
+                    <View
+                      key={inv.id}
+                      style={[styles.inviteCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                        <Avatar name={inv.group.name} source={inv.group.photo_url ? { uri: inv.group.photo_url } : undefined} size={40} />
+                        <View style={{ flex: 1 }}>
+                          <Text weight="700" size="sm" numberOfLines={1}>{inv.group.name}</Text>
+                          <Text size="xs" color="mutedForeground">
+                            Convidado por {inv.invited_by_name}
+                          </Text>
+                        </View>
+                      </View>
+                      <View style={{ flexDirection: 'row', gap: 8 }}>
+                        <Pressable
+                          onPress={() => handleAcceptInvite(inv)}
+                          style={[styles.inviteActionBtn, { backgroundColor: colors.primary }]}
+                        >
+                          <Ionicons name="checkmark" size={18} color="white" />
+                        </Pressable>
+                        <Pressable
+                          onPress={() => handleRejectInvite(inv.id)}
+                          style={[styles.inviteActionBtn, { backgroundColor: colors.destructive }]}
+                        >
+                          <Ionicons name="close" size={18} color="white" />
+                        </Pressable>
+                      </View>
+                    </View>
+                  ))
+                )}
+              </View>
+            ) : null
+          }
           ListEmptyComponent={listEmpty}
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 80 }}
           refreshing={isLoadingMy}
-          onRefresh={() => dispatch(fetchMyGroupsThunk())}
+          onRefresh={() => { dispatch(fetchMyGroupsThunk()); dispatch(fetchPendingInvitesThunk()) }}
         />
       )}
 
@@ -278,7 +339,9 @@ function MyGroupCard({ item, onPress }: { item: Group; onPress: () => void }) {
 
 function DiscoverGroupCard({ item, onPress, onJoin }: { item: Group; onPress: () => void; onJoin: (id: string) => void }) {
   const isJoining = useAppSelector(selectIsJoiningGroup(item.id))
+  const myGroups = useAppSelector(selectMyGroups)
   const { colors } = useTheme()
+  const alreadyMember = myGroups.some((g) => g.id === item.id)
   return (
     <Pressable
       style={[styles.groupCard, { backgroundColor: colors.card, borderColor: colors.border }]}
@@ -298,17 +361,23 @@ function DiscoverGroupCard({ item, onPress, onJoin }: { item: Group; onPress: ()
             </Text>
           )}
         </View>
-        <Pressable
-          onPress={(e) => { e.stopPropagation(); onJoin(item.id) }}
-          disabled={isJoining}
-          style={[styles.actionButton, { borderColor: colors.primary }]}
-        >
-          {isJoining ? (
-            <ActivityIndicator size="small" color={colors.primary} />
-          ) : (
-            <Text size="xs" weight="700" style={{ color: colors.primary }}>Entrar</Text>
-          )}
-        </Pressable>
+        {alreadyMember ? (
+          <View style={[styles.actionButton, { borderColor: colors.mutedForeground }]}>
+            <Text size="xs" weight="700" style={{ color: colors.mutedForeground }}>Membro</Text>
+          </View>
+        ) : (
+          <Pressable
+            onPress={(e) => { e.stopPropagation(); onJoin(item.id) }}
+            disabled={isJoining}
+            style={[styles.actionButton, { borderColor: colors.primary }]}
+          >
+            {isJoining ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <Text size="xs" weight="700" style={{ color: colors.primary }}>Entrar</Text>
+            )}
+          </Pressable>
+        )}
       </View>
     </Pressable>
   )
@@ -316,6 +385,14 @@ function DiscoverGroupCard({ item, onPress, onJoin }: { item: Group; onPress: ()
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  inviteCard: {
+    flexDirection: 'row', alignItems: 'center',
+    borderRadius: 12, borderWidth: 1, padding: 12, marginBottom: 8, gap: 8,
+  },
+  inviteActionBtn: {
+    width: 32, height: 32, borderRadius: 16,
+    justifyContent: 'center', alignItems: 'center',
+  },
   groupCard: {
     borderRadius: 12,
     borderWidth: 1,

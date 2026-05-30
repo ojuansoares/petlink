@@ -24,7 +24,7 @@ import ActivityTimelineScreen from '../screens/ActivityTimelineScreen';
 import ResetPasswordScreen from '../screens/ResetPasswordScreen';
 
 const linking: LinkingOptions<AppStackParamList> = {
-  prefixes: ['petlink://'],
+  prefixes: ['petlink://', 'https://petlink.app'],
   config: {
     screens: {
       PublicProfile: 'profile/:userId',

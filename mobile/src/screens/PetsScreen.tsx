@@ -39,7 +39,7 @@ import {
   setActivePetId,
   updatePetThunk,
 } from '../store/slices/petsSlice'
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { AppStackParamList } from '../navigation/types';
 import { scheduleBirthdayNotifications } from '../services/NotificationService';
@@ -184,6 +184,16 @@ export default function PetsScreen() {
   const [showBirthDatePicker, setShowBirthDatePicker] = useState(false)
 
   const mainScrollRef = useRef<ScrollView>(null)
+
+  const route = useRoute<any>()
+  const routeParams = route.params
+  useEffect(() => {
+    if (routeParams?.openWeightModal && activePet) {
+      loadFormData()
+      setIsWeightModalOpen(true)
+      navigation.setParams({ openWeightModal: undefined } as any)
+    }
+  }, [routeParams?.openWeightModal, activePet])
 
   useEffect(() => {
     dispatch(fetchPetsThunk())

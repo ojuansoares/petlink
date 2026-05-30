@@ -19,7 +19,7 @@ export type AppStackParamList = {
   PublicProfile: { userId: string; petId?: string }
   ProfileFeed: { userId: string; initialScrollIndex: number; title: string }
   Vaccine: { petId: string; petName: string; vaccineId?: string }
-  Consultation: { petId: string; petName: string }
+  Consultation: { petId: string; petName: string; autoOpenModal?: boolean }
   FeedingPlan: { petId: string; petName: string }
   FeedingCheck: { petId: string; petName: string }
   ActivityTimeline: { petId: string; petName: string }

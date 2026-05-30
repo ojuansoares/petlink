@@ -20,6 +20,7 @@ import { selectUser } from '../../store/slices/authSlice';
 import { useAppDispatch } from '../../store';
 import { fetchGamificationThunk } from '../../store/slices/gamificationSlice';
 import { ActionOptionsModal } from '../../components/ui/ActionOptionsModal';
+import { VaccinationCardModal } from './VaccinationCardModal';
 
 const DateTimePickerComponent = (() => {
   try {
@@ -40,6 +41,7 @@ export function VaccineScreen() {
 
   const [activeTab, setActiveTab] = useState('vaccine');
   const [items, setItems] = useState<Vaccine[]>([]);
+  const [allItems, setAllItems] = useState<Vaccine[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalVisible, setModalVisible] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -49,6 +51,7 @@ export function VaccineScreen() {
   // Detail modal states
   const [detailItem, setDetailItem] = useState<Vaccine | null>(null);
   const [isDetailVisible, setIsDetailVisible] = useState(false);
+  const [isCertModalVisible, setCertModalVisible] = useState(false);
   
   const [name, setName] = useState('');
   const [doses, setDoses] = useState<{ date: Date; applied: boolean }[]>([{ date: new Date(), applied: true }]);
@@ -77,11 +80,13 @@ export function VaccineScreen() {
     try {
       setLoading(true);
       const fetchedItems = await getVaccinesByPetId(petId);
+      setAllItems(fetchedItems);
       const filteredItems = fetchedItems.filter(item => item.type === activeTab);
       setItems(filteredItems);
     } catch (error) {
       const cached = await vaccineCacheRepository.getVaccines(petId);
       if (cached) {
+        setAllItems(cached);
         setItems(cached.filter(item => item.type === activeTab));
       }
     } finally {
@@ -402,6 +407,16 @@ export function VaccineScreen() {
 
   return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={{ paddingHorizontal: 16, paddingTop: 8 }}>
+          <Button
+            onPress={() => setCertModalVisible(true)}
+            label="Gerar Carteirinha"
+            variant="outline"
+            size="sm"
+            leftIcon={<Ionicons name="document-text-outline" size={16} color={colors.primary} />}
+            style={{ alignSelf: 'flex-end' }}
+          />
+        </View>
         <SegmentedTabs
           options={[
             { id: 'vaccine', label: 'Vacinas' },
@@ -536,6 +551,15 @@ export function VaccineScreen() {
        >
          {renderDetailContent()}
        </AppModal>
+
+       <VaccinationCardModal
+         visible={isCertModalVisible}
+         onClose={() => setCertModalVisible(false)}
+         petId={petId}
+         petName={petName}
+         vaccines={allItems.filter(i => i.type === 'vaccine')}
+         dewormers={allItems.filter(i => i.type === 'dewormer')}
+       />
      </View>
    );
  }

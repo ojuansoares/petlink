@@ -144,62 +144,30 @@ server/src/
 - [x] schema.sql — schema original (auth, profiles, pets, vacinas, consultas, etc.)
 - [x] `migrations/002_push_tokens.sql` — push_tokens + índices extras
 - [x] Rodar `002_push_tokens.sql` no dashboard do Supabase
+- [x] `migrations/005_groups.sql` — groups, group_members, RPC, RLS, índices trigram
+- [x] `migrations/008_group_invites.sql` — group_invites, RLS, índices
 - [x] Tabela `posts` removida do Supabase (migrado para MongoDB)
 
 ---
 
-## Arquivos alterados nesta sessão
+## Arquivos alterados nesta sessão (30/05/2026) — Grupos v3 + Correções
 
 ### Servidor
 | Arquivo | Mudança |
 |---------|---------|
-| `src/modules/push/push.scheduler.ts` | Removeu `checkMedications()`; adicionou `petId`/`petName` ao payload de vacina |
-| `src/modules/push/push.service.ts` | Removeu `'medication'` do union type |
-| `src/modules/notifications/notifications.repository.ts` | Removeu `'medication'` do union type |
-| `src/modules/pets/pets.repository.ts` | Removeu delete de `medication_reminders` |
-| `src/modules/likes/likes.service.ts` | Push de like agora envia `{ screen: 'Post', postId, userId }` |
-| `src/modules/comments/comments.service.ts` | Push de comentário agora envia `{ screen: 'Post', postId, userId }` |
+| `src/migrations/008_group_invites.sql` | **Novo** — tabela `group_invites` com RLS |
+| `src/modules/groups/groups.repository.ts` | `member_count: 0` explícito no create; `discover`/`search` filtram grupos do usuário; + `getUserGroupIds`, + 6 métodos de invite + `searchUsersForGroup` |
+| `src/modules/groups/groups.service.ts` | `discover`/`search` recebem userId; + 5 métodos de invite |
+| `src/modules/groups/groups.controller.ts` | `discover`/`search` passam userId; + 5 handlers de invite |
+| `src/modules/groups/groups.routes.ts` | +5 rotas de invite (antes de `/:id`) |
 
 ### Mobile
 | Arquivo | Mudança |
 |---------|---------|
-| `src/services/NotificationService.ts` | Feeding: corrigido response shape (`res.data` é array direto). Adicionado `FEEDING_CATEGORY_ID`, `handleFeedingNotificationAction`, dismiss após ação. |
-| `src/navigation/navigationRef.ts` | **Novo** — `createNavigationContainerRef` + helper `navigateFromNotification()` |
-| `src/navigation/RootNavigator.tsx` | `NavigationContainer` agora usa `ref={navigationRef}` |
-| `src/navigation/types.ts` | `Vaccine` params aceita `vaccineId?: string` |
-| `App.tsx` | Handler trata tap simples (navegação) + botões de ação |
-| `src/screens/Pets/VaccineScreen.tsx` | Auto-abre detail modal se `vaccineId` vier nos params |
-| `src/screens/FeedingScreen.tsx` | Ajustes de layout |
-| `src/screens/HomeScreen.tsx` | **H1 Dashboard**: card do pet ativo. **H7 Empty state**: sem pet → CTA; pet sem dados → onboarding. **H2 Lembretes reais**: renderiza dinamicamente do `GET /reminders`. **Banner carrossel**: auto-rotação 4s + dots + swipe manual |
-| `src/api/reminders.api.ts` | **Novo** — `fetchReminders()` que chama `GET /reminders` |
-| `server/src/modules/reminders/` | **Novo** — módulo com rota `GET /reminders` que consolida vacinas pendentes + consultas futuras de todos os pets do user |
-| `server/src/app.ts` | Registra rota `/reminders` |
-| `src/services/NotificationService.ts` | **Birthday**: `scheduleBirthdayNotifications()`, `cancelBirthdayNotifications()`, integrado ao `restoreScheduledNotifications()` |
-| `src/screens/PetsScreen.tsx` | Chama `scheduleBirthdayNotifications()` após criar pet; passou `birthDate` ao `<Calendar>` |
-| `src/screens/Pets/components/Calendar.tsx` | `birthDate` prop → evento de aniversário no calendário com cake icon (#EC4899) na grade + lista; botão "Postar consulta" para consultas com foto |
-| `src/screens/Pets/ConsultationScreen.tsx` | Botão "Postar consulta" no modal de detalhes; checkbox "Postar após salvar" no formulário de criação; renderiza `CreatePostModal` pré-preenchido |
-| `src/components/ui/CreatePostModal.tsx` | Aceita `initialPhotoUrl` e `initialPetId` — pula escolha de imagem/seleção de pet |
-| `server/src/migrations/004_notification_preferences.sql` | **Novo** — tabela `user_notification_preferences` |
-| `server/src/modules/notifications/` | `GET/PUT /notifications/preferences` no controller/service/repository/routes |
-| `server/src/modules/push/push.service.ts` | Checa preferências do usuário antes de enviar push (enabled, vacinas, social_likes, social_follows) |
-| `server/src/modules/feeding/` | `GET /pets/:petId/feeding/score` — agregação diária de completude alimentar |
-| `mobile/src/store/slices/feedingSlice.ts` | `fetchFeedingScoreThunk`, estado `score`, seletor `selectFeedingScore` |
-| `mobile/src/components/FeedingScoreCalendar.tsx` | **Novo** — calendário semanal/mensal colorido por score alimentar |
-| `mobile/src/screens/Pets/FeedingScreen.tsx` | Integração do `FeedingScoreCalendar` no modo check |
-| `mobile/src/store/slices/notificationsSlice.ts` | `fetchPreferencesThunk`, `updatePreferencesThunk`, `selectPreferences` |
-| `mobile/src/screens/SettingsNotificationsScreen.tsx` | Reescrita — sincroniza com servidor, toggles reais (alimentação, vacinas, aniversário, curtidas, seguidores) |
-| `mobile/src/services/NotificationService.ts` | Lê AsyncStorage com novas chaves; `scheduleBirthdayNotifications` checa `aniversario` |
-| `mobile/src/data/repositories/FeedingQueueRepository.ts` | **Novo** — fila offline de check de alimentação (AsyncStorage) + processamento ao reconectar + retry até 3x por item |
-| `mobile/src/store/slices/feedingSlice.ts` | `checkMealThunk` enfileira no `feedingQueueRepository` quando offline (err.isOffline). Todos os thunks (plan, logs, score) agora têm cache AsyncStorage — salvam no sucesso, restauram na falha. |
-| `mobile/src/services/NotificationService.ts` | `handleFeedingNotificationAction` enfileira quando offline |
-| `mobile/App.tsx` | Ao reconectar, chama `feedingQueueRepository.processQueue()` |
-| `server/src/modules/feeding/feeding.repository.ts` | `deactivatePlan()` — seta `is_active = false` |
-| `server/src/modules/feeding/feeding.service.ts` | `deactivatePlan()` + verificação de ownership |
-| `server/src/modules/feeding/feeding.controller.ts` | `deactivatePlan()` controller |
-| `server/src/modules/feeding/feeding.routes.ts` | Rota `DELETE /:petId/feeding/plan` |
-| `mobile/src/screens/Pets/FeedingScreen.tsx` | Botão "Desativar plano" no modo check + Alert de confirmação |
-
----
+| `src/api/groups.api.ts` | +6 funções de invite + tipo `GroupInvite` |
+| `src/store/slices/groupsSlice.ts` | +3 thunks invite, +1 reducer `setGroupMembers`, estado `pendingInvites`, selectors |
+| `src/screens/GroupDetailScreen.tsx` | **Reescrito** — `MemberRow` extraído, `AddMemberModal` com busca, `groupMembers` populado, botão "Entrar" para não-membros |
+| `src/screens/GroupsScreen.tsx` | Seção "Solicitações de entrada" no topo de Meus Grupos; DiscoverCard checa `myGroups` |
 
 ## Fases
 
@@ -387,7 +355,9 @@ server/src/
 - `mobile/src/store/slices/postsSlice.ts` — `Post.image_url` e `pet_id` opcionais
 - `mobile/src/components/ui/PostOptionsModal.tsx` — guard image_url undefined
 
-**SEM ALTERAÇÕES EM SUPABASE** — tudo que já existia (migração 005).
+**MIGRAÇÕES SUPABASE:**
+- `005_groups.sql` — tabelas `groups`, `group_members`, funções RPC, RLS, índices trigram
+- `008_group_invites.sql` — tabela `group_invites`, RLS policies, índices
 
 #### Fluxo de navegação
 
@@ -490,6 +460,59 @@ GroupDetailScreen
 
 ---
 
+### Grupos — v3: Convite de usuários + Correções
+
+**Ideia:** Sistema de convite interno (não apenas link). Admin busca usuários dentro do app e envia convite. O convidado vê "Solicitações de entrada" no topo de Meus Grupos e pode aceitar/recusar.
+
+#### Novos arquivos
+| Arquivo | Descrição |
+|---------|-----------|
+| `server/src/migrations/008_group_invites.sql` | Tabela `group_invites` com RLS |
+
+#### Arquivos modificados
+| Arquivo | Mudança |
+|---------|---------|
+| `server/src/modules/groups/groups.repository.ts` | +6 métodos: `createInvite`, `findPendingInvite`, `listPendingInvites`, `acceptInvite`, `rejectInvite`, `searchUsersForGroup` |
+| `server/src/modules/groups/groups.service.ts` | +5 métodos de negócio: `inviteUser` (só admin, valida duplicidade), `listPendingInvites`, `acceptInvite` (addMember automático), `rejectInvite`, `searchUsersForGroup` |
+| `server/src/modules/groups/groups.controller.ts` | +5 handlers HTTP |
+| `server/src/modules/groups/groups.routes.ts` | +5 rotas (invites antes de `/:id`) |
+| `mobile/src/api/groups.api.ts` | +6 funções + tipo `GroupInvite` |
+| `mobile/src/store/slices/groupsSlice.ts` | +3 thunks, +1 reducer (`setGroupMembers`), estado `pendingInvites`, selectors |
+| `mobile/src/screens/GroupDetailScreen.tsx` | **Reescrito** — corrige bugs, add `AddMemberModal`, `MemberRow` component |
+| `mobile/src/screens/GroupsScreen.tsx` | Seção "Solicitações de entrada" no topo de Meus Grupos |
+
+#### Correções de bugs
+| # | Problema | Solução |
+|---|----------|---------|
+| 1 | `groupMembers` nunca populado no Redux → aba Membros vazia | `loadGroupDetails` agora dispara `setGroupMembers` |
+| 2 | `useAppSelector` dentro de `renderItem` (viola hooks) | Extraído componente `MemberRow` |
+| 3 | Deep link `petlink://group/:id` não tinha como entrar no grupo | Botão "Entrar no grupo" no header quando `!isMember` |
+
+#### Fluxo de convite
+```
+Admin na aba Membros → "Adicionar membros"
+  → Modal com campo de busca (debounce 300ms)
+  → Busca usuários por nome (exclui membros atuais)
+  → "Convidar" → POST /groups/:id/invite
+
+Convidado abre GroupsScreen
+  → "Solicitações de entrada" no topo
+  → Card com ✓ (aceitar) e ✕ (recusar)
+  → Aceitar → addMember + grupo aparece em Meus Grupos
+  → Recusar → invite marcado como 'rejected'
+```
+
+#### API
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| `POST` | `/groups/:id/invite` | Admin convida usuário |
+| `GET` | `/groups/invites/pending` | Lista convites pendentes (com grupo + nome do convidador) |
+| `POST` | `/groups/invites/:inviteId/accept` | Aceitar + vira membro |
+| `POST` | `/groups/invites/:inviteId/reject` | Recusar |
+| `GET` | `/groups/:id/search-users?q=` | Busca usuários fora do grupo |
+
+---
+
 ### #45 — Gamificação / Badges & Conquistas
 
 **Ideia:** Sistema de níveis e conquistas para engajar o usuário. Toda ação relevante no app dá XP. Ao atingir marcos, desbloqueia badges. Tudo visível numa nova aba "Conquistas" dentro do Perfil.
@@ -529,22 +552,26 @@ O header do perfil (foto, nome, stats) permanece igual. Abaixo dele, um `Segment
 
 #### Servidor (Express + Supabase)
 
-- [ ] Migration `006_gamification.sql`:
+- [x] Migration `006_gamification.sql`:
   - `user_levels` (user_id, level, xp, xp_to_next_level)
   - `achievements` (id, name, description, icon_url, category, xp_reward, criteria — JSON)
   - `user_achievements` (user_id, achievement_id, unlocked_at)
-- [ ] Módulo `gamification/`:
+- [x] Módulo `gamification/`:
   - `GET /gamification/my` — nível atual + XP + badges conquistadas + progresso das próximas
+  - `GET /gamification/:userId` — stats públicos de outro usuário
   - `POST /gamification/event` — registrar evento de XP (chamado internamente por outros módulos)
   - Lógica de nível: a cada N XP sobe de nível, `xp_to_next_level` aumenta
+  - Cálculo de streak de alimentação (dias consecutivos com check-in)
  
 #### Mobile
 
-- [ ] `gamificationSlice.ts` — store Redux
-- [ ] ProfileScreen: adicionar `SegmentedTabs` (Posts | Conquistas) abaixo do header, substituindo o `renderHeader` atual por um header fixo + tabs + conteúdo condicional
-- [ ] Botão de filtro por pet: mover para dentro da aba **Posts** (não aparece na aba Conquistas)
-- [ ] `GamificationSection.tsx` — card de nível + grid de badges conquistadas + próximas conquistas
-- [ ] Feedback visual ao desbloquear badge (modal "Conquista desbloqueada!")
+- [x] `gamificationSlice.ts` — store Redux com fetch, novo desbloqueio, loading
+- [x] `GamificationSection.tsx` — card de nível com barra de XP, grid de badges desbloqueadas, lista "Em andamento" com progresso, lista "Bloqueadas", modal de detalhes por badge com status (completa/andamento/bloqueada), barra de progresso, data de desbloqueio
+- [x] `gamification.api.ts` — `getMyStats()` e `getUserStats(userId)`
+- [x] `levelColors.ts` — cores por nível (Bronze→Rubi) e por XP (bronze→rubi)
+- [x] Perfil público: nível e badges exibidos ao lado do nome; modal de conquistas ao clicar
+- [ ] ProfileScreen: adicionar `SegmentedTabs` (Posts | Conquistas) abaixo do header (pendente — gamificação acessível via botão no AppTabs header)**
+- [ ] Feedback visual ao desbloquear badge (modal "Conquista desbloqueada!")**
 
 ---
 
@@ -569,6 +596,245 @@ O header do perfil (foto, nome, stats) permanece igual. Abaixo dele, um `Segment
 | 54 | Agenda compartilhada |
 | 55 | Modo veterinário |
 | 56 | Marketplace (futuro) |
+
+---
+
+## Supabase Schema (PostgreSQL)
+
+### `profiles`
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | uuid PK | FK → auth.users |
+| name | text NOT NULL | Nome de exibição |
+| location | text | Localização |
+| avatar_url | text | URL do avatar |
+| bio | text | Biografia |
+| birth_date | date | Data de nascimento |
+| level | integer DEFAULT 1 | Nível do usuário |
+| created_at | timestamptz | |
+| updated_at | timestamptz | |
+
+### `pets`
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | uuid PK | |
+| owner_id | uuid FK → profiles | Dono do pet |
+| name | text NOT NULL | |
+| species | text NOT NULL | |
+| breed | text | |
+| birth_date | date | |
+| weight_kg | numeric | |
+| photo_url | text | |
+| allergies | text | |
+| temperament | text | |
+| observations | text | |
+| is_active | boolean DEFAULT true | |
+| weight_history | jsonb DEFAULT '[]' | |
+| tags | text[] DEFAULT '{}' | |
+| created_at | timestamptz | |
+| updated_at | timestamptz | |
+
+### `groups`
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | uuid PK | DEFAULT gen_random_uuid() |
+| name | text NOT NULL | Nome do grupo |
+| description | text | |
+| photo_url | text | |
+| species | text | Espécie alvo (ex: Cachorro) |
+| is_public | boolean DEFAULT true | Se é público ou privado |
+| created_by | uuid FK → profiles | Quem criou |
+| member_count | integer DEFAULT 1 | Contagem desnormalizada de membros |
+| created_at | timestamptz | |
+| updated_at | timestamptz | |
+
+### `group_members`
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | uuid PK | |
+| group_id | uuid FK → groups ON DELETE CASCADE | |
+| user_id | uuid FK → auth.users ON DELETE CASCADE | |
+| role | text CHECK ('owner','admin','member') | Papel no grupo |
+| joined_at | timestamptz | |
+| UNIQUE | (group_id, user_id) | |
+
+### `vaccines`
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | uuid PK | |
+| pet_id | uuid FK → pets | |
+| name | text NOT NULL | |
+| type | text DEFAULT 'vaccine' | |
+| applied_at | date NOT NULL | |
+| next_dose_at | date | |
+| lab | text | |
+| batch | text | |
+| vet_name | text | |
+| notes | text | |
+| notified | boolean DEFAULT false | |
+| is_completed | boolean DEFAULT false | |
+| doses | jsonb DEFAULT '[]' | Array de doses |
+| owner_id | uuid FK → auth.users | |
+| created_at | timestamptz | |
+
+### `consultations`
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | uuid PK | |
+| pet_id | uuid FK → pets | |
+| vet_name | text NOT NULL | |
+| clinic | text | |
+| consulted_at | timestamptz NOT NULL | |
+| reason | text NOT NULL | |
+| diagnosis | text | |
+| exams_requested | text | |
+| prescription | text | |
+| notes | text | |
+| owner_id | uuid FK → auth.users | |
+| created_at | timestamptz | |
+| updated_at | timestamptz | |
+
+### `consultation_attachments`
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | uuid PK | |
+| consultation_id | uuid FK → consultations | |
+| url | text NOT NULL | |
+| file_name | text | |
+| file_type | text | |
+| created_at | timestamptz | |
+
+### `feeding_plans`
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | uuid PK | |
+| pet_id | uuid FK → pets | |
+| meal_name | text NOT NULL | |
+| meal_time | time NOT NULL | |
+| quantity | text | |
+| order_index | integer DEFAULT 0 | |
+| is_active | boolean DEFAULT true | |
+| created_at | timestamptz | |
+
+### `feeding_logs`
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | uuid PK | |
+| pet_id | uuid FK → pets | |
+| meal_plan_id | uuid FK → feeding_plans | |
+| meal_name | text NOT NULL | |
+| scheduled_time | time NOT NULL | |
+| quantity | text | |
+| order_index | integer DEFAULT 0 | |
+| log_date | date DEFAULT CURRENT_DATE | |
+| checked_at | timestamptz | null = não feito |
+| created_at | timestamptz | |
+
+### `walks`
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | uuid PK | |
+| pet_id | uuid FK → pets | |
+| owner_id | uuid FK → profiles | |
+| started_at | timestamptz NOT NULL | |
+| ended_at | timestamptz | |
+| distance_m | numeric | |
+| duration_s | integer | |
+| steps_count | integer | |
+| avg_speed_kmh | numeric | |
+| route | jsonb | |
+| notes | text | |
+| created_at | timestamptz | |
+
+### `follows`
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| follower_id | uuid PK FK → profiles | Quem segue |
+| following_id | uuid PK FK → profiles | Quem é seguido |
+| created_at | timestamptz | |
+
+### `notifications`
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | uuid PK | |
+| user_id | uuid FK → profiles | |
+| type | text NOT NULL | |
+| title | text NOT NULL | |
+| body | text | |
+| data | jsonb | |
+| read_at | timestamptz | |
+| sent_at | timestamptz | |
+
+### `push_tokens`
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | uuid PK | |
+| user_id | uuid UNIQUE FK → auth.users | |
+| token | text NOT NULL | Expo Push Token |
+| platform | text CHECK ('ios','android') | |
+| created_at | timestamptz | |
+
+### `calendar_events`
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | uuid PK | |
+| pet_id | uuid FK → pets | |
+| owner_id | uuid FK → profiles | |
+| title | text NOT NULL | |
+| type | text NOT NULL | |
+| event_date | timestamptz NOT NULL | |
+| notes | text | |
+| completed | boolean DEFAULT false | |
+| created_at | timestamptz | |
+
+### `user_notification_preferences`
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| user_id | uuid PK FK → auth.users | |
+| enabled | boolean DEFAULT true | Master toggle |
+| alimentacao | boolean DEFAULT true | |
+| vacinas | boolean DEFAULT true | |
+| social_likes | boolean DEFAULT true | |
+| social_follows | boolean DEFAULT true | |
+| aniversario | boolean DEFAULT true | |
+| updated_at | timestamptz | |
+
+### `achievements`
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | uuid PK | |
+| key | text UNIQUE NOT NULL | Identificador único |
+| name | text NOT NULL | |
+| description | text | |
+| icon | text DEFAULT 'trophy-outline' | |
+| category | text DEFAULT 'milestone' | |
+| xp_reward | integer DEFAULT 0 | |
+| criteria_type | text NOT NULL | Tipo de gatilho |
+| criteria_threshold | integer NOT NULL | Quantidade necessária |
+| sort_order | integer DEFAULT 0 | |
+| created_at | timestamptz | |
+
+### `user_achievements`
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| user_id | uuid PK FK → auth.users | |
+| achievement_id | uuid PK FK → achievements | |
+| unlocked_at | timestamptz | |
+
+### RLS Policies (groups)
+```sql
+-- groups
+Anyone can view public groups       → SELECT is_public = true OR created_by = auth.uid()
+Members can view their groups       → SELECT id IN (SELECT group_id FROM group_members WHERE user_id = auth.uid())
+Users can create groups             → INSERT created_by = auth.uid()
+Creator can update their group      → UPDATE created_by = auth.uid()
+Creator can delete their group      → DELETE created_by = auth.uid()
+
+-- group_members
+Members can view members            → SELECT group_id IN (SELECT group_id FROM group_members WHERE user_id = auth.uid())
+Users can join public groups        → INSERT user_id = auth.uid() AND group_id IN (SELECT id FROM groups WHERE is_public = true)
+Users can leave groups              → DELETE user_id = auth.uid()
+```
 
 ---
 
@@ -824,6 +1090,22 @@ npx eas credentials --platform android
 #   → Assign to app
 ```
 
+### Comandos EAS Build
+
+```bash
+# Development build (hot reload, debug)
+npx eas build --platform android --profile development
+
+# APK preview (standalone, sem dev client)
+npx eas build --platform android --profile preview
+
+# Production (AAB para Play Store)
+npx eas build --platform android --profile production
+
+# iOS development
+npx eas build --platform ios --profile development
+```
+
 ### Problemas conhecidos
 
 **ADB (Android Debug Bridge):** A porta 5037 padrão está quebrada no sistema (não foi possível diagnosticar a causa). Solução: rodar ADB em porta alternativa:
@@ -867,6 +1149,65 @@ ANDROID_ADB_SERVER_PORT=5040 npx expo run:android
      }'
    ```
 4. Ou usar outra conta para curtir/seguir/comentar — o servidor dispara push automaticamente
+
+---
+
+### Deep Links / Universal Links (compartilhamento funcionar fora do app)
+
+**Problema:** WhatsApp e outros apps não reconhecem `petlink://` como link clicável (só `https://`).
+
+**Solução futura:** Usar um domínio HTTPS gratuito com página de redirecionamento + verificação de app.
+
+**Passo a passo (gratuito com Vercel):**
+
+1. Criar conta em [vercel.com](https://vercel.com) (grátis)
+2. Criar um repositório com dois arquivos:
+
+   **`public/index.html`** — página de redirecionamento:
+   ```html
+   <!DOCTYPE html>
+   <html>
+   <script>
+     const path = window.location.pathname  // /profile/abc
+     window.location.href = 'petlink://' + path.slice(1)
+     setTimeout(() => {
+       window.location.href = 'https://petlink.app'  // fallback se app não instalado
+     }, 2000)
+   </script>
+   </html>
+   ```
+
+   **`public/.well-known/apple-app-site-association`** (iOS):
+   ```json
+   {
+     "applinks": {
+       "apps": [],
+       "details": [{
+         "appID": "TEAMID.com.petlink.app",
+         "paths": ["*"]
+       }]
+     }
+   }
+   ```
+
+   **`public/.well-known/assetlinks.json`** (Android):
+   ```json
+   [{
+     "relation": ["delegate_permission/common.handle_all_urls"],
+     "target": {
+       "namespace": "android_app",
+       "package_name": "com.petlink.app",
+       "sha256_cert_fingerprints": ["..."]
+     }
+   }]
+   ```
+
+3. Fazer deploy no Vercel → domínio `petlink.vercel.app`
+4. No `shareLink.ts` e `RootNavigator.tsx`, já está configurado com `https://petlink.app` — basta trocar pelo domínio real do Vercel
+5. No `app.json`, configurar `intentFilters` para o domínio
+6. Buildar APK → links `https://petlink.vercel.app/profile/abc` abrem direto no app
+
+**Status:** ⏳ (futuro)
 
 ---
 

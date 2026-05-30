@@ -2,6 +2,13 @@ import { AppError } from '../../shared/AppError'
 import { petsRepository, type PetCreateInput } from './pets.repository'
 import { uploadsService } from '../uploads/uploads.service'
 
+function getLocalDateString(date: Date = new Date()): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 export const petsService = {
   async createForOwner(ownerId: string, payload: Omit<PetCreateInput, 'pet_id' | 'owner_id'>) {
     const name = payload.name?.trim()
@@ -34,7 +41,7 @@ export const petsService = {
     })
 
     if (payload.weight_kg !== undefined && payload.weight_kg !== null) {
-      const today = new Date().toISOString().slice(0, 10)
+      const today = getLocalDateString()
       const hasTodayRecord = await petsRepository.hasWeightRecordForDate(created.id, payload.weight_kg, today)
       if (!hasTodayRecord) {
         await petsRepository.createWeightRecord(created.id, payload.weight_kg, null, today)
@@ -136,7 +143,7 @@ export const petsService = {
     }
 
     if (shouldTrackWeightChange) {
-      const today = new Date().toISOString().slice(0, 10)
+      const today = getLocalDateString()
       const weightValue = patch.weight_kg as number
       const hasTodayRecord = await petsRepository.hasWeightRecordForDate(petId, weightValue, today)
       if (!hasTodayRecord) {

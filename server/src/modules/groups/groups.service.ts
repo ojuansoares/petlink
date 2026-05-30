@@ -37,13 +37,13 @@ export const groupsService = {
     return groupsRepository.listByUser(userId)
   },
 
-  async discover(page: number, limit: number) {
-    return groupsRepository.discover(page, limit)
+  async discover(userId: string, page: number, limit: number) {
+    return groupsRepository.discover(userId, page, limit)
   },
 
-  async search(q: string, page: number, limit: number) {
+  async search(q: string, userId: string, page: number, limit: number) {
     if (!q?.trim()) return { groups: [], hasMore: false }
-    return groupsRepository.search(q.trim(), page, limit)
+    return groupsRepository.search(q.trim(), userId, page, limit)
   },
 
   async getDetails(groupId: string, userId: string) {
@@ -119,6 +119,56 @@ export const groupsService = {
 
     await groupsRepository.updateMemberRole(groupId, targetUserId, newRole)
     return { success: true }
+  },
+
+  // --- Invites ---
+
+  async inviteUser(groupId: string, invitedUserId: string, requesterId: string) {
+    if (invitedUserId === requesterId) throw new AppError('Você não pode convidar a si mesmo', 400)
+
+    const requester = await groupsRepository.findMembership(groupId, requesterId)
+    if (!requester || (requester.role !== 'owner' && requester.role !== 'admin')) {
+      throw new AppError('Apenas administradores podem convidar', 403)
+    }
+
+    const group = await groupsRepository.findById(groupId)
+    if (!group) throw new AppError('Grupo não encontrado', 404)
+
+    const existing = await groupsRepository.findMembership(groupId, invitedUserId)
+    if (existing) throw new AppError('Usuário já é membro do grupo', 409)
+
+    const pending = await groupsRepository.findPendingInvite(groupId, invitedUserId)
+    if (pending) throw new AppError('Convite já enviado para este usuário', 409)
+
+    return groupsRepository.createInvite(groupId, invitedUserId, requesterId)
+  },
+
+  async listPendingInvites(userId: string) {
+    return groupsRepository.listPendingInvites(userId)
+  },
+
+  async acceptInvite(inviteId: string, userId: string) {
+    const invites = await groupsRepository.listPendingInvites(userId)
+    const invite = invites.find((i) => i.id === inviteId)
+    if (!invite) throw new AppError('Convite não encontrado', 404)
+
+    await groupsRepository.acceptInvite(inviteId)
+    await groupsRepository.addMember(invite.group_id, userId, 'member')
+    return { success: true }
+  },
+
+  async rejectInvite(inviteId: string, userId: string) {
+    const invites = await groupsRepository.listPendingInvites(userId)
+    const invite = invites.find((i) => i.id === inviteId)
+    if (!invite) throw new AppError('Convite não encontrado', 404)
+
+    await groupsRepository.rejectInvite(inviteId)
+    return { success: true }
+  },
+
+  async searchUsersForGroup(query: string, groupId: string) {
+    if (!query?.trim()) return []
+    return groupsRepository.searchUsersForGroup(query.trim(), groupId)
   },
 
   async removeMember(groupId: string, targetUserId: string, requesterId: string) {

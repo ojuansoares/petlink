@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import {
   ImageBackground,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -19,7 +20,7 @@ import { Button } from '../components/ui/Button'
 import { Avatar } from '../components/ui/Avatar'
 import { useAppSelector } from '../store'
 import { selectProfile } from '../store/slices/profileSlice'
-import { selectActivePetId, selectPetsList } from '../store/slices/petsSlice'
+import { selectActivePetId, selectPetsList, selectPetsLoading } from '../store/slices/petsSlice'
 import { selectGamification } from '../store/slices/gamificationSlice'
 import { getVaccinesByPetId } from '../api/vaccine.api'
 import { Vaccine } from '../data/models'
@@ -28,6 +29,8 @@ import { fetchReminders, ReminderItem } from '../api/reminders.api'
 import { WeeklySummaryCard } from '../components/WeeklySummaryCard'
 import { homeCacheRepository } from '../data/repositories/HomeCacheRepository'
 import { format, parseISO } from 'date-fns'
+import { CreatePostModal } from '../components/ui/CreatePostModal'
+import { WebView } from 'react-native-webview'
 
 type NavProp = StackNavigationProp<AppStackParamList>
 
@@ -38,9 +41,12 @@ export default function HomeScreen() {
   const navigation = useNavigation<NavProp>()
   const pets = useAppSelector(selectPetsList)
   const activePetId = useAppSelector(selectActivePetId)
+  const petsLoading = useAppSelector(selectPetsLoading)
   const profile = useAppSelector(selectProfile)
   const gamificationStats = useAppSelector(selectGamification)
 
+  const [showCreatePost, setShowCreatePost] = useState(false)
+  const [bannerUrl, setBannerUrl] = useState<string | null>(null)
   const [petCarouselIndex, setPetCarouselIndex] = useState(0)
   const petCarouselRef = useRef<ScrollView>(null)
   const activePet = pets.length > 0
@@ -54,16 +60,38 @@ export default function HomeScreen() {
     }
   }, [pets.length, activePetId])
 
-  const [allVaccines, setAllVaccines] = useState<Vaccine[]>([])
+  const [nextVaccineMap, setNextVaccineMap] = useState<Record<string, { label: string; urgent: boolean; count: number }>>({})
   const [vaccinesLoading, setVaccinesLoading] = useState(false)
-  const [nextVaccine, setNextVaccine] = useState<Vaccine | null>(null)
 
   const [reminders, setReminders] = useState<ReminderItem[]>([])
   const [remindersLoading, setRemindersLoading] = useState(false)
 
   const bannerScrollRef = useRef<ScrollView>(null)
   const [bannerIndex, setBannerIndex] = useState(0)
-  const bannerCount = 2
+  const banners = [
+    {
+      badge: 'DICA DO DIA',
+      title: 'Mantenha seu pet hidratado no verão! ☀️',
+      subtitle: 'Água fresca sempre disponível e nunca deixe no sol forte.',
+      image: require('../assets/banner_dica.png'),
+      url: 'https://vetnil.com.br/hidratacao-pet-confira-algumas-dicas-para-manter-caes-e-gatos-hidratados/',
+    },
+    {
+      badge: 'EMERGÊNCIA',
+      title: 'Número de emergência veterinária 24h',
+      subtitle: 'Salve contatos de clínicas 24h perto de você.',
+      image: require('../assets/banner_emergencia.png'),
+      url: 'https://www.google.com/search?q=clinica+veterinaria+24h+perto+mim',
+    },
+    {
+      badge: 'COMPORTAMENTO',
+      title: 'Dicas de adestramento positivo 🐾',
+      subtitle: 'Reforço positivo fortalece o vínculo com seu pet.',
+      image: require('../assets/banner_comportamento.png'),
+      url: 'https://www.petz.com.br/blog/reforco-positivo/',
+    },
+  ]
+  const bannerCount = banners.length
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -81,11 +109,20 @@ export default function HomeScreen() {
   }, [bannerIndex, cardWidth])
 
   useEffect(() => {
-    if (!activePet?.id) return
+    if (pets.length === 0) return
     setVaccinesLoading(true)
-    getVaccinesByPetId(activePet.id)
-      .then((vaccines) => {
-        setAllVaccines(vaccines)
+
+    const promises = pets.map(async (pet) => {
+      try {
+        let vaccines: Vaccine[] = []
+        try {
+          vaccines = await getVaccinesByPetId(pet.id)
+          homeCacheRepository.saveNextVaccine(pet.id, vaccines)
+        } catch {
+          const cached = await homeCacheRepository.getNextVaccine<Vaccine[]>(pet.id)
+          if (cached) vaccines = cached
+        }
+
         const upcoming = vaccines
           .filter(v => !v.is_completed)
           .sort((a, b) => {
@@ -93,28 +130,44 @@ export default function HomeScreen() {
             const bDate = b.next_dose_at || b.doses?.find(d => !d.applied)?.date || ''
             return aDate.localeCompare(bDate)
           })
-        setNextVaccine(upcoming[0] || null)
-        homeCacheRepository.saveNextVaccine(activePet.id, vaccines)
-      })
-      .catch(async () => {
-        setAllVaccines([])
-        const cached = await homeCacheRepository.getNextVaccine<Vaccine[]>(activePet.id)
-        if (cached && cached.length > 0) {
-          setAllVaccines(cached)
-          const upcoming = cached
-            .filter(v => !v.is_completed)
-            .sort((a, b) => {
-              const aDate = a.next_dose_at || a.doses?.find(d => !d.applied)?.date || ''
-              const bDate = b.next_dose_at || b.doses?.find(d => !d.applied)?.date || ''
-              return aDate.localeCompare(bDate)
-            })
-          setNextVaccine(upcoming[0] || null)
-        } else {
-          setNextVaccine(null)
+
+        const nextV = upcoming[0] || null
+        if (!nextV) {
+          return { petId: pet.id, label: 'Nenhuma', urgent: false, count: vaccines.length }
         }
-      })
-      .finally(() => setVaccinesLoading(false))
-  }, [activePet?.id])
+
+        const doseDate = nextV.next_dose_at || nextV.doses?.find(d => !d.applied)?.date
+        if (!doseDate) {
+          return { petId: pet.id, label: nextV.name, urgent: false, count: vaccines.length }
+        }
+
+        let label = nextV.name
+        try {
+          label = `${nextV.name} — ${format(parseISO(doseDate), 'dd/MM')}`
+        } catch {}
+
+        let urgent = false
+        try {
+          urgent = parseISO(doseDate) <= new Date()
+        } catch {}
+
+        return { petId: pet.id, label, urgent, count: vaccines.length }
+      } catch {
+        return { petId: pet.id, label: 'Nenhuma', urgent: false, count: 0 }
+      }
+    })
+
+    Promise.all(promises).then((results) => {
+      const newMap: Record<string, { label: string; urgent: boolean; count: number }> = {}
+      for (const res of results) {
+        if (res) {
+          newMap[res.petId] = { label: res.label, urgent: res.urgent, count: res.count }
+        }
+      }
+      setNextVaccineMap(newMap)
+      setVaccinesLoading(false)
+    })
+  }, [pets])
 
   useEffect(() => {
     if (!activePet?.id) return
@@ -129,31 +182,8 @@ export default function HomeScreen() {
   const greeting = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite'
 
   const hasWeightData = !!(activePet?.weight_kg || activePet?.weight_history?.length)
-  const hasVaccineData = allVaccines.length > 0
+  const hasVaccineData = (nextVaccineMap[activePet?.id || '']?.count ?? 0) > 0
   const isPetSparse = activePet && !hasWeightData && !hasVaccineData
-
-  const nextVaccineLabel = (() => {
-    if (vaccinesLoading) return 'Carregando...'
-    if (!nextVaccine) return 'Nenhuma pendente'
-    const doseDate = nextVaccine.next_dose_at || nextVaccine.doses?.find(d => !d.applied)?.date
-    if (!doseDate) return nextVaccine.name
-    try {
-      return `${nextVaccine.name} — ${format(parseISO(doseDate), 'dd/MM')}`
-    } catch {
-      return nextVaccine.name
-    }
-  })()
-
-  const nextVaccineUrgent = (() => {
-    if (!nextVaccine) return false
-    const doseDate = nextVaccine.next_dose_at || nextVaccine.doses?.find(d => !d.applied)?.date
-    if (!doseDate) return false
-    try {
-      return parseISO(doseDate) <= new Date()
-    } catch {
-      return false
-    }
-  })()
 
   function renderNoPetState() {
     return (
@@ -200,7 +230,7 @@ export default function HomeScreen() {
             <Text size="xs" weight="700" style={{ color: '#22C55E' }}>Vacinas</Text>
           </Pressable>
           <Pressable
-            onPress={() => navigation.navigate('Consultation', { petId: activePet.id, petName: activePet.name })}
+            onPress={() => navigation.navigate('Consultation', { petId: activePet.id, petName: activePet.name, autoOpenModal: true })}
             style={[styles.onboardingActionBtn, { backgroundColor: withAlpha('#22C55E', 0.1) }]}
           >
             <Ionicons name="scale" size={18} color="#22C55E" />
@@ -224,6 +254,14 @@ export default function HomeScreen() {
     const iconName = isVaccine ? 'medical' : 'calendar'
     const bgColor = mode === 'light' ? (isVaccine ? '#F0FDF4' : '#EFF6FF') : (isVaccine ? '#142b1b' : '#13233a')
 
+    const formattedDate = (() => {
+      try {
+        return format(parseISO(item.date), 'dd/MM/yyyy')
+      } catch {
+        return item.date
+      }
+    })()
+
     return (
       <Pressable
         key={item.id}
@@ -242,7 +280,7 @@ export default function HomeScreen() {
           <View style={styles.reminderInfo}>
             <Text weight="800" style={{ color: accentColor }} numberOfLines={1}>{item.title}</Text>
             <Text size="xs" style={{ color: accentColor, opacity: 0.8 }} numberOfLines={1}>
-              {item.petName} — {item.overdue ? '⚠️ Vencida' : item.date}
+              {item.petName} — {item.overdue ? '⚠️ Vencida' : formattedDate}
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color={accentColor} />
@@ -283,7 +321,7 @@ export default function HomeScreen() {
             snapToInterval={cardWidth + 16}
             decelerationRate="fast"
             contentContainerStyle={{ gap: 16, paddingBottom: 4 }}
-            style={{ marginBottom: 0 }}
+            style={{ marginBottom: pets.length > 1 ? 2 : 16 }}
             onMomentumScrollEnd={(e) => {
               const idx = Math.round(e.nativeEvent.contentOffset.x / (cardWidth + 16))
               setPetCarouselIndex(idx)
@@ -294,7 +332,7 @@ export default function HomeScreen() {
               return (
                 <Pressable
                   key={pet.id}
-                  onPress={() => navigation.navigate('Pets' as never)}
+                  onPress={() => navigation.navigate('ActivityTimeline', { petId: pet.id, petName: pet.name })}
                   style={[
                     styles.dashboardCard,
                     {
@@ -335,22 +373,25 @@ export default function HomeScreen() {
                             <Text size="sm" color="mutedForeground">{pet.weight_kg} kg</Text>
                           </View>
                         )}
-                        {isCurrentPet && (
-                          <View style={styles.statItem}>
-                            <Ionicons
-                              name={nextVaccineUrgent ? 'warning' : 'medical-outline'}
-                              size={16}
-                              color={nextVaccineUrgent ? '#EF4444' : colors.mutedForeground}
-                            />
-                            <Text
-                              size="sm"
-                              style={{ color: nextVaccineUrgent ? '#EF4444' : colors.mutedForeground }}
-                              numberOfLines={1}
-                            >
-                              {nextVaccineLabel}
-                            </Text>
-                          </View>
-                        )}
+                        {(() => {
+                          const vaccineInfo = nextVaccineMap[pet.id] || { label: vaccinesLoading ? 'Carregando...' : 'Nenhuma', urgent: false }
+                          return (
+                            <View style={[styles.statItem, { flex: 1 }]}>
+                              <Ionicons
+                                name={vaccineInfo.urgent ? 'warning' : 'medical-outline'}
+                                size={16}
+                                color={vaccineInfo.urgent ? '#EF4444' : colors.mutedForeground}
+                              />
+                              <Text
+                                size="sm"
+                                style={{ color: vaccineInfo.urgent ? '#EF4444' : colors.mutedForeground, flexShrink: 1 }}
+                                numberOfLines={1}
+                              >
+                                {vaccineInfo.label}
+                              </Text>
+                            </View>
+                          )
+                        })()}
                       </View>
                     </View>
                     <Ionicons name="chevron-forward" size={20} color={colors.mutedForeground} style={styles.dashboardArrow} />
@@ -361,7 +402,7 @@ export default function HomeScreen() {
           </ScrollView>
 
           {pets.length > 1 && (
-            <View style={[styles.bannerDotsRow, { marginBottom: 12 }]}>  
+            <View style={[styles.bannerDotsRow, { marginTop: 2, marginBottom: 12 }]}>  
               {pets.map((_, i) => (
                 <Pressable
                   key={i}
@@ -386,6 +427,11 @@ export default function HomeScreen() {
 
           {isPetSparse && renderPetSparseOnboarding()}
         </>
+      ) : petsLoading ? (
+        <View style={[styles.emptyContainer, { backgroundColor: colors.card, borderColor: withAlpha(colors.border, 0.6), justifyContent: 'center', alignItems: 'center', minHeight: 120 }]}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text color="mutedForeground" size="sm" style={{ marginTop: 12 }}>Carregando seus pets...</Text>
+        </View>
       ) : (
         renderNoPetState()
       )}
@@ -394,8 +440,8 @@ export default function HomeScreen() {
       {activePet && (
         <View style={[styles.quickActionsRow, screenWidth < 400 && styles.quickActionsRowNarrow, { marginBottom: 16 }]}>  
           <Pressable
-            onPress={() => navigation.navigate('Feed' as never)}
-            style={[styles.quickActionBtn, { backgroundColor: colors.card, borderColor: withAlpha(colors.border, 0.6) }, screenWidth < 400 && styles.quickActionBtnNarrow]}
+            onPress={() => setShowCreatePost(true)}
+            style={[styles.quickActionBtn, { backgroundColor: colors.card, borderColor: withAlpha(colors.border, 0.6) }, screenWidth < 400 ? { width: (screenWidth - 32 - 10) / 2 } : { width: (screenWidth - 32 - 30) / 4 }]}
           >
             <View style={[styles.quickActionIcon, { backgroundColor: withAlpha(colors.primary, 0.1) }]}>
               <Ionicons name="add-circle" size={22} color={colors.primary} />
@@ -404,8 +450,8 @@ export default function HomeScreen() {
           </Pressable>
 
           <Pressable
-            onPress={() => navigation.navigate('Weight' as never)}
-            style={[styles.quickActionBtn, { backgroundColor: colors.card, borderColor: withAlpha(colors.border, 0.6) }, screenWidth < 400 && styles.quickActionBtnNarrow]}
+            onPress={() => navigation.navigate('Tabs', { screen: 'Pets', params: { openWeightModal: true } } as any)}
+            style={[styles.quickActionBtn, { backgroundColor: colors.card, borderColor: withAlpha(colors.border, 0.6) }, screenWidth < 400 ? { width: (screenWidth - 32 - 10) / 2 } : { width: (screenWidth - 32 - 30) / 4 }]}
           >
             <View style={[styles.quickActionIcon, { backgroundColor: withAlpha('#22C55E', 0.1) }]}>
               <Ionicons name="scale-outline" size={22} color="#22C55E" />
@@ -414,8 +460,8 @@ export default function HomeScreen() {
           </Pressable>
 
           <Pressable
-            onPress={() => navigation.navigate('Consultation', { petId: activePet.id, petName: activePet.name })}
-            style={[styles.quickActionBtn, { backgroundColor: colors.card, borderColor: withAlpha(colors.border, 0.6) }, screenWidth < 400 && styles.quickActionBtnNarrow]}
+            onPress={() => navigation.navigate('Consultation', { petId: activePet.id, petName: activePet.name, autoOpenModal: true })}
+            style={[styles.quickActionBtn, { backgroundColor: colors.card, borderColor: withAlpha(colors.border, 0.6) }, screenWidth < 400 ? { width: (screenWidth - 32 - 10) / 2 } : { width: (screenWidth - 32 - 30) / 4 }]}
           >
             <View style={[styles.quickActionIcon, { backgroundColor: withAlpha('#3B82F6', 0.1) }]}>
               <Ionicons name="calendar" size={22} color="#3B82F6" />
@@ -425,7 +471,7 @@ export default function HomeScreen() {
 
           <Pressable
             onPress={() => navigation.navigate('FeedingPlan', { petId: activePet.id, petName: activePet.name })}
-            style={[styles.quickActionBtn, { backgroundColor: colors.card, borderColor: withAlpha(colors.border, 0.6) }, screenWidth < 400 && styles.quickActionBtnNarrow]}
+            style={[styles.quickActionBtn, { backgroundColor: colors.card, borderColor: withAlpha(colors.border, 0.6) }, screenWidth < 400 ? { width: (screenWidth - 32 - 10) / 2 } : { width: (screenWidth - 32 - 30) / 4 }]}
           >
             <View style={[styles.quickActionIcon, { backgroundColor: withAlpha('#F97316', 0.1) }]}>
               <Ionicons name="restaurant" size={22} color="#F97316" />
@@ -448,47 +494,36 @@ export default function HomeScreen() {
           setBannerIndex(idx)
         }}
       >
-        <ImageBackground
-          source={require('../assets/banner_happy_dog.jpg')}
-          style={[styles.banner, { backgroundColor: colors.primary, width: cardWidth, aspectRatio: 1.8 }]}
-          imageStyle={styles.bannerImage}
-        >
-          <View style={styles.bannerOverlay}>
-            <View style={styles.bannerContent}>
-              <View style={[styles.badge, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-                <Text size="xs" weight="700" style={{ color: '#fff' }}>DICA DO DIA</Text>
+        {banners.map((b, i) => (
+          <ImageBackground
+            key={i}
+            source={b.image}
+            style={[styles.banner, { width: cardWidth, aspectRatio: 1.8 }]}
+            imageStyle={styles.bannerImage}
+          >
+            <View style={styles.bannerOverlay}>
+              <View style={[styles.badge, { backgroundColor: 'rgba(0,0,0,0.35)' }]}>
+                <Text size="xs" weight="700" style={{ color: '#fff' }}>{b.badge}</Text>
               </View>
               <Heading size="xl" weight="800" style={styles.bannerTitle}>
-                Mantenha seu pet hidratado no verão! ☀️
+                {b.title}
               </Heading>
-              <Pressable style={styles.bannerButton}>
-                <Text size="sm" weight="700" style={{ color: colors.primary }}>Ler mais</Text>
+              {b.subtitle && (
+                <Text size="sm" style={{ color: '#fff', opacity: 0.9, marginTop: 2 }} numberOfLines={2}>
+                  {b.subtitle}
+                </Text>
+              )}
+              <Pressable style={[styles.bannerButton, { backgroundColor: 'rgba(255,255,255,0.9)' }]} onPress={() => setBannerUrl(b.url)}>
+                <Text size="sm" weight="700" style={{ color: '#000' }}>Ler mais</Text>
               </Pressable>
             </View>
-          </View>
-        </ImageBackground>
-
-        <View style={[styles.banner, { backgroundColor: '#7048E8', width: cardWidth, aspectRatio: 1.8 }]}>
-           <View style={styles.bannerContent}>
-              <View style={[styles.badge, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-                <Text size="xs" weight="700" style={{ color: '#fff' }}>PETLINK PLUS</Text>
-              </View>
-              <Heading size="xl" weight="800" style={styles.bannerTitle}>
-                Assine o plano para pets ilimitados! 🐾
-              </Heading>
-              <Pressable style={[styles.bannerButton, { backgroundColor: '#fff' }]}>
-                <Text size="sm" weight="700" style={{ color: '#7048E8' }}>Ver planos</Text>
-              </Pressable>
-            </View>
-            <View style={styles.bannerDecoration}>
-               <Ionicons name="sparkles" size={80} color="rgba(255,255,255,0.1)" />
-            </View>
-        </View>
+          </ImageBackground>
+        ))}
       </ScrollView>
 
       {/* Banner Dots */}
       <View style={styles.bannerDotsRow}>
-        {Array.from({ length: bannerCount }).map((_, i) => (
+        {banners.map((_, i) => (
           <Pressable
             key={i}
             onPress={() => {
@@ -510,7 +545,11 @@ export default function HomeScreen() {
       </View>
 
       {/* RESUMO DA SEMANA */}
-      {activePet && <WeeklySummaryCard petId={activePet.id} />}
+      {pets.length > 0 && (
+        <View style={{ marginTop: 28 }}>
+          <WeeklySummaryCard pets={pets} />
+        </View>
+      )}
 
       {/* LEMBRETES REAIS */}
       {activePet && (
@@ -533,6 +572,22 @@ export default function HomeScreen() {
       )}
 
       <View style={{ height: 100 }} />
+
+      <CreatePostModal visible={showCreatePost} onClose={() => setShowCreatePost(false)} />
+
+      {bannerUrl && (
+        <Modal visible transparent animationType="slide" statusBarTranslucent>
+          <View style={{ flex: 1, backgroundColor: colors.background }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: Platform.OS === 'ios' ? 56 : 36, paddingBottom: 12, backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+              <Text weight="700" size="sm" numberOfLines={1} style={{ flex: 1 }}>Artigo</Text>
+              <Pressable onPress={() => setBannerUrl(null)} hitSlop={8}>
+                <Ionicons name="close" size={24} color={colors.foreground} />
+              </Pressable>
+            </View>
+            <WebView source={{ uri: bannerUrl }} style={{ flex: 1 }} />
+          </View>
+        </Modal>
+      )}
     </ScrollView>
   )
 }
@@ -571,7 +626,7 @@ const styles = StyleSheet.create({
     padding: 20,
     borderRadius: 24,
     borderWidth: 1,
-    marginBottom: 24,
+    marginBottom: 0,
   },
   dashboardLeft: {
     marginRight: 16,
@@ -604,22 +659,20 @@ const styles = StyleSheet.create({
   },
   quickActionsRow: {
     flexDirection: 'row',
-    gap: 10,
+    justifyContent: 'space-between',
     width: '100%',
   },
   quickActionsRowNarrow: {
     flexWrap: 'wrap',
+    gap: 10,
   },
   quickActionBtn: {
-    flex: 1,
     alignItems: 'center',
     padding: 12,
     borderRadius: 16,
     borderWidth: 1,
   },
   quickActionBtnNarrow: {
-    flex: undefined,
-    width: '47%',
   },
   quickActionIcon: {
     width: 40,
@@ -662,7 +715,7 @@ const styles = StyleSheet.create({
   },
   bannerRow: {
     gap: 16,
-    paddingBottom: 24,
+    paddingBottom: 0,
   },
   banner: {
     borderRadius: 16,
@@ -675,9 +728,9 @@ const styles = StyleSheet.create({
   },
   bannerOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.15)',
     justifyContent: 'flex-end',
     padding: 24,
+    gap: 8,
   },
   bannerContent: {
     gap: 8,
@@ -700,16 +753,11 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginTop: 8,
   },
-  bannerDecoration: {
-    position: 'absolute',
-    bottom: -10,
-    right: -10,
-  },
   bannerDotsRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 6,
-    marginTop: 12,
+    marginTop: 8,
   },
   bannerDot: {
     height: 8,

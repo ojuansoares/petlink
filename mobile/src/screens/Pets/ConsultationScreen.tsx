@@ -49,7 +49,7 @@ export function ConsultationScreen() {
   const { colors, withAlpha } = useTheme();
   const user = useSelector(selectUser);
   const route = useRoute<ConsultationScreenRouteProp>();
-  const { petId, petName } = route.params;
+  const { petId, petName, autoOpenModal } = route.params;
   const { width: screenWidth } = useWindowDimensions();
   const gridGap = 12
   const cardSize = (screenWidth - 32 - gridGap) / 2
@@ -58,7 +58,7 @@ export function ConsultationScreen() {
   const [loading, setLoading] = useState(true);
   const [mediaMap, setMediaMap] = useState<Record<string, ConsultationMedia>>({});
 
-  const [isModalVisible, setModalVisible] = useState(false);
+  const [isModalVisible, setModalVisible] = useState(!!autoOpenModal);
   const [isEditMode, setIsEditMode] = useState(false);
   const [currentConsultation, setCurrentConsultation] = useState<Consultation | null>(null);
   const [isOptionsVisible, setOptionsVisible] = useState(false);
@@ -289,6 +289,19 @@ export function ConsultationScreen() {
           <View style={[styles.detailColorBanner, { backgroundColor: media.value }]} />
         ) : null}
 
+      {hasPhoto && (
+        <Button
+          onPress={() => {
+            setPostFromConsultation({ photoUrl: media!.value, petId: c.pet_id })
+            setShowPostModal(true)
+          }}
+          label="Postar consulta"
+          variant="outline"
+          leftIcon={<Ionicons name="share-outline" size={16} color={colors.primary} />}
+          style={{ marginTop: 2, borderRadius: 10 }}
+        />
+      )}
+
         <View style={styles.modalContent}>
           <View style={[styles.detailCard, { backgroundColor: withAlpha(colors.muted, 0.4), borderLeftColor: colors.info }]}>
             <Text size="xs" color="mutedForeground" weight="800">TIPO DE REGISTRO</Text>
@@ -355,19 +368,6 @@ export function ConsultationScreen() {
           </View>
         </View>
       </ScrollView>
-
-      {hasPhoto && (
-        <Button
-          onPress={() => {
-            setPostFromConsultation({ photoUrl: media!.value, petId: c.pet_id })
-            setShowPostModal(true)
-          }}
-          label="Postar consulta"
-          variant="outline"
-          leftIcon={<Ionicons name="share-outline" size={18} color={colors.primary} />}
-          style={{ marginTop: 12 }}
-        />
-      )}
       </View>
     )
   }

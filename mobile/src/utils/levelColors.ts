@@ -15,16 +15,16 @@ export function getLevelColor(level: number): string {
 }
 
 const BADGE_XP_COLORS = [
-  { maxXp: 50, color: '#10b981' },
-  { maxXp: 100, color: '#3b82f6' },
-  { maxXp: 150, color: '#8b5cf6' },
-  { maxXp: 200, color: '#f59e0b' },
-  { maxXp: 400, color: '#ef4444' },
+  { maxXp: 50, color: '#C87533' }, // Bronze
+  { maxXp: 100, color: '#B3B9C1' }, // Prata (Silver)
+  { maxXp: 150, color: '#E6B325' }, // Ouro (Gold)
+  { maxXp: 200, color: '#8FA9C4' }, // Platina
+  { maxXp: 300, color: '#59C2C9' }, // Diamante
 ]
 
 export function getBadgeColor(xpReward: number): string {
   for (const entry of BADGE_XP_COLORS) {
     if (xpReward <= entry.maxXp) return entry.color
   }
-  return '#ec4899'
+  return '#E6455D' // Rubi (Ruby)
 }
