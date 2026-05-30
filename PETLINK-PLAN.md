@@ -325,7 +325,7 @@ server/src/
 | # | Tarefa | Status |
 |---|--------|--------|
 | 44 | Compartilhar perfil/pet (deep link) | ✅ |
-| 45 | Badges e conquistas | ❌ |
+| 45 | Badges e conquistas | ✅ |
 
 ---
 
@@ -588,14 +588,50 @@ O header do perfil (foto, nome, stats) permanece igual. Abaixo dele, um `Segment
 
 ---
 
-### Fase 6 — Plus
+### Fase 6 — Passeio (Walk Tracking) & Histórico de Notificações
 
-| # | Tarefa |
-|---|--------|
-| 53 | Geofence — alerta de área segura |
-| 54 | Agenda compartilhada |
-| 55 | Modo veterinário |
-| 56 | Marketplace (futuro) |
+**Status:** ⏳ (pendente)
+
+#### 6.1 — Passeio
+
+**Backend já tem:** CRUD básico (`GET /walks?petId=`, `POST /walks`) no módulo `walks/`. Frontend tem slice (`walksSlices.ts`).
+
+| # | Tarefa | Detalhes |
+|---|--------|----------|
+| W1 | Tela `WalkScreen` com mapa em tempo real | `expo-map-view` + localização em background (`expo-location`). Botão "Iniciar passeio" → começa a gravar a rota (GPS points a cada N segundos). Botão "Finalizar" → para gravação. |
+| W2 | Rota no mapa (polyline overlay) | Durante o passeio, desenhar a linha percorrida no mapa. Ao finalizar, mostrar o traçado completo com zoom ajustado. |
+| W3 | Dashboard final do passeio | Ao encerrar: duração, distância total (em km), velocidade média, calorias estimadas, mapa com rota estática. Salvar no Supabase (`walks`) com `route: { lat, lng }[]`, `distance_km`, `duration_min`, `avg_speed`, `calories`. |
+| W4 | Calendário de passeios | Igual ao feeding — mini calendário com marcação nos dias que tiveram passeio. Tap no dia → lista dos passeios daquele dia. |
+| W5 | Postar passeio (vínculo com feed) | Botão "Compartilhar" no dashboard final → abre criação de post com overlay do mapa da rota sobre a foto (ou como imagem separada). Usar `staticMapUrl` da OpenStreetMap/Mapbox pra gerar a imagem da rota. |
+| W6 | Histórico completo | Lista de passeios (FlatList) igual vacinas, com data, distância, duração. Tap → abre detalhes com mapa estático. |
+| W7 | Notificações de lembrete | Lembrete agendado: "Hora de passear com o {petName}!" (local push, igual vacinas). |
+
+#### 6.2 — Histórico de Notificações (Sininho)
+
+| # | Tarefa | Detalhes |
+|---|--------|----------|
+| N1 | Tabela `notifications` no Supabase | Já existe — `id, user_id, title, body, data (jsonb), type, read, created_at`. |
+| N2 | Ícone do sininho no header | Substituir ou adicionar ícone de sino no topo do app (HomeScreen/header global). Badge com contagem de não lidas. |
+| N3 | Tela `NotificationHistoryScreen` | FlatList com todas notificações do usuário, ordenadas por `created_at DESC`. Cada uma com: ícone do tipo (vacina, alimentação, like, comentário, seguir, nível, conquista, grupo, passeio), título, corpo, timestamp relativo ("há 2h"). |
+| N4 | Tipos de notificação suportados | **Social:** "Fulano curtiu seu post", "Cicrano comentou: ...", "Beltrano começou a seguir você". **Gamificação:** "Você subiu para o nível X!", "Conquista desbloqueada: X". **Saúde:** lembretes de vacina, alimentação ("Hora de alimentar o {pet}"). **Grupo:** "Você foi convidado para o grupo X", "{nome} aceitou seu convite". **Passeio:** lembrete de passeio. |
+| N5 | Ações inline nas notificações | Botões direto na notificação da lista: vacina → "Marcar aplicada"; alimentação → "Já alimentei"; seguir → "Seguir de volta". Chamam o mesmo handler que as ações da push notification. |
+| N6 | Marcar como lida | Tap na notificação → marca `read = true` no Supabase + atualiza badge. Se tiver ação vinculada (ex: abrir tela do post, perfil do usuário, tela da vacina), navega pra tela correta. |
+| N7 | Limpar notificações | Botão "Limpar todas" no header da tela. Swipe to delete em cada item (marcar `read = true` ou deletar). |
+| N8 | Badge count no sininho | `GET /notifications/unread-count` no backend. Atualizar via polling ou push event. Mostrar badge vermelho no ícone. |
+| N9 | Notificações do servidor já salvam na tabela | O `push.service.ts` já insere na tabela `notifications` ao disparar push. Só precisa conectar o frontend para likes, comentários, seguir. Gamificação e conquistas precisam ser integradas (disparar notificação ao subir de nível / desbloquear conquista). |
+
+---
+
+| # | Tarefa | Detalhes |
+|---|--------|----------|
+| O1 | Refatorar `OnboardingScreen` | Ilustrações/imagens reais (não só texto), animações de transição (fade, slide), indicador de página. |
+| O2 | Splash screen personalizada | Logo PetLink + animação inicial no splash. Configurar `expo-splash-screen` com cores do tema (`#5D7052`). |
+| O3 | Splash animada (`expo-splash-screen` + Lottie) | Animação Lottie do logo na splash, substituindo tela branca padrão. |
+| O4 | Deep Links / Universal Links | assetlinks.json, AASA, intentFilters, redirecionamento de `petlink.app/*` para o app. |
+| O5 | Login Social (Google + Facebook) | SDKs nativos, botões na LoginScreen, thunks Redux. |
+| O6 | Tratamento de erros global | Tela de erro genérica com botão "Tentar novamente", timeout handling, fallback UI. |
+| O7 | Empty states em todas as listas | Listas sem dados mostram ilustração + CTA (ex: "Nenhum passeio ainda", "Cadastre seu primeiro pet"). |
+| O8 | Suporte a deep link de notificação | Tap na notificação abre a tela correta (ex: notificação de vacina → VaccineScreen). |
 
 ---
 
@@ -1208,6 +1244,26 @@ ANDROID_ADB_SERVER_PORT=5040 npx expo run:android
 6. Buildar APK → links `https://petlink.vercel.app/profile/abc` abrem direto no app
 
 **Status:** ⏳ (futuro)
+
+---
+
+### Login com Google e Facebook — Final
+
+**Status:** ⏳ (deixar por último)
+
+**Contexto:** Backend já tem os endpoints `POST /auth/google` e `POST /auth/facebook` completos (usam `supabase.auth.signInWithIdToken`). Frontend tem as funções `loginWithGoogleIdToken()` e `loginWithFacebookToken()` na API. Falta a integração nativa no app.
+
+| # | Tarefa | Status | Detalhes |
+|---|--------|--------|----------|
+| 1 | Instalar `@react-native-google-signin/google-signin` | ❌ | SDK nativo do Google |
+| 2 | Instalar `react-native-fbsdk-next` | ❌ | SDK nativo do Facebook |
+| 3 | Adicionar variáveis de ambiente no `mobile/.env` | ❌ | `EXPO_PUBLIC_GOOGLE_CLIENT_ID` (Web Client ID do Google Cloud Console), `EXPO_PUBLIC_FACEBOOK_APP_ID` |
+| 4 | Criar `loginWithGoogleThunk` no `authSlice.ts` | ❌ | Chama SDK → obtém `idToken` → posta em `/auth/google` → salva tokens |
+| 5 | Criar `loginWithFacebookThunk` no `authSlice.ts` | ❌ | Chama SDK → obtém `accessToken`/`idToken` → posta em `/auth/facebook` → salva tokens |
+| 6 | Adicionar botões "Entrar com Google" e "Entrar com Facebook" no `LoginScreen` | ❌ | Abaixo do formulário de email, antes do biometria |
+| 7 | Configurar Supabase Auth → Providers: Google + Facebook | ❌ | No Dashboard do Supabase, habilitar providers e colocar Client ID / Secret |
+| 8 | Configurar deep link `/auth/callback` no Supabase e no `app.json` | ❌ | Necessário para o fluxo OAuth de redirect |
+| 9 | Testar login social em produção (APK release) | ❌ | Simular só funciona em build standalone |
 
 ---
 
