@@ -11,6 +11,7 @@ const XP = {
   post: 50,
   vaccine: 30,
   feedingDay: 10,
+  consultation: 20,
   groupJoined: 30,
   groupCreated: 50,
   petCreated: 40,
@@ -39,6 +40,7 @@ function getThresholdValue(criteriaType: string, counts: Record<string, number>)
     case 'groups_joined': return counts.groupsJoined
     case 'groups_created': return counts.groupsCreated
     case 'checkin_count': return counts.checkinCount
+    case 'consultation_count': return counts.consultationCount
     case 'total_xp': return counts.totalXp
     default: return 0
   }
@@ -60,6 +62,7 @@ export const gamificationService = {
       postCount,
       vaccineCount,
       feedingDays,
+      consultationCount,
       groupsJoined,
       groupsCreated,
       checkinCount,
@@ -68,6 +71,7 @@ export const gamificationService = {
       Post.countDocuments({ authorId: userId }),
       gamificationRepository.countCompletedVaccines(petIds),
       gamificationRepository.countFeedingDays(petIds),
+      gamificationRepository.countConsultations(userId),
       gamificationRepository.countGroupsJoined(userId),
       gamificationRepository.countGroupsCreated(userId),
       gamificationRepository.countCheckins(userId),
@@ -81,6 +85,7 @@ export const gamificationService = {
       postCount * XP.post +
       vaccineCount * XP.vaccine +
       feedingDays * XP.feedingDay +
+      consultationCount * XP.consultation +
       groupsJoined * XP.groupJoined +
       groupsCreated * XP.groupCreated +
       petCount * XP.petCreated
@@ -89,6 +94,7 @@ export const gamificationService = {
       postCount,
       vaccineCount,
       feedingDays,
+      consultationCount,
       groupsJoined,
       groupsCreated,
       checkinCount,

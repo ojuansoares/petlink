@@ -677,7 +677,7 @@ const s = StyleSheet.create({
   date: { marginTop: 4 },
   emptyState: { padding: 40, alignItems: 'center' },
   memberCard: {
-    borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden',
+    borderRadius: 16, borderWidth: StyleSheet.hairlineWidth,
     marginTop: 8,
   },
   memberSectionHeader: {

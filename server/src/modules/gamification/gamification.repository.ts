@@ -111,6 +111,16 @@ export const gamificationRepository = {
     return data?.length ?? 0
   },
 
+  async countConsultations(userId: string): Promise<number> {
+    const { count, error } = await supabaseAdmin
+      .from('consultations')
+      .select('*', { count: 'exact', head: true })
+      .eq('owner_id', userId)
+
+    if (error) throw error
+    return count ?? 0
+  },
+
   async countCheckins(userId: string): Promise<number> {
     return Checkin.countDocuments({ userId })
   },

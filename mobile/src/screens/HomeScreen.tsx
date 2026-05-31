@@ -149,7 +149,11 @@ export default function HomeScreen() {
 
         let urgent = false
         try {
-          urgent = parseISO(doseDate) <= new Date()
+          const [y, mo, d] = doseDate.split('-').map(Number)
+          const doseStart = new Date(y, mo - 1, d)
+          const now = new Date()
+          const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+          urgent = doseStart < todayStart
         } catch {}
 
         return { petId: pet.id, label, urgent, count: vaccines.length }
@@ -251,9 +255,13 @@ export default function HomeScreen() {
 
   function renderReminder(item: ReminderItem, index: number) {
     const isVaccine = item.type === 'vaccine'
-    const accentColor = isVaccine ? '#22C55E' : '#3B82F6'
-    const iconName = isVaccine ? 'medical' : 'calendar'
-    const bgColor = mode === 'light' ? (isVaccine ? '#F0FDF4' : '#EFF6FF') : (isVaccine ? '#142b1b' : '#13233a')
+    const overdueColor = '#EF4444'
+    const normalColor = isVaccine ? '#22C55E' : '#3B82F6'
+    const accentColor = item.overdue ? overdueColor : normalColor
+    const iconName = item.overdue ? 'warning' : (isVaccine ? 'medical' : 'calendar')
+    const bgLight = item.overdue ? '#FEF2F2' : (isVaccine ? '#F0FDF4' : '#EFF6FF')
+    const bgDark = item.overdue ? '#1f1315' : (isVaccine ? '#142b1b' : '#13233a')
+    const bgColor = mode === 'light' ? bgLight : bgDark
 
     const formattedDate = (() => {
       try {
