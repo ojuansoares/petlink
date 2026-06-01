@@ -11,6 +11,7 @@ import {
 } from 'react-native'
 import { useTheme } from '../../hooks/useTheme'
 import { Text } from './Typography'
+import { Button } from './Button'
 
 interface SelectOption {
   label: string
@@ -18,33 +19,87 @@ interface SelectOption {
   photoUrl?: string | null
 }
 
-interface OptionSelectProps {
+interface BaseOptionSelectProps {
   label?: string
   placeholder: string
-  value: string
   options: SelectOption[]
-  onChange: (value: string) => void
   leftIconName?: keyof typeof Ionicons.glyphMap
   showPhotos?: boolean
   onLocationPress?: () => void
   isLoadingLocation?: boolean
 }
 
-export function OptionSelect({
-  label,
-  placeholder,
-  value,
-  options,
-  onChange,
-  leftIconName = 'location-outline',
-  showPhotos = false,
-  onLocationPress,
-  isLoadingLocation = false,
-}: Readonly<OptionSelectProps>) {
+type SingleSelectProps = BaseOptionSelectProps & {
+  multiple?: false
+  value: string
+  onChange: (value: string) => void
+}
+
+type MultiSelectProps = BaseOptionSelectProps & {
+  multiple: true
+  value: string[]
+  onChange: (values: string[]) => void
+}
+
+type OptionSelectProps = SingleSelectProps | MultiSelectProps
+
+function getSelectedLabels(value: string | string[], options: SelectOption[]): string {
+  if (Array.isArray(value)) {
+    if (value.length === 0) return ''
+    return value.map(v => options.find(o => o.value === v)?.label ?? v).join(', ')
+  }
+  return options.find((option) => option.value === value)?.label ?? ''
+}
+
+export function OptionSelect(props: Readonly<OptionSelectProps>) {
   const { colors, withAlpha } = useTheme()
   const [open, setOpen] = React.useState(false)
+  const [tempMulti, setTempMulti] = React.useState<string[]>([])
 
-  const selectedOption = options.find((option) => option.value === value)
+  const {
+    label,
+    placeholder,
+    options,
+    leftIconName = 'location-outline',
+    showPhotos = false,
+    onLocationPress,
+    isLoadingLocation = false,
+  } = props
+
+  const isMulti = props.multiple === true
+  const value = props.value
+  const onChange = props.onChange
+
+  const displayText = getSelectedLabels(value, options) || placeholder
+
+  const selectedOption = !isMulti
+    ? options.find((option) => option.value === value)
+    : undefined
+
+  const openSheet = () => {
+    if (isMulti) {
+      setTempMulti([...value])
+    }
+    setOpen(true)
+  }
+
+  const selectItem = (itemValue: string) => {
+    if (isMulti) {
+      setTempMulti(prev =>
+        prev.includes(itemValue)
+          ? prev.filter(v => v !== itemValue)
+          : [...prev, itemValue]
+      )
+    } else {
+      ;(onChange as (v: string) => void)(itemValue)
+      setOpen(false)
+    }
+  }
+
+  const confirmMulti = () => {
+    ;(onChange as (v: string[]) => void)(tempMulti)
+    setOpen(false)
+  }
 
   return (
     <View style={styles.wrapper}>
@@ -62,15 +117,22 @@ export function OptionSelect({
             backgroundColor: withAlpha(colors.card, 0.8),
           },
         ]}
-        onPress={() => setOpen(true)}
+        onPress={openSheet}
       >
-        {showPhotos && selectedOption?.photoUrl ? (
+        {showPhotos && !isMulti && selectedOption?.photoUrl ? (
           <Image source={{ uri: selectedOption.photoUrl }} style={styles.fieldPhoto} />
         ) : (
           <Ionicons name={leftIconName} size={18} color={colors.mutedForeground} />
         )}
-        <Text size="base" style={[styles.fieldText, { color: selectedOption ? colors.foreground : colors.mutedForeground }]}>
-          {selectedOption?.label ?? placeholder}
+        <Text
+          size="base"
+          style={[
+            styles.fieldText,
+            { color: displayText !== placeholder || Array.isArray(value) && value.length > 0 ? colors.foreground : colors.mutedForeground },
+          ]}
+          numberOfLines={1}
+        >
+          {displayText}
         </Text>
 
         {onLocationPress && (
@@ -106,7 +168,9 @@ export function OptionSelect({
               keyExtractor={(item) => item.value}
               keyboardShouldPersistTaps="handled"
               renderItem={({ item }) => {
-                const selected = item.value === value
+                const selected = isMulti
+                  ? tempMulti.includes(item.value)
+                  : item.value === value
 
                 return (
                   <Pressable
@@ -117,23 +181,41 @@ export function OptionSelect({
                         backgroundColor: selected ? withAlpha(colors.primary, 0.12) : 'transparent',
                       },
                     ]}
-                    onPress={() => {
-                      onChange(item.value)
-                      setOpen(false)
-                    }}
+                    onPress={() => selectItem(item.value)}
                   >
-                    {showPhotos && item.photoUrl ? (
-                      <View style={styles.optionRow}>
+                    <View style={styles.optionRow}>
+                      {isMulti && (
+                        <View
+                          style={[
+                            styles.checkbox,
+                            {
+                              borderColor: selected ? colors.primary : colors.border,
+                              backgroundColor: selected ? colors.primary : 'transparent',
+                            },
+                          ]}
+                        >
+                          {selected && (
+                            <Ionicons name="checkmark" size={14} color="white" />
+                          )}
+                        </View>
+                      )}
+                      {showPhotos && item.photoUrl ? (
                         <Image source={{ uri: item.photoUrl }} style={styles.optionPhoto} />
-                        <Text size="sm" weight={selected ? '700' : '400'}>{item.label}</Text>
-                      </View>
-                    ) : (
+                      ) : null}
                       <Text size="sm" weight={selected ? '700' : '400'}>{item.label}</Text>
-                    )}
+                    </View>
                   </Pressable>
                 )
               }}
             />
+
+            {isMulti && (
+              <Button
+                label="Confirmar"
+                onPress={confirmMulti}
+                style={{ marginTop: 8 }}
+              />
+            )}
           </View>
         </View>
       </Modal>
@@ -203,5 +285,13 @@ const styles = StyleSheet.create({
   },
   locationButton: {
     padding: 4,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 4,
+    borderWidth: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 })

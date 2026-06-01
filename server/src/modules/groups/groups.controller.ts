@@ -203,6 +203,18 @@ export const groupsController = {
     }
   },
 
+  async update(req: Request, res: Response) {
+    try {
+      const authReq = req as AuthRequest
+      if (!authReq.user) return res.status(401).json({ error: 'Não autenticado' })
+      const { id } = req.params as { id: string }
+      const group = await groupsService.update(id, authReq.user.id, req.body)
+      return res.json(group)
+    } catch (err: any) {
+      return res.status(err.statusCode ?? 500).json({ error: err.message ?? 'Erro' })
+    }
+  },
+
   async deleteGroup(req: Request, res: Response) {
     try {
       const authReq = req as AuthRequest

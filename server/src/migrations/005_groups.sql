@@ -22,6 +22,7 @@ ALTER TABLE public.groups ADD COLUMN IF NOT EXISTS species text;
 ALTER TABLE public.groups ADD COLUMN IF NOT EXISTS is_public boolean NOT NULL DEFAULT true;
 ALTER TABLE public.groups ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
 ALTER TABLE public.groups ADD COLUMN IF NOT EXISTS member_count integer NOT NULL DEFAULT 1;
+ALTER TABLE public.groups ADD COLUMN IF NOT EXISTS location text;
 
 ALTER TABLE public.groups ENABLE ROW LEVEL SECURITY;
 

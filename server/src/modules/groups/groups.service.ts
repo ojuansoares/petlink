@@ -1,5 +1,5 @@
 import { AppError } from '../../shared/AppError'
-import { groupsRepository, type CreateGroupInput } from './groups.repository'
+import { groupsRepository, type CreateGroupInput, type UpdateGroupInput } from './groups.repository'
 import { postsRepository } from '../posts/posts.repository'
 
 export const groupsService = {
@@ -57,7 +57,8 @@ export const groupsService = {
     }
 
     const members = await groupsRepository.getMembers(groupId)
-    return { ...group, members, my_role: membership?.role ?? null }
+    const pendingInvite = await groupsRepository.findPendingInvite(groupId, userId)
+    return { ...group, members, my_role: membership?.role ?? null, pendingInviteId: pendingInvite?.id ?? null }
   },
 
   async getPosts(groupId: string, userId: string, page: number, limit: number) {
@@ -169,6 +170,22 @@ export const groupsService = {
   async searchUsersForGroup(query: string, groupId: string) {
     if (!query?.trim()) return []
     return groupsRepository.searchUsersForGroup(query.trim(), groupId)
+  },
+
+  async update(groupId: string, userId: string, input: UpdateGroupInput) {
+    const membership = await groupsRepository.findMembership(groupId, userId)
+    if (!membership || (membership.role !== 'owner' && membership.role !== 'admin')) {
+      throw new AppError('Apenas administradores podem editar o grupo', 403)
+    }
+
+    const group = await groupsRepository.findById(groupId)
+    if (!group) throw new AppError('Grupo não encontrado', 404)
+
+    if (input.name !== undefined && !input.name.trim()) {
+      throw new AppError('Nome do grupo é obrigatório', 400)
+    }
+
+    return groupsRepository.update(groupId, input)
   },
 
   async deleteGroup(groupId: string, userId: string) {

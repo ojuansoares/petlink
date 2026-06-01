@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { Modal, Pressable, ScrollView, StyleSheet, View, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native'
+import React, { useCallback, useEffect, useState } from 'react'
+import { Modal, Pressable, ScrollView, StyleSheet, View, ActivityIndicator, KeyboardAvoidingView, Platform, TextInput } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import * as ImagePicker from 'expo-image-picker'
@@ -10,9 +10,41 @@ import { createGroupThunk } from '../../store/slices/groupsSlice'
 import { showToast } from '../../store/slices/uiSlice'
 import { Button } from './Button'
 import { Input } from './Input'
+import { OptionSelect } from './OptionSelect'
 import { Heading, Text } from './Typography'
 import { AppLoadingOverlay } from './AppLoadingOverlay'
 import { uploadImageWithRetry } from '../../api/uploadWithRetry'
+import { useLocation } from '../../hooks/useLocation'
+
+const BRAZIL_STATES = [
+  { label: 'Acre', value: 'AC' },
+  { label: 'Alagoas', value: 'AL' },
+  { label: 'Amapá', value: 'AP' },
+  { label: 'Amazonas', value: 'AM' },
+  { label: 'Bahia', value: 'BA' },
+  { label: 'Ceará', value: 'CE' },
+  { label: 'Distrito Federal', value: 'DF' },
+  { label: 'Espírito Santo', value: 'ES' },
+  { label: 'Goiás', value: 'GO' },
+  { label: 'Maranhão', value: 'MA' },
+  { label: 'Mato Grosso', value: 'MT' },
+  { label: 'Mato Grosso do Sul', value: 'MS' },
+  { label: 'Minas Gerais', value: 'MG' },
+  { label: 'Pará', value: 'PA' },
+  { label: 'Paraíba', value: 'PB' },
+  { label: 'Paraná', value: 'PR' },
+  { label: 'Pernambuco', value: 'PE' },
+  { label: 'Piauí', value: 'PI' },
+  { label: 'Rio de Janeiro', value: 'RJ' },
+  { label: 'Rio Grande do Norte', value: 'RN' },
+  { label: 'Rio Grande do Sul', value: 'RS' },
+  { label: 'Rondônia', value: 'RO' },
+  { label: 'Roraima', value: 'RR' },
+  { label: 'Santa Catarina', value: 'SC' },
+  { label: 'São Paulo', value: 'SP' },
+  { label: 'Sergipe', value: 'SE' },
+  { label: 'Tocantins', value: 'TO' },
+]
 
 interface CreateGroupModalProps {
   visible: boolean
@@ -24,12 +56,40 @@ export function CreateGroupModal({ visible, onClose }: CreateGroupModalProps) {
   const dispatch = useAppDispatch()
   const insets = useSafeAreaInsets()
   const isCreating = useAppSelector((s: any) => s.groups.isJoining['__create__'] ?? false)
+  const { getCurrentLocation, isLoadingLocation } = useLocation()
 
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [species, setSpecies] = useState('')
   const [photoUrl, setPhotoUrl] = useState('')
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false)
+  const [location, setLocation] = useState('')
+  const [suggestedLocation, setSuggestedLocation] = useState('')
+  const [locationMode, setLocationMode] = useState<'suggestion' | 'selecting' | 'editing'>('suggestion')
+
+  const handleGetLocation = useCallback(async () => {
+    const loc = await getCurrentLocation()
+    if (loc) {
+      setSuggestedLocation(loc.cityAndState)
+      setLocation(loc.cityAndState)
+      setLocationMode('suggestion')
+    }
+  }, [getCurrentLocation])
+
+  const handleClearLocation = useCallback(() => {
+    setLocation('')
+    setLocationMode('selecting')
+  }, [])
+
+  const handleSelectLocation = useCallback((value: string) => {
+    setLocation(value)
+    setLocationMode('editing')
+  }, [])
+
+  useEffect(() => {
+    if (!visible) return
+    handleGetLocation()
+  }, [visible])
 
   const handlePickPhoto = async () => {
     try {
@@ -78,6 +138,7 @@ export function CreateGroupModal({ visible, onClose }: CreateGroupModalProps) {
         description: description.trim() || undefined,
         species: species.trim() || undefined,
         photo_url: photoUrl || undefined,
+        location: location.trim() || undefined,
       })).unwrap()
       dispatch(showToast({ type: 'success', title: 'Grupo criado', message: 'Grupo criado com sucesso!' }))
       handleClose()
@@ -89,6 +150,9 @@ export function CreateGroupModal({ visible, onClose }: CreateGroupModalProps) {
     setDescription('')
     setSpecies('')
     setPhotoUrl('')
+    setLocation('')
+    setSuggestedLocation('')
+    setLocationMode('suggestion')
     onClose()
   }
 
@@ -170,6 +234,46 @@ export function CreateGroupModal({ visible, onClose }: CreateGroupModalProps) {
               onChangeText={setSpecies}
               leftIcon={<Ionicons name="paw-outline" size={18} color={colors.mutedForeground} />}
             />
+
+            <View style={s.locationContainer}>
+              <Text size="sm" weight="600" color="mutedForeground" style={s.locationLabel}>Localização</Text>
+              {isLoadingLocation ? (
+                <View style={[s.locationRow, { borderColor: colors.border }]}>
+                  <Ionicons name="location-outline" size={18} color={colors.mutedForeground} />
+                  <ActivityIndicator size="small" color={colors.primary} style={s.locationLoader} />
+                </View>
+              ) : locationMode === 'suggestion' && suggestedLocation ? (
+                <View style={[s.locationRow, { borderColor: colors.border }]}>
+                  <Ionicons name="location-outline" size={18} color={colors.mutedForeground} />
+                  <Text size="base" style={[s.locationText, { color: colors.foreground, flex: 1 }]}>{suggestedLocation}</Text>
+                  <Pressable onPress={handleClearLocation} hitSlop={8}>
+                    <Ionicons name="close-circle" size={20} color={colors.mutedForeground} />
+                  </Pressable>
+                </View>
+              ) : locationMode === 'selecting' ? (
+                <OptionSelect
+                  placeholder="Selecione o estado"
+                  value={location}
+                  onChange={handleSelectLocation}
+                  options={BRAZIL_STATES}
+                  leftIconName="location-outline"
+                />
+              ) : (
+                <View style={[s.locationRow, { borderColor: colors.border }]}>
+                  <Ionicons name="location-outline" size={18} color={colors.mutedForeground} />
+                  <TextInput
+                    style={[s.locationInput, { color: colors.foreground }]}
+                    value={location}
+                    onChangeText={setLocation}
+                    placeholder="Ex: São Paulo, SP ou apenas SP"
+                    placeholderTextColor={colors.mutedForeground}
+                  />
+                  <Pressable onPress={() => setLocationMode('selecting')} hitSlop={8}>
+                    <Ionicons name="chevron-down" size={18} color={colors.mutedForeground} />
+                  </Pressable>
+                </View>
+              )}
+            </View>
           </ScrollView>
 
           <View style={[s.footer, { borderTopColor: withAlpha(colors.border, 0.4) }]}>
@@ -202,4 +306,10 @@ const s = StyleSheet.create({
   photoPreview: { width: '100%', height: '100%' },
   removePhotoButton: { position: 'absolute', top: 12, right: 12, width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
   footer: { padding: 20, paddingTop: 12, borderTopWidth: 1 },
+  locationContainer: { width: '100%' },
+  locationLabel: { marginLeft: 12, marginBottom: 6 },
+  locationRow: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, height: 48, gap: 8 },
+  locationText: { fontSize: 16 },
+  locationInput: { flex: 1, fontSize: 16, paddingVertical: 0 },
+  locationLoader: { marginLeft: 8 },
 })

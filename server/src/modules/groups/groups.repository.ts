@@ -40,6 +40,16 @@ export type CreateGroupInput = {
   photo_url?: string
   species?: string
   is_public?: boolean
+  location?: string
+}
+
+export type UpdateGroupInput = {
+  name?: string
+  description?: string
+  photo_url?: string
+  species?: string
+  is_public?: boolean
+  location?: string
 }
 
 export const groupsRepository = {
@@ -174,21 +184,14 @@ export const groupsRepository = {
   async search(q: string, userId: string, page: number = 1, limit: number = 10): Promise<{ groups: Group[]; hasMore: boolean }> {
     const from = (page - 1) * limit
     const to = from + limit - 1
-    const excludeIds = await this.getUserGroupIdsWithInvites(userId)
 
-    let query = supabaseAdmin
+    const { data, error, count } = await supabaseAdmin
       .from('groups')
       .select('*', { count: 'exact' })
       .eq('is_public', true)
       .ilike('name', `%${q}%`)
       .order('member_count', { ascending: false })
       .range(from, to)
-
-    if (excludeIds.length > 0) {
-      query = query.not('id', 'in', excludeIds)
-    }
-
-    const { data, error, count } = await query
 
     if (error) throw error
 
@@ -328,6 +331,18 @@ export const groupsRepository = {
       ...p,
       previousInviteStatus: rejectedInviteMap[p.id] ? 'rejected' : undefined,
     })) as { id: string; name: string; avatar_url: string | null; previousInviteStatus?: 'rejected' | 'pending' }[]
+  },
+
+  async update(groupId: string, input: UpdateGroupInput): Promise<Group> {
+    const { data, error } = await supabaseAdmin
+      .from('groups')
+      .update(input)
+      .eq('id', groupId)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data as Group
   },
 
   async delete(groupId: string): Promise<void> {

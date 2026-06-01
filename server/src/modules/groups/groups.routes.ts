@@ -14,6 +14,7 @@ router.post('/invites/:inviteId/accept', authMiddleware, groupsController.accept
 router.post('/invites/:inviteId/reject', authMiddleware, groupsController.rejectInvite)
 
 router.post('/', authMiddleware, groupsController.create)
+router.put('/:id', authMiddleware, groupsController.update)
 router.post('/:id/join', authMiddleware, groupsController.join)
 router.post('/:id/leave', authMiddleware, groupsController.leave)
 router.post('/:id/invite', authMiddleware, groupsController.inviteUser)

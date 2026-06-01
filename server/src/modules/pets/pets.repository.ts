@@ -242,6 +242,20 @@ export const petsRepository = {
 
     if (weightsDeleteError) throw weightsDeleteError
 
+    const { error: feedingLogsError } = await supabaseAdmin
+      .from('feeding_logs')
+      .delete()
+      .eq('pet_id', petId)
+
+    if (feedingLogsError) throw feedingLogsError
+
+    const { error: feedingPlansError } = await supabaseAdmin
+      .from('feeding_plans')
+      .delete()
+      .eq('pet_id', petId)
+
+    if (feedingPlansError) throw feedingPlansError
+
     const { error: petDeleteError } = await supabaseAdmin
       .from('pets')
       .delete()

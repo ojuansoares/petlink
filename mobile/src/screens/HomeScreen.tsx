@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ImageBackground,
   Modal,
@@ -62,7 +62,74 @@ export default function HomeScreen() {
   }, [pets.length, activePetId])
 
   const [nextVaccineMap, setNextVaccineMap] = useState<Record<string, { label: string; urgent: boolean; count: number }>>({})
+  const [vaccinesLoaded, setVaccinesLoaded] = useState<Set<string>>(new Set())
   const [vaccinesLoading, setVaccinesLoading] = useState(false)
+
+  const loadVaccineForPet = useCallback(async (petId: string) => {
+    if (vaccinesLoaded.has(petId)) return
+    setVaccinesLoading(true)
+    try {
+      let vaccines: Vaccine[] = []
+      try {
+        vaccines = await getVaccinesByPetId(petId)
+        homeCacheRepository.saveNextVaccine(petId, vaccines)
+      } catch {
+        const cached = await homeCacheRepository.getNextVaccine<Vaccine[]>(petId)
+        if (cached) vaccines = cached
+      }
+
+      const upcoming = vaccines
+        .filter(v => !v.is_completed)
+        .sort((a, b) => {
+          const aDate = a.next_dose_at || a.doses?.find(d => !d.applied)?.date || ''
+          const bDate = b.next_dose_at || b.doses?.find(d => !d.applied)?.date || ''
+          return aDate.localeCompare(bDate)
+        })
+
+      const nextV = upcoming[0] || null
+      let result: { label: string; urgent: boolean; count: number }
+      if (!nextV) {
+        result = { label: 'Nenhuma', urgent: false, count: vaccines.length }
+      } else {
+        const doseDate = nextV.next_dose_at || nextV.doses?.find(d => !d.applied)?.date
+        if (!doseDate) {
+          result = { label: nextV.name, urgent: false, count: vaccines.length }
+        } else {
+          let label = nextV.name
+          try {
+            label = `${nextV.name} — ${format(parseISO(doseDate), 'dd/MM')}`
+          } catch {}
+          let urgent = false
+          try {
+            const [y, mo, d] = doseDate.split('-').map(Number)
+            const doseStart = new Date(y, mo - 1, d)
+            const now = new Date()
+            const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+            urgent = doseStart < todayStart
+          } catch {}
+          result = { label, urgent, count: vaccines.length }
+        }
+      }
+
+      setNextVaccineMap(prev => ({ ...prev, [petId]: result }))
+      setVaccinesLoaded(prev => new Set(prev).add(petId))
+    } catch {
+      setNextVaccineMap(prev => ({ ...prev, [petId]: { label: 'Nenhuma', urgent: false, count: 0 } }))
+      setVaccinesLoaded(prev => new Set(prev).add(petId))
+    }
+    setVaccinesLoading(false)
+  }, [vaccinesLoaded])
+
+  // Carrega vacina do pet atual e pré-carrega o próximo
+  useEffect(() => {
+    if (!pets.length || !activePet?.id) return
+    loadVaccineForPet(activePet.id)
+    // pré-carrega o próximo pet
+    const nextIdx = petCarouselIndex + 1
+    if (nextIdx < pets.length) {
+      loadVaccineForPet(pets[nextIdx].id)
+    }
+  }, [activePet?.id, petCarouselIndex])
 
   const [reminders, setReminders] = useState<ReminderItem[]>([])
   const [remindersLoading, setRemindersLoading] = useState(false)
@@ -108,71 +175,6 @@ export default function HomeScreen() {
   useEffect(() => {
     bannerScrollRef.current?.scrollTo({ x: bannerIndex * (cardWidth + 16), animated: true })
   }, [bannerIndex, cardWidth])
-
-  useEffect(() => {
-    if (pets.length === 0) return
-    setVaccinesLoading(true)
-
-    const promises = pets.map(async (pet) => {
-      try {
-        let vaccines: Vaccine[] = []
-        try {
-          vaccines = await getVaccinesByPetId(pet.id)
-          homeCacheRepository.saveNextVaccine(pet.id, vaccines)
-        } catch {
-          const cached = await homeCacheRepository.getNextVaccine<Vaccine[]>(pet.id)
-          if (cached) vaccines = cached
-        }
-
-        const upcoming = vaccines
-          .filter(v => !v.is_completed)
-          .sort((a, b) => {
-            const aDate = a.next_dose_at || a.doses?.find(d => !d.applied)?.date || ''
-            const bDate = b.next_dose_at || b.doses?.find(d => !d.applied)?.date || ''
-            return aDate.localeCompare(bDate)
-          })
-
-        const nextV = upcoming[0] || null
-        if (!nextV) {
-          return { petId: pet.id, label: 'Nenhuma', urgent: false, count: vaccines.length }
-        }
-
-        const doseDate = nextV.next_dose_at || nextV.doses?.find(d => !d.applied)?.date
-        if (!doseDate) {
-          return { petId: pet.id, label: nextV.name, urgent: false, count: vaccines.length }
-        }
-
-        let label = nextV.name
-        try {
-          label = `${nextV.name} — ${format(parseISO(doseDate), 'dd/MM')}`
-        } catch {}
-
-        let urgent = false
-        try {
-          const [y, mo, d] = doseDate.split('-').map(Number)
-          const doseStart = new Date(y, mo - 1, d)
-          const now = new Date()
-          const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-          urgent = doseStart < todayStart
-        } catch {}
-
-        return { petId: pet.id, label, urgent, count: vaccines.length }
-      } catch {
-        return { petId: pet.id, label: 'Nenhuma', urgent: false, count: 0 }
-      }
-    })
-
-    Promise.all(promises).then((results) => {
-      const newMap: Record<string, { label: string; urgent: boolean; count: number }> = {}
-      for (const res of results) {
-        if (res) {
-          newMap[res.petId] = { label: res.label, urgent: res.urgent, count: res.count }
-        }
-      }
-      setNextVaccineMap(newMap)
-      setVaccinesLoading(false)
-    })
-  }, [pets])
 
   useEffect(() => {
     if (!activePet?.id) return
@@ -459,13 +461,13 @@ export default function HomeScreen() {
           </Pressable>
 
           <Pressable
-            onPress={() => navigation.navigate('Tabs', { screen: 'Pets', params: { openWeightModal: true } } as any)}
+            onPress={() => {}}
             style={[styles.quickActionBtn, { backgroundColor: colors.card, borderColor: withAlpha(colors.border, 0.6) }, screenWidth < 400 ? { width: (screenWidth - 32 - 10) / 2 } : { width: (screenWidth - 32 - 30) / 4 }]}
           >
-            <View style={[styles.quickActionIcon, { backgroundColor: withAlpha('#22C55E', 0.1) }]}>
-              <Ionicons name="scale-outline" size={22} color="#22C55E" />
+            <View style={[styles.quickActionIcon, { backgroundColor: withAlpha('#8B5CF6', 0.1) }]}>
+              <Ionicons name="walk-outline" size={22} color="#8B5CF6" />
             </View>
-            <Text size="xs" weight="700" style={{ marginTop: 4 }}>Registrar peso</Text>
+            <Text size="xs" weight="700" style={{ marginTop: 4 }}>Passeio</Text>
           </Pressable>
 
           <Pressable

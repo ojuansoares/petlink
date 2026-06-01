@@ -635,7 +635,7 @@ export function Calendar({ petId, petName, birthDate }: CalendarProps) {
             setPostConsultationData(null)
           }}
           initialPhotoUrl={postConsultationData.photoUrl}
-          initialPetId={postConsultationData.petId}
+          initialPetIds={[postConsultationData.petId]}
         />
       )}
     </View>

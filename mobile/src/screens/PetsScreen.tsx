@@ -7,6 +7,7 @@ import {
   View,
   useWindowDimensions,
   Modal,
+  KeyboardAvoidingView,
   StyleSheet,
 } from 'react-native'
 import { Image } from 'expo-image'
@@ -905,29 +906,36 @@ export default function PetsScreen() {
       </AppModal>
 
       {/* Weight Modal */}
-        <AppModal
-          visible={isWeightModalOpen}
-          onClose={() => { resetForm(); setIsWeightModalOpen(false) }}
-          title="Atualizar Peso"
-      >
-        <View style={{ padding: 20, gap: 16 }}>
-          {(() => {
-            const maxKg = MAX_WEIGHT_BY_SPECIES[species] ?? 1000
-            const maxLen = String(Math.floor(maxKg)).length + 3
-            return (
-              <Input
-                placeholder={maxKg < 1 ? `Máx ${(maxKg * 1000).toFixed(0)}g` : `Máx ${maxKg}kg`}
-                value={weightKg}
-                onChangeText={setWeightKg}
-                keyboardType="decimal-pad"
-                maxLength={maxLen}
-                leftIcon={<Ionicons name="barbell-outline" size={18} color={colors.mutedForeground} />}
-              />
-            )
-          })()}
-          <Button label="Salvar Peso" variant="primary" onPress={handleUpdatePet} loading={isUpdating} />
-        </View>
-      </AppModal>
+      <Modal visible={isWeightModalOpen} animationType="slide" transparent statusBarTranslucent onRequestClose={() => { resetForm(); setIsWeightModalOpen(false) }}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={stylesWeight.backdrop}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => { resetForm(); setIsWeightModalOpen(false) }} />
+          <Pressable onPress={(e) => e.stopPropagation()} style={[stylesWeight.sheet, { backgroundColor: colors.background }]}>
+            <View style={stylesWeight.sheetHandle}>
+              <View style={[stylesWeight.handleBar, { backgroundColor: withAlpha(colors.border, 0.6) }]} />
+            </View>
+            <Text weight="800" size="lg" style={{ textAlign: 'center', marginBottom: 16 }}>Atualizar Peso</Text>
+            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+              <View style={{ padding: 4, gap: 16 }}>
+                {(() => {
+                  const maxKg = MAX_WEIGHT_BY_SPECIES[species] ?? 1000
+                  const maxLen = String(Math.floor(maxKg)).length + 3
+                  return (
+                    <Input
+                      placeholder={maxKg < 1 ? `Máx ${(maxKg * 1000).toFixed(0)}g` : `Máx ${maxKg}kg`}
+                      value={weightKg}
+                      onChangeText={setWeightKg}
+                      keyboardType="decimal-pad"
+                      maxLength={maxLen}
+                      leftIcon={<Ionicons name="barbell-outline" size={18} color={colors.mutedForeground} />}
+                    />
+                  )
+                })()}
+                <Button label="Salvar Peso" variant="primary" onPress={handleUpdatePet} loading={isUpdating} />
+              </View>
+            </ScrollView>
+          </Pressable>
+        </KeyboardAvoidingView>
+      </Modal>
 
       {showBirthDatePicker && DateTimePickerComponent && (
         <DateTimePickerComponent
@@ -971,3 +979,20 @@ export default function PetsScreen() {
     </View>
   )
 }
+
+const stylesWeight = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingBottom: 40,
+    maxHeight: '80%',
+  },
+  sheetHandle: { alignItems: 'center', paddingBottom: 12 },
+  handleBar: { width: 36, height: 4, borderRadius: 2 },
+})

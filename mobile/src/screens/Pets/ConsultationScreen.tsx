@@ -521,7 +521,7 @@ export function ConsultationScreen() {
             setPostFromConsultation(null)
           }}
           initialPhotoUrl={postFromConsultation.photoUrl}
-          initialPetId={postFromConsultation.petId}
+          initialPetIds={[postFromConsultation.petId]}
         />
       )}
     </View>

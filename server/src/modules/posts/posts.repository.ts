@@ -4,7 +4,7 @@ import { supabaseAdmin } from '../../config/supabase'
 import { mapId } from '../../shared/mapId'
 
 export type PostCreateInput = {
-  pet_id?: string
+  pet_ids?: string[]
   image_url?: string
   caption?: string | null
   location?: string | null
@@ -17,7 +17,8 @@ type PetInfo = { name: string }
 export type EnrichedPost = {
   id: string
   author_id: string
-  pet_id: string
+  pet_id: string | null
+  pet_ids: string[]
   image_url: string
   caption: string | null
   location: string | null
@@ -26,8 +27,9 @@ export type EnrichedPost = {
   comments_count: number
   created_at: string
   updated_at: string
+  group_id?: string
   profiles: ProfileInfo | null
-  pets: PetInfo | null
+  pets: PetInfo[]
   liked_by_user: boolean
 }
 
@@ -40,12 +42,17 @@ async function enrichWithProfilesAndPets(
   if (docs.length === 0) return []
 
   const authorIds = [...new Set(docs.map((d) => d[authorField]))]
-  const petIds = [...new Set(docs.map((d) => d[petField]).filter(Boolean))]
+
+  const allPetIds = [...new Set(docs.flatMap((d) => {
+    const ids = d.petIds || (d.petId ? [d.petId] : [])
+    return ids.filter(Boolean)
+  }))]
+
   const postIds = docs.map((d) => d._id)
 
   const [profilesRes, petsRes] = await Promise.all([
     supabaseAdmin.from('profiles').select('id, name, avatar_url, level').in('id', authorIds),
-    supabaseAdmin.from('pets').select('id, name').in('id', petIds),
+    supabaseAdmin.from('pets').select('id, name').in('id', allPetIds),
   ])
 
   const profileMap = new Map<string, ProfileInfo>()
@@ -68,10 +75,13 @@ async function enrichWithProfilesAndPets(
 
   return docs.map((doc) => {
     const m = mapId(doc)
+    const petIds = m.petIds || (m.petId ? [m.petId] : [])
+    const pets = petIds.map((id: string) => petMap.get(id)).filter(Boolean) as PetInfo[]
     return {
       id: m.id,
       author_id: m.authorId,
-      pet_id: m.petId,
+      pet_id: m.petId ?? null,
+      pet_ids: petIds,
       image_url: m.imageUrl,
       caption: m.caption,
       location: m.location,
@@ -80,8 +90,9 @@ async function enrichWithProfilesAndPets(
       comments_count: m.commentsCount ?? 0,
       created_at: m.createdAt instanceof Date ? m.createdAt.toISOString() : m.createdAt,
       updated_at: m.updatedAt instanceof Date ? m.updatedAt.toISOString() : m.updatedAt,
+      group_id: m.groupId ?? undefined,
       profiles: profileMap.get(m.authorId) ?? null,
-      pets: petMap.get(m.petId) ?? null,
+      pets,
       liked_by_user: likedSet.has(m.id),
     }
   })
@@ -89,16 +100,17 @@ async function enrichWithProfilesAndPets(
 
 export const postsRepository = {
   async create(authorId: string, input: PostCreateInput) {
-    const post = await Post.create({
+    const petIds = input.pet_ids?.filter(Boolean) ?? []
+    const doc = await Post.create({
       authorId,
-      petId: input.pet_id ?? undefined,
+      petIds: petIds.length > 0 ? petIds : undefined,
       imageUrl: input.image_url ?? undefined,
       caption: input.caption ?? null,
       location: input.location ?? null,
       groupId: input.group_id ?? undefined,
     })
 
-    const enriched = await enrichWithProfilesAndPets([post])
+    const enriched = await enrichWithProfilesAndPets([doc.toObject()])
     return enriched[0]
   },
 
@@ -179,7 +191,7 @@ export const postsRepository = {
     const doc = await Post.findOneAndUpdate(
       { _id: postId, authorId },
       { $set: mongoPatch },
-      { new: true }
+      { returnDocument: 'after' }
     ).lean()
 
     if (!doc) return null
@@ -214,7 +226,7 @@ export const postsRepository = {
     const updated = await Post.findOneAndUpdate(
       { _id: postId, groupId },
       { $set: { isPinned: newPinStatus } },
-      { new: true }
+      { returnDocument: 'after' }
     ).lean()
 
     if (!updated) return null

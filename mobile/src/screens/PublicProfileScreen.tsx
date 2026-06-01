@@ -196,8 +196,10 @@ export default function PublicProfileScreen() {
         )}
         {gamification && gamification.unlockedAchievements.length > 0 && (
           <Pressable onPress={() => setShowGamificationModal(true)} style={{ flexDirection: 'row', alignItems: 'center' }}>
-            {gamification.unlockedAchievements.slice(0, 3).map((ach, i) => {
+            {gamification.unlockedAchievements.slice(-4).reverse().map((ach, i) => {
               const badgeColor = getBadgeColor(ach.xp_reward)
+              const total = gamification.unlockedAchievements.length
+              const isLast = i === 3 || (total >= 4 && i === 3)
               return (
                 <View
                   key={ach.id}
@@ -209,35 +211,19 @@ export default function PublicProfileScreen() {
                     alignItems: 'center',
                     justifyContent: 'center',
                     marginLeft: i > 0 ? -12 : 0,
-                    zIndex: gamification.unlockedAchievements.length - i,
+                    zIndex: 4 - i,
                     shadowColor: badgeColor,
                     shadowOffset: { width: 0, height: 0 },
                     shadowOpacity: 0.8,
                     shadowRadius: 6,
                     elevation: 6,
-                    opacity: 1,
+                    opacity: total >= 4 && isLast ? 0.35 : 1,
                   }}
                 >
                   <Ionicons name={(ach.icon || 'trophy-outline') as any} size={12} color="#fff" />
                 </View>
               )
             })}
-            {gamification.unlockedAchievements.length > 3 && (
-              <View
-                style={{
-                  width: 24,
-                  height: 24,
-                  borderRadius: 12,
-                  marginLeft: -12,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  opacity: 0.35,
-                  zIndex: 0,
-                }}
-              >
-                <Ionicons name="trophy-outline" size={14} color={colors.mutedForeground} />
-              </View>
-            )}
           </Pressable>
         )}
       </View>
@@ -532,6 +518,12 @@ export default function PublicProfileScreen() {
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 32 }}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowGamificationModal(false)} />
           <View style={{ width: '100%', maxWidth: 320, backgroundColor: colors.card, borderRadius: 20, borderWidth: 1, borderColor: colors.border, padding: 28, alignItems: 'center' }}>
+            <Pressable
+              onPress={() => setShowGamificationModal(false)}
+              style={{ position: 'absolute', top: 12, right: 12, zIndex: 10, width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: withAlpha(colors.muted, 0.4) }}
+            >
+              <Ionicons name="close" size={18} color={colors.mutedForeground} />
+            </Pressable>
             <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: gamification ? getLevelColor(gamification.level) : colors.muted, alignItems: 'center', justifyContent: 'center' }}>
               <Ionicons name="trophy" size={32} color="#fff" />
             </View>
@@ -572,12 +564,6 @@ export default function PublicProfileScreen() {
                   </>
                 )}
 
-                <Pressable
-                  onPress={() => setShowGamificationModal(false)}
-                  style={{ marginTop: 20, paddingVertical: 10, paddingHorizontal: 32, borderRadius: 12, backgroundColor: colors.primary }}
-                >
-                  <Text weight="800" size="sm" style={{ color: colors.primaryForeground }}>Fechar</Text>
-                </Pressable>
               </>
             )}
           </View>

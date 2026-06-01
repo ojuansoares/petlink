@@ -16,12 +16,14 @@ import { AppToast } from '../components/ui/AppToast'
 import { formatCount } from '../utils/formatNumber'
 import { useAppSelector } from '../store'
 import { selectMyPosts, selectUserPosts, Post } from '../store/slices/postsSlice'
+import { selectPetsList, selectPublicPets } from '../store/slices/petsSlice'
 import { AppStackParamList } from '../navigation/types'
 
 type NavigationProp = StackNavigationProp<AppStackParamList>
 type ProfileFeedRouteProp = RouteProp<AppStackParamList, 'ProfileFeed'>
 
 import { getRelativeTime } from '../utils/dateUtils'
+import { getPetNames, getPetNamesFromIds } from '../utils/petUtils'
 
 export default function ProfileFeedScreen() {
   const { colors } = useTheme()
@@ -36,6 +38,16 @@ export default function ProfileFeedScreen() {
   const myPosts = useAppSelector((state) => selectMyPosts(state))
   const publicPosts = useAppSelector((state) => selectUserPosts(state))
   const posts = isOwnProfile ? myPosts : publicPosts
+
+  const ownPets = useAppSelector(selectPetsList)
+  const publicPets = useAppSelector(selectPublicPets)
+  const petsList = isOwnProfile ? ownPets : publicPets
+
+  const resolvePetNames = useCallback((post: Post): string => {
+    const fromPets = getPetNames(post.pets)
+    if (fromPets) return fromPets
+    return getPetNamesFromIds(post.pet_ids, petsList)
+  }, [petsList])
 
   const [optionsModalOpen, setOptionsModalOpen] = useState(false)
   const [selectedPost, setSelectedPost] = useState<Post | null>(null)
@@ -61,6 +73,7 @@ export default function ProfileFeedScreen() {
   }, [])
 
   const renderItem = useCallback(({ item: post }: { item: Post }) => {
+    const petName = resolvePetNames(post)
     return (
       <View style={[styles.postContainer, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <View style={styles.postHeader}>
@@ -73,9 +86,12 @@ export default function ProfileFeedScreen() {
             />
             <View style={styles.authorMeta}>
               <Text weight="700" size="sm">{post.profiles?.name}</Text>
-              <Text color="mutedForeground" size="xs">
-                {post.pets?.name} {post.location ? `• ${post.location}` : ''}
-              </Text>
+              {post.location ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                  <Ionicons name="location-sharp" size={10} color={colors.primary} />
+                  <Text size="xs" color="mutedForeground">{post.location}</Text>
+                </View>
+              ) : null}
             </View>
           </View>
           <Pressable onPress={() => handleOpenOptions(post)} style={styles.optionsButton}>
@@ -106,11 +122,14 @@ export default function ProfileFeedScreen() {
               </Text>
             </Pressable>
           </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
+            {petName ? (
+              <Text weight="800" size="sm" color="primary" numberOfLines={1}>{petName}</Text>
+            ) : null}
+            <Text size="sm" color="mutedForeground">• {post.profiles?.name}</Text>
+          </View>
           {post.caption ? (
-            <Text style={styles.caption}>
-              <Text weight="700" size="sm">{post.profiles?.name} </Text>
-              <Text size="sm">{post.caption}</Text>
-            </Text>
+            <Text size="sm" style={styles.caption}>{post.caption}</Text>
           ) : null}
           <Text color="mutedForeground" size="xs" style={styles.timestamp}>
             {getRelativeTime(post.created_at)}
@@ -118,7 +137,7 @@ export default function ProfileFeedScreen() {
         </View>
       </View>
     )
-  }, [colors, width, handleOpenOptions, handleCommentPress])
+  }, [colors, width, handleOpenOptions, handleCommentPress, resolvePetNames])
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>

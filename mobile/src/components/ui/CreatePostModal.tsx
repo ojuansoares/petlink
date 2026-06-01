@@ -24,7 +24,8 @@ interface CreatePostModalProps {
   visible: boolean
   onClose: () => void
   initialPhotoUrl?: string
-  initialPetId?: string
+  initialPetIds?: string[]
+  groupId?: string
 }
 
 const BRAZIL_STATES = [
@@ -57,7 +58,7 @@ const BRAZIL_STATES = [
   { label: 'Tocantins', value: 'TO' },
 ]
 
-export function CreatePostModal({ visible, onClose, initialPhotoUrl, initialPetId }: Readonly<CreatePostModalProps>) {
+export function CreatePostModal({ visible, onClose, initialPhotoUrl, initialPetIds, groupId }: Readonly<CreatePostModalProps>) {
   const { colors, withAlpha } = useTheme()
   const dispatch = useAppDispatch()
   const { isOnline } = useNetworkCheck()
@@ -68,7 +69,7 @@ export function CreatePostModal({ visible, onClose, initialPhotoUrl, initialPetI
   const isPosting = useAppSelector((state: any) => state.posts.isPosting)
   const isLoadingPetsForPost = useAppSelector(selectLoadingPetsForPost)
 
-  const [petId, setPetId] = useState('')
+  const [petIds, setPetIds] = useState<string[]>([])
   const [photoUrl, setPhotoUrl] = useState('')
   const [caption, setCaption] = useState('')
   const [location, setLocation] = useState('')
@@ -110,10 +111,16 @@ export function CreatePostModal({ visible, onClose, initialPhotoUrl, initialPetI
   }, [visible, initialPhotoUrl])
 
   useEffect(() => {
-    if (visible && initialPetId) {
-      setPetId(initialPetId)
+    if (visible && initialPetIds && initialPetIds.length > 0) {
+      setPetIds(initialPetIds)
     }
-  }, [visible, initialPetId])
+  }, [visible, initialPetIds])
+
+  useEffect(() => {
+    if (visible && groupId) {
+      setPetIds([])
+    }
+  }, [visible, groupId])
 
   useEffect(() => {
     if (visible && !location && !suggestedLocation) {
@@ -180,8 +187,8 @@ export function CreatePostModal({ visible, onClose, initialPhotoUrl, initialPetI
 
   const handleCreatePost = async () => {
     requireOnline(async () => {
-      if (!petId) {
-        dispatch(showToast({ type: 'error', title: 'Post', message: 'Selecione um pet' }))
+      if (!groupId && petIds.length === 0) {
+        dispatch(showToast({ type: 'error', title: 'Post', message: 'Selecione pelo menos um pet' }))
         return
       }
       if (!photoUrl) {
@@ -190,7 +197,13 @@ export function CreatePostModal({ visible, onClose, initialPhotoUrl, initialPetI
       }
 
       try {
-        await dispatch(createPostThunk({ pet_id: petId, image_url: photoUrl, caption, location })).unwrap()
+        await dispatch(createPostThunk({
+          pet_ids: petIds,
+          image_url: photoUrl,
+          caption,
+          location,
+          group_id: groupId,
+        })).unwrap()
         dispatch(showToast({ type: 'success', title: 'Post criado', message: 'Post publicado com sucesso!' }))
         handleClose()
       } catch {
@@ -200,7 +213,7 @@ export function CreatePostModal({ visible, onClose, initialPhotoUrl, initialPetI
   }
 
   const handleClose = () => {
-    setPetId('')
+    setPetIds([])
     setPhotoUrl('')
     setCaption('')
     setLocation('')
@@ -265,13 +278,14 @@ export function CreatePostModal({ visible, onClose, initialPhotoUrl, initialPetI
                 bounces={false}
               >
                 <OptionSelect
-                  label="Qual pet está na foto?"
-                  placeholder="Selecionar pet..."
-                  value={petId}
-                  onChange={setPetId}
+                  label="Qual(is) pet(s) está(ão) na foto?"
+                  placeholder="Selecionar pet(s)..."
+                  value={petIds}
+                  onChange={setPetIds}
                   options={petOptions}
                   leftIconName="paw-outline"
                   showPhotos
+                  multiple
                 />
 
                 <View style={styles.photoSection}>
@@ -366,7 +380,7 @@ export function CreatePostModal({ visible, onClose, initialPhotoUrl, initialPetI
                 <Button
                   label={isPosting ? 'Publicando...' : 'Publicar'}
                   onPress={handleCreatePost}
-                  disabled={isPosting || !petId || !photoUrl}
+                  disabled={isPosting || (!groupId && petIds.length === 0) || !photoUrl}
                   loading={isPosting}
                 />
               </View>

@@ -3,6 +3,7 @@ import mongoose, { Schema, Document } from 'mongoose'
 export interface IPost extends Document {
   authorId: string
   petId?: string
+  petIds?: string[]
   imageUrl?: string
   caption: string | null
   location: string | null
@@ -18,6 +19,7 @@ const postSchema = new Schema<IPost>(
   {
     authorId: { type: String, required: true },
     petId:    { type: String },
+    petIds:   { type: [String], default: undefined },
     imageUrl: { type: String },
     caption:  { type: String, default: null },
     location: { type: String, default: null },

@@ -162,7 +162,7 @@ export const gamificationService = {
       totalXp: full.totalXp,
       xpInLevel: full.xpInLevel,
       xpToNext: full.xpToNext,
-      unlockedAchievements: full.unlockedAchievements.slice(0, 3),
+      unlockedAchievements: full.unlockedAchievements,
     }
   },
 }

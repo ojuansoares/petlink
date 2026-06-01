@@ -48,7 +48,7 @@ export const commentsRepository = {
     const comment = await Comment.findOneAndUpdate(
       { _id: commentId, authorId },
       { $set: { content: content.trim() } },
-      { new: true }
+      { returnDocument: 'after' }
     ).lean()
     if (!comment) return null
     return mapId(comment)
@@ -62,6 +62,12 @@ export const commentsRepository = {
     if (!comment) return null
 
     const newPin = !comment.isPinned
+
+    if (newPin) {
+      // Unpin any previously pinned comment on this post
+      await Comment.updateMany({ postId, isPinned: true }, { $set: { isPinned: false } })
+    }
+
     await Comment.findByIdAndUpdate(commentId, { $set: { isPinned: newPin } })
     return { ...comment, isPinned: newPin }
   },

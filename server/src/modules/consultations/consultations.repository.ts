@@ -19,7 +19,7 @@ export const consultationMediaRepository = {
     const doc = await ConsultationMedia.findOneAndUpdate(
       { consultationId: input.consultationId },
       { type: input.type, value: input.value },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     ).lean()
     return doc
   },

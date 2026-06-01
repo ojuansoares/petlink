@@ -6,6 +6,7 @@ import {
   TextInput,
   ActivityIndicator,
   StyleSheet,
+  Modal,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useNavigation } from '@react-navigation/native'
@@ -13,9 +14,13 @@ import { useTheme } from '../hooks/useTheme'
 import { useNetworkCheck } from '../hooks/useNetworkCheck'
 import { Text } from '../components/ui/Typography'
 import { Avatar } from '../components/ui/Avatar'
+import { Button } from '../components/ui/Button'
 import { AppToast } from '../components/ui/AppToast'
 import { api } from '../api/axios'
-import { groupsApi, type Group } from '../api/groups.api'
+import { groupsApi, type Group, type GroupDetails, type GroupInvite } from '../api/groups.api'
+import { useAppDispatch, useAppSelector } from '../store'
+import { selectUser } from '../store/slices/authSlice'
+import { showToast } from '../store/slices/uiSlice'
 
 interface SearchUser {
   id: string
@@ -46,19 +51,23 @@ const SEARCH_OPTIONS: { id: Tab; label: string; icon: keyof typeof Ionicons.glyp
 export default function SearchScreen() {
   const { colors, withAlpha } = useTheme()
   const navigation = useNavigation<any>()
+  const dispatch = useAppDispatch()
   const { isOnline } = useNetworkCheck()
   const inputRef = useRef<TextInput>(null)
+  const currentUser = useAppSelector(selectUser)
 
   const [query, setQuery] = useState('')
   const [activeTab, setActiveTab] = useState<Tab>('pessoas')
   const [peopleResults, setPeopleResults] = useState<SearchUser[]>([])
   const [petResults, setPetResults] = useState<SearchPet[]>([])
   const [groupResults, setGroupResults] = useState<Group[]>([])
+  const [pendingInvites, setPendingInvites] = useState<GroupInvite[]>([])
   const [loading, setLoading] = useState(false)
   const [searched, setSearched] = useState(false)
   const [showDropdown, setShowDropdown] = useState(false)
-
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [selectedGroup, setSelectedGroup] = useState<GroupDetails | null>(null)
+  const [showDetailModal, setShowDetailModal] = useState(false)
+  const [loadingDetail, setLoadingDetail] = useState(false)
 
   const doSearch = useCallback(async (text: string, tab: Tab) => {
     if (!isOnline || text.length < 2) return
@@ -86,28 +95,75 @@ export default function SearchScreen() {
 
   const handleSearch = useCallback((text: string) => {
     setQuery(text)
-    if (timerRef.current) clearTimeout(timerRef.current)
-
     if (text.length < 2) {
       setPeopleResults([])
       setPetResults([])
       setGroupResults([])
       setSearched(false)
-      return
     }
+  }, [])
 
-    timerRef.current = setTimeout(() => doSearch(text, activeTab), 300)
-  }, [activeTab, doSearch])
+  const handleSearchSubmit = useCallback(() => {
+    if (query.length >= 2) {
+      doSearch(query, activeTab)
+      if (activeTab === 'grupos') {
+        groupsApi.listPendingInvites().then(setPendingInvites).catch(() => {})
+      }
+    }
+  }, [query, activeTab, doSearch])
 
   const handleTabChange = useCallback((tab: Tab) => {
     setActiveTab(tab)
     setShowDropdown(false)
     setSearched(false)
-    if (query.length >= 2) {
-      if (timerRef.current) clearTimeout(timerRef.current)
-      timerRef.current = setTimeout(() => doSearch(query, tab), 300)
+  }, [])
+
+  const handleGroupCardPress = useCallback(async (group: Group) => {
+    setLoadingDetail(true)
+    setShowDetailModal(true)
+    try {
+      const details = await groupsApi.getDetails(group.id)
+      setSelectedGroup(details)
+    } catch {
+      setSelectedGroup({
+        ...group,
+        my_role: group.role ?? null,
+        members: [],
+        pendingInviteId: null,
+      })
+    } finally {
+      setLoadingDetail(false)
     }
-  }, [query, doSearch])
+  }, [])
+
+  const handleAcceptInvite = useCallback((inviteId: string) => {
+    groupsApi.acceptInvite(inviteId).then(() => {
+      dispatch(showToast({ type: 'success', title: 'Convite aceito', message: 'Você entrou no grupo!' }))
+      setShowDetailModal(false)
+      setSelectedGroup(null)
+    }).catch(() => {
+      dispatch(showToast({ type: 'error', title: 'Erro', message: 'Não foi possível aceitar o convite' }))
+    })
+  }, [dispatch])
+
+  const handleRejectInvite = useCallback((inviteId: string) => {
+    groupsApi.rejectInvite(inviteId).then(() => {
+      dispatch(showToast({ type: 'success', title: 'Convite recusado', message: 'Convite recusado com sucesso' }))
+      setShowDetailModal(false)
+      setSelectedGroup(null)
+    }).catch(() => {
+      dispatch(showToast({ type: 'error', title: 'Erro', message: 'Não foi possível recusar o convite' }))
+    })
+  }, [dispatch])
+
+  const handleJoinAndEnter = useCallback(async (groupId: string, groupName: string) => {
+    try {
+      await groupsApi.join(groupId)
+      setShowDetailModal(false)
+      setSelectedGroup(null)
+      navigation.navigate('GroupDetail', { groupId, groupName })
+    } catch {}
+  }, [navigation])
 
   const clearSearch = () => {
     setQuery('')
@@ -121,7 +177,13 @@ export default function SearchScreen() {
   const renderPeopleItem = ({ item }: { item: SearchUser }) => (
     <Pressable
       style={[styles.resultItem, { borderBottomColor: withAlpha(colors.border, 0.5) }]}
-      onPress={() => navigation.navigate('PublicProfile', { userId: item.id })}
+      onPress={() => {
+        if (currentUser?.id === item.id) {
+          navigation.navigate('Tabs', { screen: 'Profile' })
+        } else {
+          navigation.navigate('PublicProfile', { userId: item.id })
+        }
+      }}
     >
       <Avatar name={item.name} source={item.avatar_url ? { uri: item.avatar_url } : undefined} size={48} />
       <View style={styles.resultInfo}>
@@ -141,7 +203,13 @@ export default function SearchScreen() {
   const renderPetItem = ({ item }: { item: SearchPet }) => (
     <Pressable
       style={[styles.resultItem, { borderBottomColor: withAlpha(colors.border, 0.5) }]}
-      onPress={() => navigation.navigate('PublicProfile', { userId: item.owner_id })}
+      onPress={() => {
+        if (currentUser?.id === item.owner_id) {
+          navigation.navigate('Tabs', { screen: 'Profile' })
+        } else {
+          navigation.navigate('PublicProfile', { userId: item.owner_id })
+        }
+      }}
     >
       <Avatar name={item.name} source={item.photo_url ? { uri: item.photo_url } : undefined} size={48} />
       <View style={styles.resultInfo}>
@@ -157,7 +225,7 @@ export default function SearchScreen() {
   const renderGroupItem = ({ item }: { item: Group }) => (
     <Pressable
       style={[styles.resultItem, { borderBottomColor: withAlpha(colors.border, 0.5) }]}
-      onPress={() => navigation.navigate('GroupDetail', { groupId: item.id, groupName: item.name })}
+      onPress={() => handleGroupCardPress(item)}
     >
       <Avatar name={item.name} source={item.photo_url ? { uri: item.photo_url } : undefined} size={48} />
       <View style={styles.resultInfo}>
@@ -188,9 +256,19 @@ export default function SearchScreen() {
           placeholderTextColor={colors.mutedForeground}
           value={query}
           onChangeText={handleSearch}
+          onSubmitEditing={handleSearchSubmit}
           autoFocus
           returnKeyType="search"
         />
+        {query.length >= 2 && (
+          <Pressable
+            onPress={handleSearchSubmit}
+            style={[styles.searchButton, { backgroundColor: colors.primary }]}
+          >
+            <Ionicons name="search" size={16} color="white" />
+            <Text size="xs" weight="700" style={{ color: 'white' }}>Pesquisar</Text>
+          </Pressable>
+        )}
         {query.length > 0 && (
           <Pressable onPress={clearSearch}>
             <Ionicons name="close-circle" size={18} color={colors.mutedForeground} />
@@ -238,8 +316,9 @@ export default function SearchScreen() {
       )}
 
       {loading && (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
+        <View style={[styles.loadingBar, { backgroundColor: withAlpha(colors.primary, 0.1) }]}>
+          <ActivityIndicator size="small" color={colors.primary} />
+          <Text size="sm" color="mutedForeground">Pesquisando...</Text>
         </View>
       )}
 
@@ -252,7 +331,7 @@ export default function SearchScreen() {
         </View>
       )}
 
-      {!loading && results.length > 0 && (
+      {results.length > 0 && (
         <FlatList
           data={results as any}
           renderItem={
@@ -274,6 +353,85 @@ export default function SearchScreen() {
           </Text>
         </View>
       )}
+
+      {/* Group Detail Modal */}
+      <Modal visible={showDetailModal} animationType="slide" transparent statusBarTranslucent onRequestClose={() => setShowDetailModal(false)}>
+        <Pressable style={styles.backdrop} onPress={() => setShowDetailModal(false)}>
+          <Pressable
+            onPress={(e) => e.stopPropagation()}
+            style={[styles.detailSheet, { backgroundColor: colors.background }]}
+          >
+            <View style={styles.sheetHandle}>
+              <View style={[styles.handleBar, { backgroundColor: withAlpha(colors.border, 0.6) }]} />
+            </View>
+
+            {loadingDetail ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={colors.primary} />
+              </View>
+            ) : selectedGroup ? (
+              <View style={styles.detailContent}>
+                <Avatar
+                  name={selectedGroup.name}
+                  source={selectedGroup.photo_url ? { uri: selectedGroup.photo_url } : undefined}
+                  size={120}
+                />
+                <Text weight="800" size="xl" style={{ marginTop: 16, textAlign: 'center' }}>
+                  {selectedGroup.name}
+                </Text>
+                {selectedGroup.description && (
+                  <Text color="mutedForeground" size="sm" style={{ textAlign: 'center', marginTop: 6 }}>
+                    {selectedGroup.description}
+                  </Text>
+                )}
+                {selectedGroup.species && (
+                  <Text color="mutedForeground" size="xs" style={{ marginTop: 6 }}>
+                    Espécie: {selectedGroup.species}
+                  </Text>
+                )}
+                <Text color="mutedForeground" size="sm" style={{ marginTop: 12 }}>
+                  {selectedGroup.member_count} {selectedGroup.member_count === 1 ? 'membro' : 'membros'}
+                </Text>
+
+                <View style={{ marginTop: 32, width: '100%', gap: 12 }}>
+                  {selectedGroup.my_role ? (
+                    <Button
+                      label="Ir para o grupo"
+                      onPress={() => {
+                        setShowDetailModal(false)
+                        setSelectedGroup(null)
+                        navigation.navigate('GroupDetail', { groupId: selectedGroup.id, groupName: selectedGroup.name })
+                      }}
+                    />
+                  ) : selectedGroup.pendingInviteId ? (
+                    <>
+                      <Button
+                        label="Aceitar convite"
+                        onPress={() => handleAcceptInvite(selectedGroup.pendingInviteId!)}
+                      />
+                      <Button
+                        label="Recusar"
+                        variant="outline"
+                        onPress={() => handleRejectInvite(selectedGroup.pendingInviteId!)}
+                      />
+                    </>
+                  ) : (
+                    <Button
+                      label="Entrar no grupo"
+                      onPress={() => handleJoinAndEnter(selectedGroup.id, selectedGroup.name)}
+                    />
+                  )}
+                  <Button
+                    label="Voltar"
+                    variant="outline"
+                    onPress={() => setShowDetailModal(false)}
+                  />
+                </View>
+              </View>
+            ) : null}
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       <AppToast />
     </View>
@@ -299,6 +457,23 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     height: '100%',
+  },
+  searchButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  loadingBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    marginHorizontal: 16,
+    borderRadius: 10,
   },
   dropdownBackdrop: {
     position: 'absolute',
@@ -356,5 +531,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 40,
+  },
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  detailSheet: {
+    width: '100%',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingBottom: 50,
+    maxHeight: '90%',
+  },
+  sheetHandle: { alignItems: 'center', paddingTop: 12 },
+  handleBar: { width: 40, height: 5, borderRadius: 2.5 },
+  loadingContainer: { padding: 50, alignItems: 'center' },
+  detailContent: {
+    padding: 32,
+    alignItems: 'center',
   },
 })

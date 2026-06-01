@@ -41,6 +41,7 @@ import {
   getExpoPushToken,
   registerPushTokenOnServer,
   restoreScheduledNotifications,
+  scheduleAllFromApi,
   setupNotificationCategories,
   addNotificationResponseReceivedListener,
   handleVaccineNotificationAction,
@@ -376,6 +377,7 @@ function AppContent() {
       }
 
       await restoreScheduledNotifications()
+      await scheduleAllFromApi()
     }
 
     initPushNotifications()

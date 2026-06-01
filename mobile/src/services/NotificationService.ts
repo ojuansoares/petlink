@@ -469,6 +469,52 @@ export async function cancelBirthdayNotifications(petId: string) {
   delete stored[petId]
   await AsyncStorage.setItem(BIRTHDAY_NOTIF_IDS_KEY, JSON.stringify(stored))
 }
+
+export async function scheduleAllFromApi() {
+  const notifEnabled = await AsyncStorage.getItem('petlink.notifications.enabled')
+  if (notifEnabled === 'false') return
+
+  try {
+    const { data } = await api.get('/pets')
+    const pets: { id: string; name: string; birth_date: string | null }[] = data?.pets ?? []
+
+    for (const pet of pets) {
+      try {
+        const { data: plan } = await api.get(`/pets/${pet.id}/feeding/plan`)
+        const meals = (Array.isArray(plan) ? plan : []).map((m: { meal_name: string; meal_time: string }) => ({
+          meal_name: m.meal_name,
+          meal_time: m.meal_time,
+        }))
+        if (meals.length > 0) {
+          await scheduleFeedingNotifications(pet.id, pet.name, meals)
+        }
+      } catch { /* sem plano alimentar */ }
+
+      try {
+        const vaccines = await getVaccinesByPetId(pet.id)
+        if (vaccines.length > 0) {
+          await scheduleVaccineNotifications(
+            pet.name,
+            vaccines.map(v => ({
+              id: v.id,
+              name: v.name,
+              type: v.type,
+              doses: (v.doses && v.doses.length > 0) ? v.doses : [{ date: v.applied_at, applied: v.is_completed }],
+            })),
+            pet.id,
+          )
+        }
+      } catch { /* sem vacinas */ }
+
+      if (pet.birth_date) {
+        await scheduleBirthdayNotifications(pet.id, pet.name, pet.birth_date)
+      }
+    }
+  } catch (err) {
+    console.error('[Notif] Erro ao sincronizar notificações da API:', err)
+  }
+}
+
 import { getVaccineById, getVaccinesByPetId, updateVaccine } from '../api/vaccine.api'
 
 export async function handleVaccineNotificationAction(

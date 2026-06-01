@@ -2,7 +2,14 @@ import { profileRepository } from './profile.repository'
 import { AppError } from '../../shared/AppError'
 import { uploadsService } from '../uploads/uploads.service'
 import { petsRepository } from '../pets/pets.repository'
+import { groupsRepository } from '../groups/groups.repository'
 import { supabaseAdmin } from '../../config/supabase'
+import { Post } from '../../models/Post'
+import { Like } from '../../models/Like'
+import { Comment } from '../../models/Comment'
+import { CommentLike } from '../../models/CommentLike'
+import { Checkin } from '../../models/Checkin'
+import { Review } from '../../models/Review'
 
 async function attachEmail<T extends Record<string, any>>(userId: string, profile: T): Promise<T & { email: string | null }> {
   const { data, error } = await supabaseAdmin.auth.admin.getUserById(userId)
@@ -74,25 +81,86 @@ export const profileService = {
     const profile = await profileRepository.findById(userId)
     const pets = await petsRepository.listByOwner(userId)
 
+    // ─── Pets ─────────────────────────────────────────────
     for (const pet of pets) {
       const deleted = await petsRepository.deleteCascadeByIdAndOwner(userId, pet.id)
       if (!deleted) continue
 
       if (pet.photo_url) {
-        try {
-          await uploadsService.deleteImageByUrl(pet.photo_url)
-        } catch {
+        try { await uploadsService.deleteImageByUrl(pet.photo_url) } catch {}
+      }
+    }
+
+    // ─── Posts (MongoDB) ──────────────────────────────────
+    const userPosts = await Post.find({ authorId: userId }).select('_id imageUrl')
+    const postIds = userPosts.map(p => p._id)
+
+    if (postIds.length > 0) {
+      await Like.deleteMany({ postId: { $in: postIds } })
+      const userPostComments = await Comment.find({ postId: { $in: postIds } }).select('_id')
+      const commentIds = userPostComments.map(c => c._id)
+      if (commentIds.length > 0) {
+        await CommentLike.deleteMany({ commentId: { $in: commentIds } })
+      }
+      await Comment.deleteMany({ postId: { $in: postIds } })
+
+      for (const post of userPosts) {
+        if (post.imageUrl) {
+          try { await uploadsService.deleteImageByUrl(post.imageUrl) } catch {}
         }
       }
+      await Post.deleteMany({ _id: { $in: postIds } })
     }
 
-    if (profile?.avatar_url) {
-      try {
-        await uploadsService.deleteImageByUrl(profile.avatar_url)
-      } catch {
+    // ─── Likes / Comments do usuário em posts de outros ───
+    await Like.deleteMany({ userId })
+    const userCommentsOnOthers = await Comment.find({ authorId: userId }).select('_id')
+    const userCommentIds = userCommentsOnOthers.map(c => c._id)
+    if (userCommentIds.length > 0) {
+      await CommentLike.deleteMany({ commentId: { $in: userCommentIds } })
+    }
+    await Comment.deleteMany({ authorId: userId })
+    await CommentLike.deleteMany({ userId })
+
+    // ─── Checkins / Reviews (MongoDB) ─────────────────────
+    const userCheckins = await Checkin.find({ userId }).select('photoUrl')
+    for (const c of userCheckins) {
+      if (c.photoUrl) {
+        try { await uploadsService.deleteImageByUrl(c.photoUrl) } catch {}
       }
     }
+    await Checkin.deleteMany({ userId })
+    await Review.deleteMany({ authorId: userId })
 
+    // ─── Grupos (Supabase) ────────────────────────────────
+    const ownedGroups = await supabaseAdmin
+      .from('group_members')
+      .select('group_id')
+      .eq('user_id', userId)
+      .eq('role', 'owner')
+
+    const ownedGroupIds = (ownedGroups.data ?? []).map((g: any) => g.group_id)
+
+    for (const groupId of ownedGroupIds) {
+      await groupsRepository.delete(groupId)
+    }
+
+    await supabaseAdmin.from('group_members').delete().eq('user_id', userId)
+    await supabaseAdmin.from('group_invites').delete().or(`invited_user_id.eq.${userId},invited_by.eq.${userId}`)
+
+    // ─── Redes sociais (Supabase) ─────────────────────────
+    await supabaseAdmin.from('follows').delete().or(`follower_id.eq.${userId},following_id.eq.${userId}`)
+    await supabaseAdmin.from('notifications').delete().eq('user_id', userId)
+    await supabaseAdmin.from('push_tokens').delete().eq('user_id', userId)
+    await supabaseAdmin.from('user_notification_preferences').delete().eq('user_id', userId)
+    await supabaseAdmin.from('user_achievements').delete().eq('user_id', userId)
+
+    // ─── Avatar do perfil ─────────────────────────────────
+    if (profile?.avatar_url) {
+      try { await uploadsService.deleteImageByUrl(profile.avatar_url) } catch {}
+    }
+
+    // ─── Perfil + Auth ────────────────────────────────────
     await profileRepository.deleteById(userId)
 
     const { error } = await supabaseAdmin.auth.admin.deleteUser(userId)

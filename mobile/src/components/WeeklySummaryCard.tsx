@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { View, StyleSheet, ActivityIndicator, ScrollView, useWindowDimensions, Pressable } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useTheme } from '../hooks/useTheme'
@@ -24,30 +24,31 @@ export function WeeklySummaryCard({ pets }: Props) {
   const { width: screenWidth } = useWindowDimensions()
   const cardWidth = screenWidth - 32
   const [summaries, setSummaries] = useState<Record<string, WeeklySummary | null>>({})
+  const [loadedIds, setLoadedIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
   const [carouselIndex, setCarouselIndex] = useState(0)
 
+  const loadSummary = useCallback(async (petId: string) => {
+    if (loadedIds.has(petId)) return
+    setLoading(true)
+    try {
+      const sum = await fetchWeeklySummary(petId)
+      setSummaries(prev => ({ ...prev, [petId]: sum }))
+    } catch {
+      setSummaries(prev => ({ ...prev, [petId]: null }))
+    }
+    setLoadedIds(prev => new Set(prev).add(petId))
+    setLoading(false)
+  }, [loadedIds])
+
   useEffect(() => {
     if (!pets.length) return
-    setLoading(true)
-    const promises = pets.map(async (pet) => {
-      try {
-        const sum = await fetchWeeklySummary(pet.id)
-        return { petId: pet.id, summary: sum }
-      } catch {
-        return { petId: pet.id, summary: null }
-      }
-    })
-
-    Promise.all(promises).then((results) => {
-      const newSummaries: Record<string, WeeklySummary | null> = {}
-      for (const res of results) {
-        if (res) newSummaries[res.petId] = res.summary
-      }
-      setSummaries(newSummaries)
-      setLoading(false)
-    })
-  }, [pets])
+    const currentPet = pets[carouselIndex]
+    if (currentPet) loadSummary(currentPet.id)
+    // pré-carrega o próximo
+    const nextIdx = carouselIndex + 1
+    if (nextIdx < pets.length) loadSummary(pets[nextIdx].id)
+  }, [carouselIndex, pets])
 
   if (loading) {
     return (
@@ -90,10 +91,7 @@ export function WeeklySummaryCard({ pets }: Props) {
                   },
                 ]}
               >
-                <Ionicons name="alert-circle-outline" size={32} color={colors.mutedForeground} />
-                <Text style={{ marginTop: 8 }} color="mutedForeground">
-                  Nenhum dado disponível para {pet.name}
-                </Text>
+                <ActivityIndicator size="small" color={colors.primary} />
               </View>
             )
           }

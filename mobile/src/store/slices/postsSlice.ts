@@ -8,6 +8,7 @@ export interface Post {
   id: string
   author_id: string
   pet_id?: string
+  pet_ids?: string[]
   image_url?: string
   caption: string | null
   location: string | null
@@ -16,8 +17,9 @@ export interface Post {
   comments_count: number
   created_at: string
   updated_at: string
+  group_id?: string
   profiles?: { name: string; avatar_url: string | null; level: number }
-  pets?: { name: string }
+  pets?: { name: string }[]
   liked_by_user?: boolean
 }
 
@@ -209,7 +211,7 @@ export const fetchMoreUserPostsThunk = createAsyncThunk(
 export const createPostThunk = createAsyncThunk(
   'posts/create',
   async (
-    payload: { image_url: string; pet_id: string; caption?: string; location?: string },
+    payload: { image_url: string; pet_ids: string[]; caption?: string; location?: string; group_id?: string },
     { rejectWithValue }
   ) => {
     try {

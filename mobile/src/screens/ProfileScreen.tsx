@@ -225,10 +225,10 @@ export default function ProfileScreen() {
         )}
         {gamificationStats && gamificationStats.unlockedAchievements.length > 0 && (
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            {gamificationStats.unlockedAchievements.map((ach: any, i: number) => {
+            {gamificationStats.unlockedAchievements.slice(-4).reverse().map((ach: any, i: number) => {
               const badgeColor = getBadgeColor(ach.xp_reward)
               const total = gamificationStats.unlockedAchievements.length
-              const opacity = total <= 3 ? 1 : Math.max(0.4, 1 - (i / (total - 1)) * 0.6)
+              const isLast = i === 3 || (total >= 4 && i === 3)
               return (
                 <View
                   key={ach.id}
@@ -240,13 +240,13 @@ export default function ProfileScreen() {
                     alignItems: 'center',
                     justifyContent: 'center',
                     marginLeft: i > 0 ? -14 : 0,
-                    zIndex: total - i,
-                    opacity,
+                    zIndex: 4 - i,
                     shadowColor: badgeColor,
                     shadowOffset: { width: 0, height: 0 },
                     shadowOpacity: 0.8,
                     shadowRadius: 6,
                     elevation: 6,
+                    opacity: total >= 4 && isLast ? 0.35 : 1,
                   }}
                 >
                   <Ionicons name={(ach.icon || 'trophy-outline') as any} size={12} color="#fff" />
@@ -311,7 +311,7 @@ export default function ProfileScreen() {
   )
 
   const filteredPosts = selectedPetFilter
-    ? posts.filter(p => p.pet_id === selectedPetFilter)
+    ? posts.filter(p => p.pet_id === selectedPetFilter || p.pet_ids?.includes(selectedPetFilter))
     : posts
 
   const renderPetFilter = () => {

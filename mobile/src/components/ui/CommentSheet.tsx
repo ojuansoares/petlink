@@ -191,7 +191,7 @@ export function CommentSheet({ visible, onClose, post }: CommentSheetProps) {
           <View style={{ position: 'relative' }}>
             <Pressable
               onPress={() => setMenuCommentId(isMenuOpen ? null : item.id)}
-              style={{ padding: 4 }}
+              style={[cStyles.menuButton, { backgroundColor: withAlpha(colors.muted, 0.3) }]}
               hitSlop={8}
             >
               <Ionicons name="ellipsis-vertical" size={16} color={colors.mutedForeground} />
@@ -219,7 +219,7 @@ export function CommentSheet({ visible, onClose, post }: CommentSheetProps) {
                     <Text size="sm">Editar</Text>
                   </Pressable>
                 )}
-                {isOwnPost && !isOwnComment && (
+                {isOwnPost && (
                   <Pressable
                     onPress={() => { handleTogglePin(item.id); closeMenu() }}
                     style={cStyles.commentMenuItem}
@@ -333,7 +333,7 @@ export function CommentSheet({ visible, onClose, post }: CommentSheetProps) {
               )}
             </View>
 
-            <View style={[cStyles.inputRow, { borderTopColor: colors.border, marginBottom: keyboardHeight }]}>
+            <View style={[cStyles.inputRow, { borderTopColor: colors.border, marginBottom: editingCommentId ? 0 : keyboardHeight }]}> 
               <View style={{ flex: 1 }}>
                 <Input
                   placeholder="Escreva um comentário..."
@@ -546,5 +546,12 @@ const cStyles = StyleSheet.create({
     paddingTop: 8,
     borderTopWidth: StyleSheet.hairlineWidth,
     gap: 8,
+  },
+  menuButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 })

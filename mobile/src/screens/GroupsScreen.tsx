@@ -87,6 +87,7 @@ export default function GroupsScreen() {
         ...group,
         my_role: group.role ?? null,
         members: [],
+        pendingInviteId: null,
       })
     } finally {
       setLoadingDetail(false)
@@ -145,61 +146,62 @@ export default function GroupsScreen() {
       {renderHeader()}
 
       {activeTab === 'mine' && (
-        <FlatList
-          data={myGroups}
-          renderItem={({ item }) => (
-            <MyGroupCard item={item} onPress={() => handleCardPress(item)} />
-          )}
-          keyExtractor={(item) => item.id}
-          showsVerticalScrollIndicator={false}
-          ListHeaderComponent={
-            pendingInvites.length > 0 ? (
-              <View style={{ paddingHorizontal: 16, paddingTop: 8 }}>
-                <Text weight="800" size="sm" style={{ marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>
+        <View style={{ flex: 1 }}>
+          {pendingInvites.length > 0 && (
+            <View style={[styles.invitesSection, { backgroundColor: withAlpha(colors.primary, 0.06) }]}>
+              <View style={styles.invitesSectionHeader}>
+                <Ionicons name="people" size={18} color={colors.primary} />
+                <Text weight="800" size="sm" style={{ textTransform: 'uppercase', letterSpacing: 1, color: colors.primary }}>
                   Solicitações de entrada
                 </Text>
-                {isLoadingInvites ? (
-                  <ActivityIndicator color={colors.primary} />
-                ) : (
-                  pendingInvites.map((inv) => (
-                    <View
-                      key={inv.id}
-                      style={[styles.inviteCard, { backgroundColor: colors.card, borderColor: colors.border }]}
-                    >
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
-                        <Avatar name={inv.group.name} source={inv.group.photo_url ? { uri: inv.group.photo_url } : undefined} size={40} />
-                        <View style={{ flex: 1 }}>
-                          <Text weight="700" size="sm" numberOfLines={1}>{inv.group.name}</Text>
-                          <Text size="xs" color="mutedForeground">
-                            Convidado por {inv.invited_by_name}
-                          </Text>
-                        </View>
-                      </View>
-                      <View style={{ flexDirection: 'row', gap: 8 }}>
-                        <Pressable
-                          onPress={() => handleAcceptInvite(inv)}
-                          style={[styles.inviteActionBtn, { backgroundColor: colors.primary }]}
-                        >
-                          <Ionicons name="checkmark" size={18} color="white" />
-                        </Pressable>
-                        <Pressable
-                          onPress={() => handleRejectInvite(inv.id)}
-                          style={[styles.inviteActionBtn, { backgroundColor: colors.destructive }]}
-                        >
-                          <Ionicons name="close" size={18} color="white" />
-                        </Pressable>
-                      </View>
-                    </View>
-                  ))
-                )}
               </View>
-            ) : null
-          }
-          ListEmptyComponent={listEmpty}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 80 }}
-          refreshing={isLoadingMy}
-          onRefresh={() => { dispatch(fetchMyGroupsThunk()); dispatch(fetchPendingInvitesThunk()) }}
-        />
+              {isLoadingInvites ? (
+                <ActivityIndicator color={colors.primary} style={{ paddingVertical: 12 }} />
+              ) : (
+                pendingInvites.map((inv) => (
+                  <View
+                    key={inv.id}
+                    style={[styles.inviteCard, { backgroundColor: colors.background, borderColor: withAlpha(colors.primary, 0.2) }]}
+                  >
+                    <Avatar name={inv.group.name} source={inv.group.photo_url ? { uri: inv.group.photo_url } : undefined} size={56} />
+                    <View style={{ flex: 1 }}>
+                      <Text weight="700" numberOfLines={1}>{inv.group.name}</Text>
+                      <Text size="xs" color="mutedForeground">
+                        Convidado por {inv.invited_by_name}
+                      </Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', gap: 10 }}>
+                      <Pressable
+                        onPress={() => handleAcceptInvite(inv)}
+                        style={[styles.inviteActionBtn, { backgroundColor: colors.primary }]}
+                      >
+                        <Ionicons name="checkmark" size={20} color="white" />
+                      </Pressable>
+                      <Pressable
+                        onPress={() => handleRejectInvite(inv.id)}
+                        style={[styles.inviteActionBtn, { backgroundColor: colors.destructive }]}
+                      >
+                        <Ionicons name="close" size={20} color="white" />
+                      </Pressable>
+                    </View>
+                  </View>
+                ))
+              )}
+            </View>
+          )}
+          <FlatList
+            data={myGroups}
+            renderItem={({ item }) => (
+              <MyGroupCard item={item} onPress={() => handleCardPress(item)} />
+            )}
+            keyExtractor={(item) => item.id}
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={listEmpty}
+            contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 80 }}
+            refreshing={isLoadingMy}
+            onRefresh={() => { dispatch(fetchMyGroupsThunk()); dispatch(fetchPendingInvitesThunk()) }}
+          />
+        </View>
       )}
 
       {activeTab === 'discover' && (
@@ -256,31 +258,56 @@ export default function GroupsScreen() {
                 <Avatar
                   name={selectedGroup.name}
                   source={selectedGroup.photo_url ? { uri: selectedGroup.photo_url } : undefined}
-                  size={80}
+                  size={120}
                 />
-                <Text weight="800" size="xl" style={{ marginTop: 12, textAlign: 'center' }}>
+                <Text weight="800" size="xl" style={{ marginTop: 16, textAlign: 'center' }}>
                   {selectedGroup.name}
                 </Text>
                 {selectedGroup.description && (
-                  <Text color="mutedForeground" size="sm" style={{ textAlign: 'center', marginTop: 4 }}>
+                  <Text color="mutedForeground" size="sm" style={{ textAlign: 'center', marginTop: 6 }}>
                     {selectedGroup.description}
                   </Text>
                 )}
                 {selectedGroup.species && (
-                  <Text color="mutedForeground" size="xs" style={{ marginTop: 4 }}>
+                  <Text color="mutedForeground" size="xs" style={{ marginTop: 6 }}>
                     Espécie: {selectedGroup.species}
                   </Text>
                 )}
-                <Text color="mutedForeground" size="sm" style={{ marginTop: 8 }}>
+                <Text color="mutedForeground" size="sm" style={{ marginTop: 12 }}>
                   {selectedGroup.member_count} {selectedGroup.member_count === 1 ? 'membro' : 'membros'}
                 </Text>
 
-                <View style={{ marginTop: 24, width: '100%', gap: 10 }}>
+                <View style={{ marginTop: 32, width: '100%', gap: 12 }}>
                   {selectedGroup.my_role ? (
                     <Button
                       label="Ir para o grupo"
                       onPress={() => enterGroup(selectedGroup.id, selectedGroup.name)}
                     />
+                  ) : selectedGroup.pendingInviteId ? (
+                    <>
+                      <Button
+                        label="Aceitar convite"
+                        onPress={() => {
+                          const invite = pendingInvites.find(i => i.group_id === selectedGroup.id)
+                          if (invite) {
+                            handleAcceptInvite(invite)
+                            setShowDetailModal(false)
+                            setSelectedGroup(null)
+                          }
+                        }}
+                      />
+                      <Button
+                        label="Recusar"
+                        variant="outline"
+                        onPress={() => {
+                          if (selectedGroup.pendingInviteId) {
+                            handleRejectInvite(selectedGroup.pendingInviteId)
+                            setShowDetailModal(false)
+                            setSelectedGroup(null)
+                          }
+                        }}
+                      />
+                    </>
                   ) : (
                     <Button
                       label="Entrar no grupo"
@@ -313,12 +340,12 @@ function MyGroupCard({ item, onPress }: { item: Group; onPress: () => void }) {
       onPress={onPress}
     >
       <View style={styles.groupHeader}>
-        <Avatar name={item.name} source={item.photo_url ? { uri: item.photo_url } : undefined} size={48} />
+        <Avatar name={item.name} source={item.photo_url ? { uri: item.photo_url } : undefined} size={64} />
         <View style={styles.groupInfo}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Text weight="700" numberOfLines={1}>{item.name}</Text>
             {isOwner && (
-              <Ionicons name="shield-checkmark" size={16} color={colors.primary} />
+              <Ionicons name="shield-checkmark" size={18} color={colors.primary} />
             )}
           </View>
           <Text size="xs" color="mutedForeground">
@@ -348,7 +375,7 @@ function DiscoverGroupCard({ item, onPress, onJoin }: { item: Group; onPress: ()
       onPress={onPress}
     >
       <View style={styles.groupHeader}>
-        <Avatar name={item.name} source={item.photo_url ? { uri: item.photo_url } : undefined} size={48} />
+        <Avatar name={item.name} source={item.photo_url ? { uri: item.photo_url } : undefined} size={64} />
         <View style={styles.groupInfo}>
           <Text weight="700" numberOfLines={1}>{item.name}</Text>
           <Text size="xs" color="mutedForeground">
@@ -387,22 +414,22 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   inviteCard: {
     flexDirection: 'row', alignItems: 'center',
-    borderRadius: 12, borderWidth: 1, padding: 12, marginBottom: 8, gap: 8,
+    borderRadius: 14, borderWidth: 1, padding: 14, marginBottom: 10, gap: 12,
   },
   inviteActionBtn: {
-    width: 32, height: 32, borderRadius: 16,
+    width: 40, height: 40, borderRadius: 20,
     justifyContent: 'center', alignItems: 'center',
   },
   groupCard: {
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 1,
-    padding: 14,
-    marginBottom: 10,
+    padding: 16,
+    marginBottom: 12,
   },
   groupHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 14,
   },
   groupInfo: { flex: 1 },
   actionButton: {
@@ -441,14 +468,28 @@ const styles = StyleSheet.create({
     width: '100%',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    paddingBottom: 40,
-    maxHeight: '70%',
+    paddingBottom: 50,
+    maxHeight: '90%',
   },
-  sheetHandle: { alignItems: 'center', paddingTop: 10 },
-  handleBar: { width: 36, height: 4, borderRadius: 2 },
-  loadingContainer: { padding: 40, alignItems: 'center' },
+  sheetHandle: { alignItems: 'center', paddingTop: 12 },
+  handleBar: { width: 40, height: 5, borderRadius: 2.5 },
+  loadingContainer: { padding: 50, alignItems: 'center' },
   detailContent: {
-    padding: 24,
+    padding: 32,
     alignItems: 'center',
+  },
+  invitesSection: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 8,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderRadius: 16,
+  },
+  invitesSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
   },
 })

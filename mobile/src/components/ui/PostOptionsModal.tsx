@@ -20,6 +20,7 @@ import { useNetworkCheck } from '../../hooks/useNetworkCheck'
 import { useAppDispatch } from '../../store'
 import { deletePostThunk, togglePinThunk, updatePostThunk, Post } from '../../store/slices/postsSlice'
 import { showToast } from '../../store/slices/uiSlice'
+import { getPetNames } from '../../utils/petUtils'
 import { Button } from './Button'
 import { Input } from './Input'
 import { OptionSelect } from './OptionSelect'
@@ -65,7 +66,8 @@ export function PostOptionsModal({ post, visible, onClose, isOwnPost, context = 
 
   const handleShare = async () => {
     try {
-      await Share.share({ message: `Olha esse post de ${post.pets?.name || 'um pet'}: ${post.image_url}` })
+      const petName = getPetNames(post.pets) || 'um pet'
+      await Share.share({ message: `Olha esse post de ${petName}: ${post.image_url}` })
       onClose()
     } catch {
       dispatch(showToast({ type: 'error', title: 'Compartilhar', message: 'Erro ao compartilhar' }))

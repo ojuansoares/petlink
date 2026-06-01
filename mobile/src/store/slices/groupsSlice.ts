@@ -98,7 +98,7 @@ export const leaveGroupThunk = createAsyncThunk(
 
 export const createGroupThunk = createAsyncThunk(
   'groups/create',
-  async (input: { name: string; description?: string; species?: string; photo_url?: string }, { rejectWithValue }) => {
+  async (input: { name: string; description?: string; species?: string; photo_url?: string; location?: string }, { rejectWithValue }) => {
     try {
       return await groupsApi.create(input)
     } catch (err: any) {
@@ -132,7 +132,7 @@ export const fetchMoreGroupPostsThunk = createAsyncThunk(
 export const createGroupPostThunk = createAsyncThunk(
   'groups/createPost',
   async (
-    payload: { group_id: string; image_url?: string; caption?: string; pet_id?: string },
+    payload: { group_id: string; image_url?: string; caption?: string; pet_ids?: string[] },
     { rejectWithValue }
   ) => {
     try {
@@ -228,6 +228,18 @@ export const deleteGroupThunk = createAsyncThunk(
   }
 )
 
+export const updateGroupThunk = createAsyncThunk(
+  'groups/updateGroup',
+  async (payload: { groupId: string; input: { name?: string; description?: string; photo_url?: string; species?: string; location?: string } }, { rejectWithValue }) => {
+    try {
+      const updated = await groupsApi.update(payload.groupId, payload.input)
+      return { groupId: payload.groupId, group: updated }
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.error ?? 'Erro ao editar grupo')
+    }
+  }
+)
+
 export const removeMemberThunk = createAsyncThunk(
   'groups/removeMember',
   async (payload: { groupId: string; userId: string }, { rejectWithValue }) => {
@@ -307,6 +319,12 @@ const groupsSlice = createSlice({
         s.myGroups.unshift({ ...a.payload, role: 'owner' })
       })
       .addCase(createGroupThunk.rejected, (s) => { s.isJoining['__create__'] = false })
+
+      .addCase(updateGroupThunk.fulfilled, (s, a) => {
+        const { groupId, group } = a.payload
+        const idx = s.myGroups.findIndex((g) => g.id === groupId)
+        if (idx !== -1) s.myGroups[idx] = { ...s.myGroups[idx], ...group }
+      })
 
       // --- Group posts ---
       .addCase(fetchGroupPostsThunk.pending, (s, a) => { s.isLoadingGroupPosts[a.meta.arg] = true })

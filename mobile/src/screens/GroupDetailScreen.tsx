@@ -1,11 +1,16 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react'
-import { View, FlatList, ScrollView, Pressable, StyleSheet, ActivityIndicator, TextInput, Modal } from 'react-native'
+import { View, FlatList, ScrollView, Pressable, StyleSheet, ActivityIndicator, TextInput, Modal, KeyboardAvoidingView, Platform } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native'
 import { StackNavigationProp } from '@react-navigation/stack'
 import { Image } from 'expo-image'
+import * as ImagePicker from 'expo-image-picker'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTheme } from '../hooks/useTheme'
+import { useLocation } from '../hooks/useLocation'
+import { getPetNames } from '../utils/petUtils'
 import { Text } from '../components/ui/Typography'
+import { Heading } from '../components/ui/Typography'
 import { Avatar } from '../components/ui/Avatar'
 import { SegmentedTabs } from '../components/ui/SegmentedTabs'
 import { LikesButton } from '../components/ui/LikesButton'
@@ -14,7 +19,10 @@ import { CommentSheet } from '../components/ui/CommentSheet'
 import { ConfirmModal } from '../components/ui/ConfirmModal'
 import { AppToast } from '../components/ui/AppToast'
 import { Button } from '../components/ui/Button'
+import { Input } from '../components/ui/Input'
+import { OptionSelect } from '../components/ui/OptionSelect'
 import { CreateGroupPostModal } from '../components/ui/CreateGroupPostModal'
+import { uploadImageWithRetry } from '../api/uploadWithRetry'
 import { useAppDispatch, useAppSelector } from '../store'
 import {
   fetchGroupPostsThunk,
@@ -26,6 +34,7 @@ import {
   leaveGroupThunk,
   deleteGroupThunk,
   joinGroupThunk,
+  updateGroupThunk,
   selectGroupPosts,
   selectGroupPostsHasMore,
   selectGroupPostsPage,
@@ -245,6 +254,281 @@ function AddMemberModal({
   ) : null
 }
 
+const BRAZIL_STATES = [
+  { label: 'Acre', value: 'AC' },
+  { label: 'Alagoas', value: 'AL' },
+  { label: 'Amapá', value: 'AP' },
+  { label: 'Amazonas', value: 'AM' },
+  { label: 'Bahia', value: 'BA' },
+  { label: 'Ceará', value: 'CE' },
+  { label: 'Distrito Federal', value: 'DF' },
+  { label: 'Espírito Santo', value: 'ES' },
+  { label: 'Goiás', value: 'GO' },
+  { label: 'Maranhão', value: 'MA' },
+  { label: 'Mato Grosso', value: 'MT' },
+  { label: 'Mato Grosso do Sul', value: 'MS' },
+  { label: 'Minas Gerais', value: 'MG' },
+  { label: 'Pará', value: 'PA' },
+  { label: 'Paraíba', value: 'PB' },
+  { label: 'Paraná', value: 'PR' },
+  { label: 'Pernambuco', value: 'PE' },
+  { label: 'Piauí', value: 'PI' },
+  { label: 'Rio de Janeiro', value: 'RJ' },
+  { label: 'Rio Grande do Norte', value: 'RN' },
+  { label: 'Rio Grande do Sul', value: 'RS' },
+  { label: 'Rondônia', value: 'RO' },
+  { label: 'Roraima', value: 'RR' },
+  { label: 'Santa Catarina', value: 'SC' },
+  { label: 'São Paulo', value: 'SP' },
+  { label: 'Sergipe', value: 'SE' },
+  { label: 'Tocantins', value: 'TO' },
+]
+
+function EditGroupModal({
+  visible,
+  onClose,
+  group,
+}: {
+  visible: boolean
+  onClose: () => void
+  group: { id: string; name: string; description: string | null; photo_url: string | null; species: string | null; location: string | null }
+}) {
+  const { colors, withAlpha } = useTheme()
+  const dispatch = useAppDispatch()
+  const insets = useSafeAreaInsets()
+  const { getCurrentLocation, isLoadingLocation } = useLocation()
+
+  const [name, setName] = useState(group.name)
+  const [description, setDescription] = useState(group.description ?? '')
+  const [species, setSpecies] = useState(group.species ?? '')
+  const [photoUrl, setPhotoUrl] = useState(group.photo_url ?? '')
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false)
+  const [location, setLocation] = useState(group.location ?? '')
+  const [suggestedLocation, setSuggestedLocation] = useState('')
+  const [locationMode, setLocationMode] = useState<'suggestion' | 'selecting' | 'editing'>(
+    group.location ? 'editing' : 'suggestion'
+  )
+  const [saving, setSaving] = useState(false)
+
+  const handleGetLocation = useCallback(async () => {
+    const loc = await getCurrentLocation()
+    if (loc) {
+      setSuggestedLocation(loc.cityAndState)
+      if (!location) {
+        setLocation(loc.cityAndState)
+        setLocationMode('suggestion')
+      }
+    }
+  }, [getCurrentLocation, location])
+
+  const handleClearLocation = useCallback(() => {
+    setLocation('')
+    setLocationMode('selecting')
+  }, [])
+
+  const handleSelectLocation = useCallback((value: string) => {
+    setLocation(value)
+    setLocationMode('editing')
+  }, [])
+
+  useEffect(() => {
+    if (!visible) return
+    handleGetLocation()
+  }, [visible])
+
+  const handlePickPhoto = async () => {
+    try {
+      setIsUploadingPhoto(true)
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync()
+      if (permission.status !== 'granted') {
+        dispatch(showToast({ type: 'error', title: 'Grupo', message: 'Permissão necessária para acessar a galeria' }))
+        return
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 0.8,
+      })
+
+      if (result.canceled || !result.assets?.length) return
+
+      const asset = result.assets[0]
+      const formData = new FormData()
+      formData.append('folder', 'petlink/groups')
+      formData.append('file', {
+        uri: asset.uri,
+        name: asset.fileName ?? `group-${Date.now()}.jpg`,
+        type: asset.mimeType ?? 'image/jpeg',
+      } as any)
+
+      const data = await uploadImageWithRetry({ formData, maxRetries: 3, baseTimeoutMs: 30000 })
+      const uploadedUrl = data?.url as string | undefined
+      if (uploadedUrl) setPhotoUrl(uploadedUrl)
+    } catch {
+      dispatch(showToast({ type: 'error', title: 'Upload', message: 'Erro ao enviar imagem' }))
+    } finally {
+      setIsUploadingPhoto(false)
+    }
+  }
+
+  const handleSave = async () => {
+    if (!name.trim()) {
+      dispatch(showToast({ type: 'error', title: 'Grupo', message: 'Nome do grupo é obrigatório' }))
+      return
+    }
+
+    setSaving(true)
+    try {
+      await dispatch(updateGroupThunk({
+        groupId: group.id,
+        input: {
+          name: name.trim(),
+          description: description.trim() || undefined,
+          species: species.trim() || undefined,
+          photo_url: photoUrl || undefined,
+          location: location.trim() || undefined,
+        },
+      })).unwrap()
+      dispatch(showToast({ type: 'success', title: 'Grupo editado', message: 'Grupo atualizado com sucesso!' }))
+      onClose()
+    } catch {}
+    setSaving(false)
+  }
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent statusBarTranslucent onRequestClose={onClose}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={s.backdrop}
+      >
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <View style={[s.editSheet, { backgroundColor: colors.background, paddingBottom: Math.max(insets.bottom, 20) }]}>
+          <View style={s.sheetHandle}>
+            <View style={[s.handleBar, { backgroundColor: withAlpha(colors.border, 0.6) }]} />
+          </View>
+
+          <View style={s.header}>
+            <Heading size="xl" weight="800">Editar Grupo</Heading>
+            <Pressable onPress={onClose} style={s.closeButton}>
+              <Ionicons name="close" size={24} color={colors.foreground} />
+            </Pressable>
+          </View>
+
+          <ScrollView
+            style={s.content}
+            contentContainerStyle={s.contentContainer}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={s.photoSection}>
+              <Text size="xs" weight="700" style={[s.label, { color: colors.mutedForeground }]}>Foto do grupo</Text>
+              {photoUrl ? (
+                <View style={s.photoPreviewWrapper}>
+                  <Image source={{ uri: photoUrl }} style={s.photoPreview} contentFit="cover" />
+                  <Pressable
+                    style={[s.removePhotoButton, { backgroundColor: withAlpha(colors.card, 0.8) }]}
+                    onPress={() => setPhotoUrl('')}
+                  >
+                    <Ionicons name="trash" size={20} color={colors.destructive} />
+                  </Pressable>
+                </View>
+              ) : (
+                <Pressable
+                  style={[s.photoPicker, { borderColor: colors.border, backgroundColor: withAlpha(colors.card, 0.5) }]}
+                  onPress={handlePickPhoto}
+                  disabled={isUploadingPhoto}
+                >
+                  {isUploadingPhoto ? (
+                    <ActivityIndicator color={colors.primary} />
+                  ) : (
+                    <>
+                      <Ionicons name="camera-outline" size={32} color={colors.mutedForeground} />
+                      <Text color="mutedForeground" style={{ marginTop: 8 }}>Adicionar foto</Text>
+                    </>
+                  )}
+                </Pressable>
+              )}
+            </View>
+
+            <Input
+              label="Nome"
+              placeholder="Nome do grupo"
+              value={name}
+              onChangeText={setName}
+              leftIcon={<Ionicons name="people-outline" size={18} color={colors.mutedForeground} />}
+            />
+
+            <Input
+              label="Descrição"
+              placeholder="Descrição do grupo..."
+              value={description}
+              onChangeText={setDescription}
+              multiline
+              leftIcon={<Ionicons name="information-outline" size={18} color={colors.mutedForeground} />}
+            />
+
+            <Input
+              label="Espécie (opcional)"
+              placeholder="Ex: Cachorro, Gato..."
+              value={species}
+              onChangeText={setSpecies}
+              leftIcon={<Ionicons name="paw-outline" size={18} color={colors.mutedForeground} />}
+            />
+
+            <View style={s.locationContainer}>
+              <Text size="sm" weight="600" color="mutedForeground" style={s.locationLabel}>Localização</Text>
+              {isLoadingLocation ? (
+                <View style={[s.locationRow, { borderColor: colors.border }]}>
+                  <Ionicons name="location-outline" size={18} color={colors.mutedForeground} />
+                  <ActivityIndicator size="small" color={colors.primary} style={s.locationLoader} />
+                </View>
+              ) : locationMode === 'suggestion' && suggestedLocation ? (
+                <View style={[s.locationRow, { borderColor: colors.border }]}>
+                  <Ionicons name="location-outline" size={18} color={colors.mutedForeground} />
+                  <Text size="base" style={[s.locationText, { color: colors.foreground, flex: 1 }]}>{suggestedLocation}</Text>
+                  <Pressable onPress={handleClearLocation} hitSlop={8}>
+                    <Ionicons name="close-circle" size={20} color={colors.mutedForeground} />
+                  </Pressable>
+                </View>
+              ) : locationMode === 'selecting' ? (
+                <OptionSelect
+                  placeholder="Selecione o estado"
+                  value={location}
+                  onChange={handleSelectLocation}
+                  options={BRAZIL_STATES}
+                  leftIconName="location-outline"
+                />
+              ) : (
+                <View style={[s.locationRow, { borderColor: colors.border }]}>
+                  <Ionicons name="location-outline" size={18} color={colors.mutedForeground} />
+                  <TextInput
+                    style={[s.locationInput, { color: colors.foreground }]}
+                    value={location}
+                    onChangeText={setLocation}
+                    placeholder="Ex: São Paulo, SP ou apenas SP"
+                    placeholderTextColor={colors.mutedForeground}
+                  />
+                  <Pressable onPress={() => setLocationMode('selecting')} hitSlop={8}>
+                    <Ionicons name="chevron-down" size={18} color={colors.mutedForeground} />
+                  </Pressable>
+                </View>
+              )}
+            </View>
+          </ScrollView>
+
+          <View style={[s.footer, { borderTopColor: withAlpha(colors.border, 0.4) }]}>
+            <Button
+              label={saving ? 'Salvando...' : 'Salvar'}
+              onPress={handleSave}
+              disabled={saving || !name.trim()}
+              loading={saving}
+            />
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  )
+}
+
 export default function GroupDetailScreen() {
   const { colors } = useTheme()
   const dispatch = useAppDispatch()
@@ -270,6 +554,7 @@ export default function GroupDetailScreen() {
   const [commentPost, setCommentPost] = useState<Post | null>(null)
   const [likesPost, setLikesPost] = useState<Post | null>(null)
   const [showAddMember, setShowAddMember] = useState(false)
+  const [showEditGroup, setShowEditGroup] = useState(false)
   const [showReportConfirm, setShowReportConfirm] = useState(false)
   const [joining, setJoining] = useState(false)
   const [menuPostId, setMenuPostId] = useState<string | null>(null)
@@ -358,7 +643,7 @@ export default function GroupDetailScreen() {
                 <Text weight="700" size="sm">{item.profiles?.name || 'Usuário'}</Text>
                 {item.is_pinned && <Ionicons name="pin" size={12} color={colors.primary} />}
               </View>
-              {item.pets?.name && <Text size="xs" color="mutedForeground">{item.pets.name}</Text>}
+              {getPetNames(item.pets) && <Text size="xs" color="mutedForeground">{getPetNames(item.pets)}</Text>}
             </View>
           </Pressable>
           {(isAdmin || isOwnPost) && (
@@ -549,6 +834,15 @@ export default function GroupDetailScreen() {
       {showMenu && (
         <Pressable style={s.backdrop} onPress={() => setShowMenu(false)}>
           <View style={[s.menuOverlay, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            {(isOwner || isAdmin) && (
+              <>
+                <Pressable onPress={() => { setShowMenu(false); setShowEditGroup(true) }} style={s.menuOverlayItem}>
+                  <Ionicons name="pencil-outline" size={20} color={colors.foreground} />
+                  <Text weight="600">Editar grupo</Text>
+                </Pressable>
+                <View style={[s.menuDivider, { backgroundColor: colors.border }]} />
+              </>
+            )}
             {isOwner && (
               <>
                 <Pressable onPress={() => { setShowMenu(false); setShowDeleteConfirm(true) }} style={s.menuOverlayItem}>
@@ -580,6 +874,13 @@ export default function GroupDetailScreen() {
 
       {/* Add member modal */}
       <AddMemberModal visible={showAddMember} onClose={() => setShowAddMember(false)} groupId={groupId} />
+
+      {/* Edit group modal */}
+      <EditGroupModal
+        visible={showEditGroup}
+        onClose={() => setShowEditGroup(false)}
+        group={{ id: groupId, name: groupInfo.name, description: groupInfo.description, photo_url: groupInfo.photo_url, species: groupInfo.species, location: groupInfo.location }}
+      />
 
       {/* Comment sheet */}
       {commentPost && (
@@ -720,4 +1021,24 @@ const s = StyleSheet.create({
   inviteButtonSmall: {
     borderWidth: 1.5, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 6,
   },
+
+  // EditGroupModal styles
+  editSheet: { width: '100%', height: '85%', borderTopLeftRadius: 34, borderTopRightRadius: 34 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 12 },
+  closeButton: { padding: 4 },
+  content: { flex: 1 },
+  contentContainer: { padding: 20, gap: 20 },
+  label: { marginLeft: 12, marginBottom: 6 },
+  photoSection: { width: '100%' },
+  photoPicker: { height: 180, borderRadius: 16, borderWidth: 1, borderStyle: 'dashed', justifyContent: 'center', alignItems: 'center' },
+  photoPreviewWrapper: { width: '100%', height: 200, borderRadius: 16, overflow: 'hidden', position: 'relative' },
+  photoPreview: { width: '100%', height: '100%' },
+  removePhotoButton: { position: 'absolute', top: 12, right: 12, width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
+  footer: { padding: 20, paddingTop: 12, borderTopWidth: 1 },
+  locationContainer: { width: '100%' },
+  locationLabel: { marginLeft: 12, marginBottom: 6 },
+  locationRow: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, height: 48, gap: 8 },
+  locationText: { fontSize: 16 },
+  locationInput: { flex: 1, fontSize: 16, paddingVertical: 0 },
+  locationLoader: { marginLeft: 8 },
 })

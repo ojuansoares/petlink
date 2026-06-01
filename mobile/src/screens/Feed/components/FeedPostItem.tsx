@@ -19,6 +19,7 @@ interface FeedPostItemProps {
 
 import { getRelativeTime } from '../../../utils/dateUtils'
 import { formatCount } from '../../../utils/formatNumber'
+import { getPetNames } from '../../../utils/petUtils'
 
 export const FeedPostItem = React.memo(({ post, onUserPress, onOptionsPress, onCommentPress }: FeedPostItemProps) => {
   const styles = useFeedStyles()
@@ -70,7 +71,9 @@ export const FeedPostItem = React.memo(({ post, onUserPress, onOptionsPress, onC
           </Pressable>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
-           <Text weight="800" size="sm" color="primary">{post.pets?.name}</Text>
+           {getPetNames(post.pets) ? (
+             <Text weight="800" size="sm" color="primary" numberOfLines={1}>{getPetNames(post.pets)}</Text>
+           ) : null}
            <Text size="sm" color="mutedForeground">• {post.profiles?.name}</Text>
         </View>
         {post.caption && (

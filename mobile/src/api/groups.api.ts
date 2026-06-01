@@ -6,6 +6,7 @@ export interface Group {
   description: string | null
   photo_url: string | null
   species: string | null
+  location: string | null
   is_public: boolean
   created_by: string
   member_count: number
@@ -27,12 +28,14 @@ export interface GroupMember {
 export interface GroupDetails extends Group {
   my_role: 'owner' | 'admin' | 'member' | null
   members: GroupMember[]
+  pendingInviteId: string | null
 }
 
 export interface GroupPost {
   id: string
   author_id: string
   pet_id?: string
+  pet_ids?: string[]
   image_url?: string
   caption: string | null
   location: string | null
@@ -42,7 +45,7 @@ export interface GroupPost {
   created_at: string
   updated_at: string
   profiles?: { name: string; avatar_url: string | null; level: number }
-  pets?: { name: string }
+  pets?: { name: string }[]
   liked_by_user?: boolean
 }
 
@@ -73,8 +76,15 @@ export const groupsApi = {
     return data as { groups: Group[]; hasMore: boolean }
   },
 
-  async create(input: { name: string; description?: string; species?: string; is_public?: boolean; photo_url?: string }): Promise<Group> {
+  async create(
+    input: { name: string; description?: string; species?: string; is_public?: boolean; photo_url?: string; location?: string }
+  ): Promise<Group> {
     const { data } = await api.post('/groups', input)
+    return data as Group
+  },
+
+  async update(id: string, input: { name?: string; description?: string; photo_url?: string; species?: string; is_public?: boolean; location?: string }): Promise<Group> {
+    const { data } = await api.put(`/groups/${id}`, input)
     return data as Group
   },
 

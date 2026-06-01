@@ -25,6 +25,7 @@ function groupAndShuffleByDay(posts: any[]): any[] {
 export const postsService = {
   async create(authorId: string, payload: PostCreateInput) {
     const isGroupPost = !!payload.group_id
+    const petIds = payload.pet_ids?.filter(Boolean) ?? []
 
     if (isGroupPost) {
       if (!payload.caption?.trim() && !payload.image_url?.trim()) {
@@ -36,8 +37,8 @@ export const postsService = {
         throw new AppError('Você não é membro deste grupo', 403)
       }
 
-      if (payload.pet_id) {
-        const pet = await petsRepository.findByIdAndOwner(authorId, payload.pet_id)
+      for (const petId of petIds) {
+        const pet = await petsRepository.findByIdAndOwner(authorId, petId)
         if (!pet) {
           throw new AppError('Pet não encontrado ou não pertence a você', 404)
         }
@@ -46,18 +47,20 @@ export const postsService = {
       if (!payload.image_url?.trim()) {
         throw new AppError('Imagem do post é obrigatória', 400)
       }
-      if (!payload.pet_id) {
-        throw new AppError('O post deve ser associado a um pet', 400)
+      if (petIds.length === 0) {
+        throw new AppError('O post deve ser associado a pelo menos um pet', 400)
       }
 
-      const pet = await petsRepository.findByIdAndOwner(authorId, payload.pet_id)
-      if (!pet) {
-        throw new AppError('Pet não encontrado ou não pertence a você', 404)
+      for (const petId of petIds) {
+        const pet = await petsRepository.findByIdAndOwner(authorId, petId)
+        if (!pet) {
+          throw new AppError('Pet não encontrado ou não pertence a você', 404)
+        }
       }
     }
 
     const post = await postsRepository.create(authorId, {
-      pet_id: payload.pet_id,
+      pet_ids: petIds,
       image_url: payload.image_url,
       caption: payload.caption?.trim() || null,
       location: payload.location?.trim() || null,
