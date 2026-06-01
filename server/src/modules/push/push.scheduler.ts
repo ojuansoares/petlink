@@ -79,7 +79,7 @@ export function startPushScheduler(): void {
   cron.schedule('0 8 * * *', () => {
     checkVaccines()
     checkConsultations()
-  })
+  }, { timezone: 'America/Sao_Paulo' })
 
   console.log('Push scheduler started (daily at 08:00)')
 }

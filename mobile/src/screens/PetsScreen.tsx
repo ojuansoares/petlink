@@ -721,7 +721,7 @@ export default function PetsScreen() {
                  <Avatar
                    size={160}
                    name={name || 'Seu Pet'}
-                   source={photoUrl ? { uri: photoUrl } : undefined}
+                   source={photoUrl ?? undefined}
                  />
                  <Pressable
                    onPress={handlePickPhoto}
@@ -963,7 +963,7 @@ export default function PetsScreen() {
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setIsImageExpanded(false)} />
           <View style={{ width: '90%', height: '70%', borderRadius: 20, overflow: 'hidden' }}>
             <Image
-              source={activePet?.photo_url ? { uri: activePet.photo_url } : undefined}
+              source={activePet?.photo_url ?? undefined}
               style={{ width: '100%', height: '100%' }}
               contentFit="contain"
             />

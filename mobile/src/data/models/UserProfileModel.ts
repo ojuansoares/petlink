@@ -12,5 +12,8 @@ export class UserProfileModel extends Model {
   @text('bio') bio!: string | null
   @field('updated_at') updatedAt!: number
   @field('pets_count') petsCount!: number
+  @field('posts_count') postsCount!: number
+  @field('followers_count') followersCount!: number
+  @field('following_count') followingCount!: number
   @text('birth_date') birthDate!: string | null
 }

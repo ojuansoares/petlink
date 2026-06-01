@@ -179,7 +179,13 @@ export default function PublicProfileScreen() {
       <View style={styles.avatarContainer}>
         <PetBubbleRing pets={pets} avatarSize={140}>
           <Pressable onPress={() => setIsImageExpanded(true)} style={styles.avatarPressable}>
-            <Avatar size={140} name={profile?.name} level={gamification?.level} source={profile?.avatar_url ? { uri: profile.avatar_url } : undefined} />
+            <Avatar
+              size={140}
+              name={profile?.name}
+              level={gamification?.level}
+              source={profile?.avatar_url ?? undefined}
+              loading={isProfileLoading && !profile?.avatar_url}
+            />
           </Pressable>
         </PetBubbleRing>
       </View>
@@ -344,7 +350,7 @@ export default function PublicProfileScreen() {
             >
               {pet.photo_url ? (
                 <Image
-                  source={{ uri: pet.photo_url }}
+                  source={pet.photo_url ?? undefined}
                   style={{ width: cardWidth, height: cardWidth, borderRadius: 32 }}
                   contentFit="cover"
                 />
@@ -434,7 +440,7 @@ export default function PublicProfileScreen() {
           <View style={{ padding: 20, paddingTop: 8, alignItems: 'center', gap: 28 }}>
             <View>
               <Pressable onPress={() => setIsPetImageExpanded(true)}>
-                <Avatar size={140} name={selectedPet.name} source={selectedPet.photo_url ? { uri: selectedPet.photo_url } : undefined} />
+                <Avatar size={140} name={selectedPet.name} source={selectedPet.photo_url ?? undefined} />
                 {selectedPet.tags && selectedPet.tags.length > 0 && (
                   <View style={{
                     position: 'absolute',
@@ -512,7 +518,7 @@ export default function PublicProfileScreen() {
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setIsPetImageExpanded(false)} />
           <View style={{ width: '90%', height: '70%', borderRadius: 20, overflow: 'hidden' }}>
             <Image
-              source={selectedPet?.photo_url ? { uri: selectedPet.photo_url } : undefined}
+              source={selectedPet?.photo_url ?? undefined}
               style={{ width: '100%', height: '100%' }}
               contentFit="contain"
             />
@@ -531,7 +537,7 @@ export default function PublicProfileScreen() {
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setIsImageExpanded(false)} />
           <View style={{ width: '90%', height: '70%', borderRadius: 20, overflow: 'hidden' }}>
             <Image
-              source={profile?.avatar_url ? { uri: profile.avatar_url } : undefined}
+              source={profile?.avatar_url ?? undefined}
               style={{ width: '100%', height: '100%' }}
               contentFit="contain"
             />

@@ -294,7 +294,7 @@ export function CreatePostModal({ visible, onClose, initialPhotoUrl, initialPetI
                   </Text>
                   {photoUrl ? (
                     <View style={styles.photoPreviewWrapper}>
-                      <Image source={{ uri: photoUrl }} style={styles.photoPreview} contentFit="cover" />
+                      <Image source={photoUrl ?? undefined} style={styles.photoPreview} contentFit="cover" />
                       <Pressable
                         style={[styles.removePhotoButton, { backgroundColor: withAlpha(colors.card, 0.8) }]}
                         onPress={() => setPhotoUrl('')}

@@ -530,10 +530,10 @@ const postsSlice = createSlice({
             p.liked_by_user = !p.liked_by_user
           }
         }
-        s.feed.forEach(updatePost)
-        s.myPosts.forEach(updatePost)
-        s.followedFeed.forEach(updatePost)
-        s.userPosts.forEach(updatePost)
+        ;(s.feed || []).forEach(updatePost)
+        ;(s.myPosts || []).forEach(updatePost)
+        ;(s.followedFeed || []).forEach(updatePost)
+        ;(s.userPosts || []).forEach(updatePost)
       })
       .addCase(toggleLikeThunk.fulfilled, (s, a) => {
         const { postId, liked, likesCount } = a.payload
@@ -543,10 +543,10 @@ const postsSlice = createSlice({
             p.liked_by_user = liked
           }
         }
-        s.feed.forEach(updatePost)
-        s.myPosts.forEach(updatePost)
-        s.followedFeed.forEach(updatePost)
-        s.userPosts.forEach(updatePost)
+        ;(s.feed || []).forEach(updatePost)
+        ;(s.myPosts || []).forEach(updatePost)
+        ;(s.followedFeed || []).forEach(updatePost)
+        ;(s.userPosts || []).forEach(updatePost)
       })
       .addCase(toggleLikeThunk.rejected, (s, a) => {
         const postId = a.meta.arg
@@ -556,10 +556,10 @@ const postsSlice = createSlice({
             p.liked_by_user = !p.liked_by_user
           }
         }
-        s.feed.forEach(revertPost)
-        s.myPosts.forEach(revertPost)
-        s.followedFeed.forEach(revertPost)
-        s.userPosts.forEach(revertPost)
+        ;(s.feed || []).forEach(revertPost)
+        ;(s.myPosts || []).forEach(revertPost)
+        ;(s.followedFeed || []).forEach(revertPost)
+        ;(s.userPosts || []).forEach(revertPost)
       })
   },
 })

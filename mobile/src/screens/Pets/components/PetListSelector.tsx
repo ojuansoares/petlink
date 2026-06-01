@@ -39,7 +39,7 @@ export function PetListSelector({ pets, activePetId, onSelect }: PetListSelector
             },
           ]}
         >
-          <Avatar size={42} name={pet.name} source={pet.photo_url ? { uri: pet.photo_url } : undefined} />
+          <Avatar size={42} name={pet.name} source={pet.photo_url ?? undefined} />
           <Text 
             size="xs" 
             weight="700" 

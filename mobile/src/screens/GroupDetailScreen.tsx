@@ -93,7 +93,7 @@ function MemberRow({
   return (
     <View style={[s.memberRow, { borderBottomColor: colors.border }]}>
       <Pressable style={s.memberInfo} onPress={() => handleUserPress(item.user_id)}>
-        <Avatar size={36} name={item.name} source={item.avatar_url ? { uri: item.avatar_url } : undefined} />
+        <Avatar size={36} name={item.name} source={item.avatar_url ?? undefined} />
         <View>
           <Text weight="600" size="sm">{item.name}</Text>
           <Text size="xs" color="mutedForeground">
@@ -224,7 +224,7 @@ function AddMemberModal({
             renderItem={({ item }) => (
               <View style={[s.userRow, { borderBottomColor: colors.border }]}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
-                  <Avatar size={32} name={item.name} source={item.avatar_url ? { uri: item.avatar_url } : undefined} />
+                  <Avatar size={32} name={item.name} source={item.avatar_url ?? undefined} />
                   <View style={{ flex: 1 }}>
                     <Text weight="600" size="sm">{item.name}</Text>
                     {item.previousInviteStatus === 'rejected' && (
@@ -423,7 +423,7 @@ function EditGroupModal({
               <Text size="xs" weight="700" style={[s.label, { color: colors.mutedForeground }]}>Foto do grupo</Text>
               {photoUrl ? (
                 <View style={s.photoPreviewWrapper}>
-                  <Image source={{ uri: photoUrl }} style={s.photoPreview} contentFit="cover" />
+                  <Image source={photoUrl ?? undefined} style={s.photoPreview} contentFit="cover" />
                   <Pressable
                     style={[s.removePhotoButton, { backgroundColor: withAlpha(colors.card, 0.8) }]}
                     onPress={() => setPhotoUrl('')}
@@ -635,7 +635,7 @@ export default function GroupDetailScreen() {
             <Avatar
               size={32}
               name={item.profiles?.name}
-              source={item.profiles?.avatar_url ? { uri: item.profiles.avatar_url } : undefined}
+              source={item.profiles?.avatar_url ?? undefined}
               level={item.profiles?.level}
             />
             <View>
@@ -678,7 +678,7 @@ export default function GroupDetailScreen() {
         </View>
 
         {item.image_url && (
-          <Image source={{ uri: item.image_url }} style={s.postImage} contentFit="cover" transition={200} />
+          <Image source={item.image_url ?? undefined} style={s.postImage} contentFit="cover" transition={200} />
         )}
 
         {item.caption && <Text size="sm" style={s.caption}>{item.caption}</Text>}
@@ -806,7 +806,7 @@ export default function GroupDetailScreen() {
       {/* Group header */}
       <View style={[s.groupHeader, { borderBottomColor: colors.border }]}>
         <View style={s.groupInfo}>
-          <Avatar name={groupInfo.name} source={groupInfo.photo_url ? { uri: groupInfo.photo_url } : undefined} size={64} />
+          <Avatar name={groupInfo.name} source={groupInfo.photo_url ?? undefined} size={64} />
           <View style={s.groupMeta}>
             <Text weight="800" size="xl">{groupInfo.name}</Text>
             {groupInfo.description && <Text size="sm" color="mutedForeground" numberOfLines={2}>{groupInfo.description}</Text>}

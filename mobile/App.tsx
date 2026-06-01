@@ -47,6 +47,7 @@ import {
   addNotificationResponseReceivedListener,
   handleVaccineNotificationAction,
   handleFeedingNotificationAction,
+  restoreScheduledNotifications,
 } from './src/services/NotificationService'
 import { navigateFromNotification } from './src/navigation/navigationRef'
 

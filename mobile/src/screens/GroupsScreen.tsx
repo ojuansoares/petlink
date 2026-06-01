@@ -206,7 +206,7 @@ export default function GroupsScreen() {
                     key={inv.id}
                     style={[styles.inviteCard, { backgroundColor: colors.background, borderColor: withAlpha(colors.primary, 0.2) }]}
                   >
-                    <Avatar name={inv.group.name} source={inv.group.photo_url ? { uri: inv.group.photo_url } : undefined} size={56} />
+                    <Avatar name={inv.group.name} source={inv.group.photo_url ?? undefined} size={56} />
                     <View style={{ flex: 1 }}>
                       <Text weight="700" numberOfLines={1}>{inv.group.name}</Text>
                       <Text size="xs" color="mutedForeground">
@@ -312,7 +312,7 @@ export default function GroupsScreen() {
               <View style={styles.detailContent}>
                 <Avatar
                   name={selectedGroup.name}
-                  source={selectedGroup.photo_url ? { uri: selectedGroup.photo_url } : undefined}
+                  source={selectedGroup.photo_url ?? undefined}
                   size={120}
                 />
                 <Text weight="800" size="xl" style={{ marginTop: 16, textAlign: 'center' }}>
@@ -395,7 +395,7 @@ function MyGroupCard({ item, onPress }: { item: Group; onPress: () => void }) {
       onPress={onPress}
     >
       <View style={styles.groupHeader}>
-        <Avatar name={item.name} source={item.photo_url ? { uri: item.photo_url } : undefined} size={64} />
+        <Avatar name={item.name} source={item.photo_url ?? undefined} size={64} />
         <View style={styles.groupInfo}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Text weight="700" numberOfLines={1}>{item.name}</Text>
@@ -430,7 +430,7 @@ function DiscoverGroupCard({ item, onPress, onJoin }: { item: Group; onPress: ()
       onPress={onPress}
     >
       <View style={styles.groupHeader}>
-        <Avatar name={item.name} source={item.photo_url ? { uri: item.photo_url } : undefined} size={64} />
+        <Avatar name={item.name} source={item.photo_url ?? undefined} size={64} />
         <View style={styles.groupInfo}>
           <Text weight="700" numberOfLines={1}>{item.name}</Text>
           <Text size="xs" color="mutedForeground">

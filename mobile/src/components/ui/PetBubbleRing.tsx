@@ -75,7 +75,7 @@ export function PetBubbleRing({ pets, avatarSize, bubbleSize = 38, style, childr
             <Avatar
               size={bubbleSize - 4}
               name={pet.name}
-              source={pet.photo_url ? { uri: pet.photo_url } : undefined}
+              source={pet.photo_url ?? undefined}
             />
           </View>
         )

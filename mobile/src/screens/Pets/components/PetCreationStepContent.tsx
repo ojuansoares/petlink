@@ -205,7 +205,7 @@ export function PetCreationStepContent({
         <Avatar
           size={120}
           name={name || 'Novo Pet'}
-          source={photoUrl ? { uri: photoUrl } : undefined}
+          source={photoUrl ?? undefined}
         />
         <Button
           label={photoUrl ? 'Alterar Foto' : 'Escolher Foto'}

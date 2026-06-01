@@ -60,7 +60,7 @@ export const profileService = {
       current.avatar_url !== patch.avatar_url &&
       uploadsService.isManagedCloudinaryUrl(patch.avatar_url)
 
-    const updated = await profileRepository.updateById(userId, patch)
+    await profileRepository.updateById(userId, patch)
 
     if (shouldDeleteOldAvatar) {
       try {
@@ -69,7 +69,9 @@ export const profileService = {
       }
     }
 
-    return attachEmail(userId, updated)
+    const enriched = await profileRepository.findById(userId)
+    if (!enriched) throw new AppError('Perfil nÃ£o encontrado', 404)
+    return attachEmail(userId, enriched)
   },
 
   async searchByName(query: string) {

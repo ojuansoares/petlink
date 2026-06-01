@@ -20,7 +20,7 @@ import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Avatar } from '../components/ui/Avatar'
 import { useAppSelector } from '../store'
-import { selectProfile } from '../store/slices/profileSlice'
+import { selectProfile, selectProfileLoading } from '../store/slices/profileSlice'
 import { selectActivePetId, selectPetsList, selectPetsLoading } from '../store/slices/petsSlice'
 import { selectGamification } from '../store/slices/gamificationSlice'
 import { getVaccinesByPetId } from '../api/vaccine.api'
@@ -59,6 +59,7 @@ export default function HomeScreen() {
   const activePetId = useAppSelector(selectActivePetId)
   const petsLoading = useAppSelector(selectPetsLoading)
   const profile = useAppSelector(selectProfile)
+  const isProfileLoading = useAppSelector(selectProfileLoading)
   const gamificationStats = useAppSelector(selectGamification)
 
   const [showCreatePost, setShowCreatePost] = useState(false)
@@ -407,9 +408,10 @@ export default function HomeScreen() {
         <Pressable onPress={() => navigation.navigate('Profile' as never)}>
           <Avatar
             name={profile?.name || 'Usuario'}
-            source={profile?.avatar_url ? { uri: profile.avatar_url } : undefined}
+            source={profile?.avatar_url ?? undefined}
             size={48}
             level={gamificationStats?.level}
+            loading={isProfileLoading && !profile?.avatar_url}
           />
         </Pressable>
       </View>
@@ -450,7 +452,7 @@ export default function HomeScreen() {
                     <View style={styles.dashboardLeft}>
                       <Avatar
                         name={pet.name}
-                        source={pet.photo_url ? { uri: pet.photo_url } : undefined}
+                        source={pet.photo_url ?? undefined}
                         size={72}
                       />
                     </View>
@@ -697,7 +699,7 @@ export default function HomeScreen() {
               </View>
             )}
             <WebView
-              source={{ uri: bannerUrl }}
+              source={bannerUrl ? bannerUrl : undefined}
               style={{ flex: 1 }}
               onLoadStart={() => setWebViewLoading(true)}
               onLoadEnd={() => setWebViewLoading(false)}

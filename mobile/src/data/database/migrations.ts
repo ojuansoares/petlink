@@ -1,4 +1,4 @@
-import { createTable, schemaMigrations } from '@nozbe/watermelondb/Schema/migrations'
+import { addColumns, createTable, schemaMigrations } from '@nozbe/watermelondb/Schema/migrations'
 
 export const offlineMigrations = schemaMigrations({
   migrations: [
@@ -66,6 +66,19 @@ export const offlineMigrations = schemaMigrations({
     {
       toVersion: 6,
       steps: [],
+    },
+    {
+      toVersion: 7,
+      steps: [
+        addColumns({
+          table: 'user_profiles',
+          columns: [
+            { name: 'posts_count', type: 'number' },
+            { name: 'followers_count', type: 'number' },
+            { name: 'following_count', type: 'number' },
+          ],
+        }),
+      ],
     },
   ],
 })

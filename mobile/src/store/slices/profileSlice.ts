@@ -28,6 +28,16 @@ const initialState: ProfileState = {
   error: null,
 }
 
+function mergeProfileCounts(newProfile: UserProfile, oldProfile: UserProfile | null): UserProfile {
+  return {
+    ...newProfile,
+    posts_count: newProfile.posts_count ?? oldProfile?.posts_count ?? 0,
+    pets_count: newProfile.pets_count ?? oldProfile?.pets_count ?? 0,
+    followers_count: newProfile.followers_count ?? oldProfile?.followers_count ?? 0,
+    following_count: newProfile.following_count ?? oldProfile?.following_count ?? 0,
+  }
+}
+
 export const fetchMyProfileThunk = createAsyncThunk(
   'profile/fetchMe',
   async (_, { rejectWithValue }) => {
@@ -155,12 +165,8 @@ const profileSlice = createSlice({
       .addCase(updateProfileThunk.fulfilled, (s, a) => {
         s.isUpdating = false
         const oldProfile = s.profile
-        const newProfile = a.payload as UserProfile & { posts_count?: number; pets_count?: number; followers_count?: number }
-        s.profile = {
-          ...newProfile,
-          posts_count: newProfile.posts_count ?? oldProfile?.posts_count ?? 0,
-          pets_count: newProfile.pets_count ?? oldProfile?.pets_count ?? 0,
-        }
+        const newProfile = a.payload as UserProfile
+        s.profile = mergeProfileCounts(newProfile, oldProfile)
       })
       .addCase(updateProfileThunk.rejected, (s, a) => {
         s.isUpdating = false
@@ -175,12 +181,8 @@ const profileSlice = createSlice({
       .addCase(updateMyAvatarThunk.fulfilled, (s, a) => {
         s.isUpdating = false
         const oldProfile = s.profile
-        const newProfile = a.payload as UserProfile & { posts_count?: number; pets_count?: number; followers_count?: number }
-        s.profile = {
-          ...newProfile,
-          posts_count: newProfile.posts_count ?? oldProfile?.posts_count ?? 0,
-          pets_count: newProfile.pets_count ?? oldProfile?.pets_count ?? 0,
-        }
+        const newProfile = a.payload as UserProfile
+        s.profile = mergeProfileCounts(newProfile, oldProfile)
       })
       .addCase(updateMyAvatarThunk.rejected, (s, a) => {
         s.isUpdating = false

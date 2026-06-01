@@ -31,7 +31,7 @@ const PostItem = React.memo(({ post, onPress, size }: { post: Post; onPress: (p:
       style={{ width: size, height: size, padding: 0.5 }}
     >
       <Image
-        source={{ uri: post.image_url }}
+        source={post.image_url ?? undefined}
         style={{
           width: '100%',
           height: '100%',

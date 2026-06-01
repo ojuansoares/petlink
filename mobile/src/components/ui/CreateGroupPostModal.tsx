@@ -127,7 +127,7 @@ export function CreateGroupPostModal({ visible, onClose, groupId }: CreateGroupP
               <Text size="xs" weight="700" style={[s.label, { color: colors.mutedForeground }]}>Foto (opcional)</Text>
               {photoUrl ? (
                 <View style={s.photoPreviewWrapper}>
-                  <Image source={{ uri: photoUrl }} style={s.photoPreview} contentFit="cover" />
+                  <Image source={photoUrl ?? undefined} style={s.photoPreview} contentFit="cover" />
                   <Pressable
                     style={[s.removePhotoButton, { backgroundColor: withAlpha(colors.card, 0.8) }]}
                     onPress={() => setPhotoUrl('')}

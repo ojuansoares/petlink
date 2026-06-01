@@ -154,7 +154,7 @@ export function FollowersModal({ visible, onClose, userId, type, title }: Props)
                   {item.avatar_url ? (
                     <Avatar
                       name={item.name}
-                      source={{ uri: item.avatar_url }}
+                      source={item.avatar_url ?? undefined}
                       size={44}
                       level={item.level}
                     />

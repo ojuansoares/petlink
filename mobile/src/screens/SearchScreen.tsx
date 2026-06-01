@@ -185,7 +185,7 @@ export default function SearchScreen() {
         }
       }}
     >
-      <Avatar name={item.name} source={item.avatar_url ? { uri: item.avatar_url } : undefined} size={48} />
+      <Avatar name={item.name} source={item.avatar_url ?? undefined} size={48} />
       <View style={styles.resultInfo}>
         <Text weight="700">{item.name}</Text>
         {item.bio && <Text size="sm" color="mutedForeground" numberOfLines={1}>{item.bio}</Text>}
@@ -211,7 +211,7 @@ export default function SearchScreen() {
         }
       }}
     >
-      <Avatar name={item.name} source={item.photo_url ? { uri: item.photo_url } : undefined} size={48} />
+      <Avatar name={item.name} source={item.photo_url ?? undefined} size={48} />
       <View style={styles.resultInfo}>
         <Text weight="700">{item.name}</Text>
         <Text size="sm" color="mutedForeground" numberOfLines={1}>
@@ -227,7 +227,7 @@ export default function SearchScreen() {
       style={[styles.resultItem, { borderBottomColor: withAlpha(colors.border, 0.5) }]}
       onPress={() => handleGroupCardPress(item)}
     >
-      <Avatar name={item.name} source={item.photo_url ? { uri: item.photo_url } : undefined} size={48} />
+      <Avatar name={item.name} source={item.photo_url ?? undefined} size={48} />
       <View style={styles.resultInfo}>
         <Text weight="700">{item.name}</Text>
         <Text size="sm" color="mutedForeground" numberOfLines={1}>
@@ -373,7 +373,7 @@ export default function SearchScreen() {
               <View style={styles.detailContent}>
                 <Avatar
                   name={selectedGroup.name}
-                  source={selectedGroup.photo_url ? { uri: selectedGroup.photo_url } : undefined}
+                  source={selectedGroup.photo_url ?? undefined}
                   size={120}
                 />
                 <Text weight="800" size="xl" style={{ marginTop: 16, textAlign: 'center' }}>

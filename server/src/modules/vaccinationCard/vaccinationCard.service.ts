@@ -1,45 +1,92 @@
 import PDFDocument from 'pdfkit'
+import https from 'https'
+import http from 'http'
 import { vaccinationCardRepository, type VaccineData } from './vaccinationCard.repository'
 
-const PRIMARY = '#5D7052'
-const PRIMARY_LIGHT = '#E6E9DD'
-const ACCENT = '#C18C5D'
-const BG_LIGHT = '#F0F2ED'
-const TEXT_DARK = '#2C2C24'
-const TEXT_MUTED = '#78786C'
-const BORDER = '#DED8CF'
-const SUCCESS = '#3A7D44'
-const WARNING = '#C18C5D'
-
-function formatDate(dateStr: string | null): string {
-  if (!dateStr) return '—'
-  const d = new Date(dateStr)
-  return d.toLocaleDateString('pt-BR')
+// ─── Brand palette (matches app theme) ───────────────────────────────────────
+const C = {
+  primary:     '#5D7052',   // verde musgo
+  primaryDark: '#3E4F38',
+  primaryLight:'#E6E9DD',
+  accent:      '#C18C5D',   // areia / caramelo
+  accentLight: '#F5EDE0',
+  bg:          '#F0F2ED',
+  white:       '#FFFFFF',
+  dark:        '#2C2C24',
+  muted:       '#78786C',
+  border:      '#DED8CF',
+  success:     '#3A7D44',
+  successBg:   '#E8F5EA',
+  warning:     '#B45309',
+  warningBg:   '#FEF3C7',
+  danger:      '#A85448',
+  dangerBg:    '#FDECEA',
+  card:        '#FFFFFF',
+  stripe:      '#F7F8F5',
 }
 
-function drawRoundedRect(
-  doc: any,
-  x: number, y: number, w: number, h: number, r: number,
-  fillColor?: string, strokeColor?: string
-) {
+function formatDate(d: string | null): string {
+  if (!d) return '—'
+  return new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+}
+
+function fetchImageBuffer(url: string): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const mod = url.startsWith('https') ? https : http
+    mod.get(url, (res) => {
+      const chunks: Buffer[] = []
+      res.on('data', (c: Buffer) => chunks.push(c))
+      res.on('end', () => resolve(Buffer.concat(chunks)))
+      res.on('error', reject)
+    }).on('error', reject)
+  })
+}
+
+function hex2rgb(hex: string): [number, number, number] {
+  const h = hex.replace('#', '')
+  return [
+    parseInt(h.slice(0,2), 16),
+    parseInt(h.slice(2,4), 16),
+    parseInt(h.slice(4,6), 16),
+  ]
+}
+
+// Translate species to Portuguese (fallback to original when unknown)
+function translateSpecies(species?: string | null): string {
+  if (!species) return ''
+  const s = species.trim().toLowerCase()
+  const map: Record<string, string> = {
+    dog: 'Cachorro',
+    cat: 'Gato',
+    bird: 'Pássaro',
+    rabbit: 'Coelho',
+    fish: 'Peixe',
+    reptile: 'Réptil',
+    other: 'Outro',
+    horse: 'Cavalo',
+    rodent: 'Roedor',
+  }
+  // Try exact match first
+  if (map[s]) return map[s]
+  // Try contains
+  for (const k of Object.keys(map)) {
+    if (s.includes(k)) return map[k]
+  }
+  // Capitalize first letter of original as fallback
+  return species.charAt(0).toUpperCase() + species.slice(1)
+}
+
+// Draw a pill / rounded rect
+function pill(doc: PDFKit.PDFDocument, x: number, y: number, w: number, h: number, r: number, fill: string, stroke?: string) {
   doc.save()
-  if (fillColor) doc.fillColor(fillColor)
-  if (strokeColor) doc.strokeColor(strokeColor).lineWidth(1)
-
-  doc.moveTo(x + r, y)
-    .lineTo(x + w - r, y)
-    .quadraticCurveTo(x + w, y, x + w, y + r)
-    .lineTo(x + w, y + h - r)
-    .quadraticCurveTo(x + w, y + h, x + w - r, y + h)
-    .lineTo(x + r, y + h)
-    .quadraticCurveTo(x, y + h, x, y + h - r)
-    .lineTo(x, y + r)
-    .quadraticCurveTo(x, y, x + r, y)
-    .closePath()
-
-  if (fillColor) doc.fill()
-  if (strokeColor) doc.stroke()
+  doc.roundedRect(x, y, w, h, r)
+  if (stroke) { doc.fillAndStroke(fill, stroke) } else { doc.fill(fill) }
   doc.restore()
+}
+
+// Draw a thin horizontal rule
+function rule(doc: PDFKit.PDFDocument, x: number, y: number, w: number, color = C.border) {
+  doc.save().strokeColor(color).lineWidth(0.5).moveTo(x, y).lineTo(x + w, y).stroke().restore()
 }
 
 export const vaccinationCardService = {
@@ -52,137 +99,353 @@ export const vaccinationCardService = {
       ? await vaccinationCardRepository.getVaccines(petId, vaccineIds)
       : await vaccinationCardRepository.getAllVaccines(petId)
 
+    const vaccineList  = vaccines.filter(v => v.type === 'vaccine')
+    const dewormerList = vaccines.filter(v => v.type === 'dewormer')
+
+    // Fetch pet photo
+    let petPhoto: Buffer | null = null
+    if (pet.photo_url) {
+      try { petPhoto = await fetchImageBuffer(pet.photo_url) } catch {}
+    }
+
     const doc = new PDFDocument({
       size: 'A4',
-      margins: { top: 30, bottom: 30, left: 30, right: 30 },
+      margins: { top: 0, bottom: 0, left: 0, right: 0 },
       info: {
-        Title: `Carteirinha de Vacinação - ${pet.name}`,
+        Title: `Carteirinha de Vacinação — ${pet.name}`,
         Author: 'PetLink',
         Subject: 'Carteirinha de Vacinação',
+        Creator: 'PetLink App',
       },
     })
 
     const buffers: Buffer[] = []
-    doc.on('data', (chunk: Buffer) => buffers.push(chunk))
-    doc.on('end', () => {})
+    doc.on('data', (c: Buffer) => buffers.push(c))
 
-    const pageWidth = doc.page.width - 60
-    let y = 30
+    const PW = doc.page.width   // 595.28
+    const PH = doc.page.height  // 841.89
+    const ML = 36, MR = 36
+    const CW = PW - ML - MR     // content width
 
-    // ───── TOP BAR ─────
-    drawRoundedRect(doc, 30, y, pageWidth, 60, 12, PRIMARY)
-    doc.fillColor('#ffffff')
-      .fontSize(24)
-      .font('Helvetica-Bold')
-      .text('PetLink', 50, y + 14)
-      .fontSize(10)
-      .font('Helvetica')
-      .text('Carteirinha de Vacinação', 50, y + 40)
-    // generation date top right
-    const genDate = new Date().toLocaleDateString('pt-BR')
-    doc.fontSize(8).text(`Gerado em ${genDate}`, 30 + pageWidth - 120, y + 14, { width: 100, align: 'right' })
-    y += 80
+    // ═══════════════════════════════════════════════════════
+    // BACKGROUND — subtle grain-like dot texture
+    // ═══════════════════════════════════════════════════════
+    doc.rect(0, 0, PW, PH).fill(C.bg)
 
-    // ───── PET CARD ─────
-    drawRoundedRect(doc, 30, y, pageWidth, 80, 10, PRIMARY_LIGHT)
-    doc.fillColor(TEXT_DARK)
+    // ═══════════════════════════════════════════════════════
+    // HEADER BAND
+    // ═══════════════════════════════════════════════════════
+    const HEADER_H = 88
+    doc.rect(0, 0, PW, HEADER_H).fill(C.primary)
 
-    const petName = pet.name
-    doc.fontSize(18).font('Helvetica-Bold').text(petName, 50, y + 14)
+    // Decorative accent stripe on the right side of header
+    doc.rect(PW - 8, 0, 8, HEADER_H).fill(C.accent)
 
-    const petInfo = [
-      `Espécie: ${pet.species}`,
-      pet.breed ? `Raça: ${pet.breed}` : null,
-      `Tutor: ${owner?.name ?? '—'}`,
-    ].filter(Boolean).join('  |  ')
+    // Logo wordmark
+    doc.fillColor(C.white).font('Helvetica-Bold').fontSize(26)
+    doc.text('PetLink', ML, 22)
 
-    doc.fontSize(10).font('Helvetica').fillColor(TEXT_MUTED).text(petInfo, 50, y + 42, { width: pageWidth - 40 })
+    // Subtitle
+    doc.fillColor(C.primaryLight).font('Helvetica').fontSize(10)
+    doc.text('Carteirinha de Vacinação', ML, 52)
 
-    if (pet.photo_url) {
-      try {
-        doc.image(pet.photo_url, 30 + pageWidth - 70, y + 10, { width: 60, height: 60 })
-      } catch {}
-    }
-    y += 100
+    // Generation date — right aligned
+    const genDate = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
+    doc.fillColor(C.primaryLight).font('Helvetica').fontSize(8)
+    doc.text(`Emitido em ${genDate}`, ML, 68, { width: CW, align: 'right' })
 
-    // ───── SECTION HEADER ─────
-    drawRoundedRect(doc, 30, y, pageWidth, 36, 8, PRIMARY)
-    doc.fillColor('#ffffff')
-      .fontSize(13)
-      .font('Helvetica-Bold')
-      .text('Registro de Vacinas e Vermífugos', 50, y + 10)
-    y += 52
+    let y = HEADER_H + 20
 
-    // ───── TABLE HEADER ─────
-    const colX = [30, 180, 290, 390, 460]
-    const colW = [150, 110, 100, 70, 100]
-    const rowH = 22
+    // ═══════════════════════════════════════════════════════
+    // PET IDENTITY CARD
+    // ═══════════════════════════════════════════════════════
+    const CARD_H = petPhoto ? 130 : 110
+    pill(doc, ML, y, CW, CARD_H, 14, C.white)
 
-    drawRoundedRect(doc, 30, y, pageWidth, rowH, 6, TEXT_DARK)
-    doc.fillColor('#ffffff').fontSize(9).font('Helvetica-Bold')
-    doc.text('Nome', colX[0] + 8, y + 6)
-    doc.text('Tipo', colX[1] + 8, y + 6)
-    doc.text('Aplicação', colX[2] + 8, y + 6)
-    doc.text('Doses', colX[3] + 8, y + 6)
-    doc.text('Status', colX[4] + 8, y + 6)
-    y += rowH
+    // Left accent bar
+    doc.rect(ML, y, 5, CARD_H).fill(C.accent)
+    // re-round the left edge only (hack: draw card again on top just for corners)
+    doc.save()
+    doc.roundedRect(ML, y, 5, CARD_H, 0).fill(C.accent)
+    doc.restore()
 
-    // ───── TABLE ROWS ─────
-    if (vaccines.length === 0) {
-      drawRoundedRect(doc, 30, y, pageWidth, rowH, 0, BG_LIGHT)
-      doc.fillColor(TEXT_MUTED).fontSize(10).font('Helvetica')
-        .text('Nenhum registro encontrado', 50, y + 5)
-      y += rowH
+    // Pet photo circle
+    const PHOTO_SIZE = 90
+    const photoX = ML + 22
+    const photoY = y + (CARD_H - PHOTO_SIZE) / 2
+
+    if (petPhoto) {
+      // Circle clip
+      doc.save()
+      doc.circle(photoX + PHOTO_SIZE / 2, photoY + PHOTO_SIZE / 2, PHOTO_SIZE / 2).clip()
+      doc.image(petPhoto, photoX, photoY, { width: PHOTO_SIZE, height: PHOTO_SIZE })
+      doc.restore()
+      // Circle border
+      doc.save()
+      doc.circle(photoX + PHOTO_SIZE / 2, photoY + PHOTO_SIZE / 2, PHOTO_SIZE / 2)
+        .strokeColor(C.accent).lineWidth(2.5).stroke()
+      doc.restore()
     } else {
-      for (let i = 0; i < vaccines.length; i++) {
-        const v = vaccines[i]
-        if (y + rowH > doc.page.height - 60) {
-          doc.addPage()
-          y = 30
+      // Placeholder paw circle
+      doc.save()
+      doc.circle(photoX + PHOTO_SIZE / 2, photoY + PHOTO_SIZE / 2, PHOTO_SIZE / 2)
+        .fill(C.primaryLight)
+      doc.restore()
+      doc.fillColor(C.primary).font('Helvetica-Bold').fontSize(32)
+      doc.text(pet.name.charAt(0).toUpperCase(), photoX, photoY + PHOTO_SIZE / 2 - 18,
+        { width: PHOTO_SIZE, align: 'center' })
+    }
+
+    // Pet info text block
+    const infoX = petPhoto ? photoX + PHOTO_SIZE + 18 : ML + 18
+    const infoW = CW - (infoX - ML) - 16
+
+    doc.fillColor(C.dark).font('Helvetica-Bold').fontSize(22)
+    doc.text(pet.name, infoX, y + 18, { width: infoW })
+
+    // Species + breed badge (translate species to PT-BR)
+    const speciesTranslated = translateSpecies(pet.species)
+    const speciesLabel = `${speciesTranslated}${pet.breed ? ` · ${pet.breed}` : ''}`
+    doc.fillColor(C.white).font('Helvetica').fontSize(8)
+    const badgeW = Math.min(doc.widthOfString(speciesLabel) + 18, 200)
+    pill(doc, infoX, y + 46, badgeW, 18, 9, C.primary)
+    doc.fillColor(C.white).font('Helvetica').fontSize(8)
+    doc.text(speciesLabel, infoX + 9, y + 50, { width: badgeW - 18 })
+
+    // Info grid
+    const infoItems: [string, string][] = []
+    if (pet.breed)         infoItems.push(['Raça', pet.breed])
+    if (owner?.name)       infoItems.push(['Tutor(a)', owner.name])
+
+    doc.fillColor(C.muted).font('Helvetica').fontSize(8.5)
+    let infoRow = y + 74
+    infoItems.forEach(([label, value]) => {
+      doc.fillColor(C.muted).text(`${label}:`, infoX, infoRow, { continued: true })
+      doc.fillColor(C.dark).font('Helvetica-Bold').text(` ${value}`)
+      doc.font('Helvetica')
+      infoRow += 14
+    })
+
+    y += CARD_H + 18
+
+    // ═══════════════════════════════════════════════════════
+    // UPCOMING DOSES — alert panel (only if any pending)
+    // ═══════════════════════════════════════════════════════
+    const today = new Date()
+    today.setHours(0,0,0,0)
+    const in30 = new Date(today); in30.setDate(in30.getDate() + 30)
+
+    const upcoming = vaccines.flatMap(v => {
+      const doses = (v.doses ?? []).length > 0 ? v.doses! : [{ date: v.applied_at, applied: v.is_completed }]
+      return doses
+        .filter(d => !d.applied && d.date)
+        .map(d => ({ vaccine: v.name, date: new Date(d.date!), overdue: new Date(d.date!) < today }))
+    }).sort((a, b) => a.date.getTime() - b.date.getTime()).slice(0, 4)
+
+    if (upcoming.length > 0) {
+      const ALERT_H = 28 + upcoming.length * 22 + 12
+      pill(doc, ML, y, CW, ALERT_H, 12, C.warningBg)
+      doc.rect(ML, y, 4, ALERT_H).fill(C.accent)
+
+      doc.fillColor(C.warning).font('Helvetica-Bold').fontSize(9)
+      doc.text('PRÓXIMAS DOSES', ML + 14, y + 10)
+
+      upcoming.forEach((u, i) => {
+        const rowY = y + 28 + i * 22
+        const color = u.overdue ? C.danger : C.warning
+        const label = u.overdue ? 'ATRASADA' : formatDate(u.date.toISOString())
+
+        pill(doc, ML + 14, rowY, 6, 6, 3, color)
+        doc.fillColor(C.dark).font('Helvetica').fontSize(8.5)
+        doc.text(u.vaccine, ML + 26, rowY - 1, { width: CW - 120 })
+        pill(doc, ML + CW - 90, rowY - 4, 85, 14, 7, u.overdue ? C.dangerBg : C.warningBg)
+        doc.fillColor(color).font('Helvetica-Bold').fontSize(7.5)
+        doc.text(label, ML + CW - 90, rowY - 1, { width: 85, align: 'center' })
+      })
+
+      y += ALERT_H + 16
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // HELPER: render a vaccine/dewormer section
+    // ═══════════════════════════════════════════════════════
+    const renderSection = (
+      items: VaccineData[],
+      title: string,
+      accentColor: string,
+      accentBg: string
+    ) => {
+      if (items.length === 0) return
+
+      // Check page space
+      if (y + 50 > PH - 50) { doc.addPage(); doc.rect(0, 0, PW, PH).fill(C.bg); y = 30 }
+
+      // Section header
+      pill(doc, ML, y, CW, 32, 8, accentColor)
+      doc.fillColor(C.white).font('Helvetica-Bold').fontSize(11)
+      doc.text(title.toUpperCase(), ML + 14, y + 10)
+      doc.fillColor(C.white).font('Helvetica').fontSize(8)
+      // right-aligned count, keep margin from right edge
+      doc.text(`${items.length} ${items.length === 1 ? 'registro' : 'registros'}`, ML + CW - 120, y + 11, { width: 110, align: 'right' })
+      y += 38
+
+      // Column headers (calculate positions relative to content width to avoid overflow)
+      const badgeWidth = 80
+      const nameX = ML + 8
+      const dateX = ML + Math.floor(CW * 0.45)
+      const dosesX = ML + Math.floor(CW * 0.66)
+      const statusX = ML + CW - badgeWidth - 10
+      const cols = { name: nameX, date: dateX, doses: dosesX, status: statusX }
+      doc.fillColor(C.muted).font('Helvetica').fontSize(7.5)
+      doc.text('PRODUTO / VACINA', cols.name, y)
+      doc.text('APLICAÇÃO', cols.date, y)
+      doc.text('DOSES', cols.doses, y)
+      doc.text('STATUS', cols.status, y)
+      y += 14
+      rule(doc, ML, y, CW)
+      y += 6
+
+      items.forEach((v, idx) => {
+        const doses = (v.doses ?? []).length > 0 ? v.doses! : [{ date: v.applied_at, applied: v.is_completed }]
+        const appliedCount = doses.filter(d => d.applied).length
+        const totalCount = doses.length
+        const anyOverdue = doses.some(d => !d.applied && d.date && new Date(d.date) < today)
+        const isComplete = v.is_completed
+
+        const statusText  = isComplete ? 'Completo' : anyOverdue ? 'Atrasado' : 'Pendente'
+        const statusColor = isComplete ? C.success : anyOverdue ? C.danger : C.warning
+        const statusBg    = isComplete ? C.successBg : anyOverdue ? C.dangerBg : C.warningBg
+
+        // Dose timeline height
+        const timelineH = totalCount > 1 ? totalCount * 16 + 8 : 0
+        const ROW_H = 32 + timelineH
+
+        if (y + ROW_H > PH - 50) {
+          doc.addPage(); doc.rect(0, 0, PW, PH).fill(C.bg); y = 30
         }
 
-        const bgColor = i % 2 === 0 ? BG_LIGHT : '#ffffff'
-        drawRoundedRect(doc, 30, y, pageWidth, rowH, 0, bgColor)
+        // Row background
+        const rowBg = idx % 2 === 0 ? C.white : C.stripe
+        doc.rect(ML, y - 4, CW, ROW_H).fill(rowBg)
 
-        const appliedCount = (v.doses ?? []).filter((d: { applied: boolean }) => d.applied).length
-        const totalCount = (v.doses ?? []).length
-        const statusText = v.is_completed ? 'Completo' : `${appliedCount}/${totalCount}`
-        const statusColor = v.is_completed ? SUCCESS : WARNING
+        // Vaccine name
+        doc.fillColor(C.dark).font('Helvetica-Bold').fontSize(9.5)
+        const nameW = dateX - cols.name - 12
+        doc.text(v.name, cols.name, y, { width: nameW })
 
-        doc.fillColor(TEXT_DARK).fontSize(9).font('Helvetica')
-        doc.text(v.name, colX[0] + 8, y + 6, { width: colW[0] - 12 })
+        // Lab (if present)
+        if (v.lab) {
+          doc.fillColor(C.muted).font('Helvetica').fontSize(7.5)
+          doc.text(v.lab, cols.name, y + 13, { width: nameW })
+        }
 
-        const typeLabel = v.type === 'vaccine' ? 'Vacina' : 'Vermífugo'
-        doc.text(typeLabel, colX[1] + 8, y + 6, { width: colW[1] - 12 })
+        // Application date
+        doc.fillColor(C.dark).font('Helvetica').fontSize(8.5)
+        const dateW = dosesX - cols.date - 8
+        doc.text(formatDate(v.applied_at), cols.date, y, { width: dateW })
 
-        doc.text(formatDate(v.applied_at), colX[2] + 8, y + 6, { width: colW[2] - 12 })
+        // Next dose (small)
+        if (v.next_dose_at && !isComplete) {
+          doc.fillColor(accentColor).font('Helvetica').fontSize(7)
+          doc.text(`↻ ${formatDate(v.next_dose_at)}`, cols.date, y + 13, { width: 85 })
+        }
 
-        doc.text(totalCount > 0 ? `${appliedCount}/${totalCount}` : '—', colX[3] + 8, y + 6, { width: colW[3] - 12 })
+        // Doses fraction
+        doc.fillColor(C.dark).font('Helvetica-Bold').fontSize(9)
+        doc.text(`${appliedCount}/${totalCount}`, cols.doses, y, { width: 60, align: 'center' })
 
-        doc.fillColor(statusColor).font('Helvetica-Bold')
-        doc.text(v.is_completed ? 'Completo' : 'Pendente', colX[4] + 8, y + 6, { width: colW[4] - 12 })
+        // Status badge (ensure it stays within page)
+        const badgeX = statusX
+        pill(doc, badgeX, y - 2, badgeWidth, 16, 8, statusBg)
+        doc.fillColor(statusColor).font('Helvetica-Bold').fontSize(7.5)
+        doc.text(statusText, badgeX, y + 2, { width: badgeWidth, align: 'center' })
 
-        y += rowH
-      }
+        // Dose timeline (when > 1 dose)
+        if (totalCount > 1) {
+          const tlY = y + 24
+          doc.fillColor(C.muted).font('Helvetica').fontSize(7)
+          doc.text('Histórico de doses:', cols.name, tlY)
+
+          doses.forEach((dose, di) => {
+            const dY = tlY + 8 + di * 16
+            const dDate = dose.date ? new Date(dose.date) : null
+            const isOverdue = !dose.applied && dDate && dDate < today
+            const dotColor = dose.applied ? C.success : isOverdue ? C.danger : C.border
+
+            // Dot
+            doc.circle(cols.name + 4, dY + 4, 4).fill(dotColor)
+
+            // Line connector
+            if (di < totalCount - 1) {
+              doc.save().strokeColor(C.border).lineWidth(1)
+                .moveTo(cols.name + 4, dY + 8).lineTo(cols.name + 4, dY + 16).stroke().restore()
+            }
+
+            // Dose info
+            doc.fillColor(dose.applied ? C.success : isOverdue ? C.danger : C.muted)
+              .font('Helvetica').fontSize(7.5)
+            const dLabel = `Dose ${di + 1}: ${dDate ? dDate.toLocaleDateString('pt-BR') : '—'}`
+            const dStatus = dose.applied ? ' ✓' : isOverdue ? ' (atrasada)' : ' (pendente)'
+            doc.text(dLabel + dStatus, cols.name + 14, dY - 1, { width: 180 })
+          })
+        }
+
+        y += ROW_H + 2
+        rule(doc, ML, y, CW, C.border + '50')
+        y += 4
+      })
+
+      y += 12
     }
 
-    y += 20
+    // ─── Vaccines ────────────────────────────────────────────
+    renderSection(vaccineList, 'Vacinas', C.primary, C.primaryLight)
 
-    // ───── LEGEND ─────
-    drawRoundedRect(doc, 30, y, pageWidth, 36, 8, BG_LIGHT)
-    doc.fillColor(TEXT_MUTED).fontSize(8).font('Helvetica')
-    doc.text('Legenda:', 50, y + 8, { continued: true })
-    doc.fillColor(SUCCESS).text('  Completo  ', { continued: true })
-    doc.fillColor(WARNING).text(' Pendente', { continued: true })
-    doc.fillColor(TEXT_MUTED).text('  |  Doses: aplicadas/total')
-    y += 56
+    // ─── Dewormers ───────────────────────────────────────────
+    renderSection(dewormerList, 'Vermífugos', C.accent, C.accentLight)
 
-    // ───── FOOTER ─────
-    doc.fillColor(TEXT_MUTED).fontSize(7).font('Helvetica')
+    // ═══════════════════════════════════════════════════════
+    // SUMMARY STATS BAR
+    // ═══════════════════════════════════════════════════════
+    if (y + 60 > PH - 50) { doc.addPage(); doc.rect(0, 0, PW, PH).fill(C.bg); y = 30 }
+
+    y += 8
+    pill(doc, ML, y, CW, 52, 10, C.primaryLight)
+
+    const stats = [
+      { label: 'Total de registros', value: String(vaccines.length) },
+      { label: 'Completos', value: String(vaccines.filter(v => v.is_completed).length) },
+      { label: 'Pendentes', value: String(vaccines.filter(v => !v.is_completed).length) },
+      { label: 'Laboratórios', value: String([...new Set(vaccines.map(v => v.lab).filter(Boolean))].length || '—') },
+    ]
+
+    const statW = CW / stats.length
+    stats.forEach((s, i) => {
+      const sx = ML + i * statW + statW / 2
+      doc.fillColor(C.primary).font('Helvetica-Bold').fontSize(16)
+      doc.text(s.value, sx - 20, y + 8, { width: 40, align: 'center' })
+      doc.fillColor(C.muted).font('Helvetica').fontSize(7)
+      doc.text(s.label, sx - 35, y + 32, { width: 70, align: 'center' })
+
+      if (i < stats.length - 1) {
+        doc.save().strokeColor(C.border).lineWidth(0.5)
+          .moveTo(ML + (i + 1) * statW, y + 10).lineTo(ML + (i + 1) * statW, y + 42).stroke().restore()
+      }
+    })
+
+    y += 60
+
+    // ═══════════════════════════════════════════════════════
+    // FOOTER
+    // ═══════════════════════════════════════════════════════
+    const FOOTER_Y = PH - 38
+    doc.rect(0, FOOTER_Y, PW, 38).fill(C.primaryDark)
+    doc.rect(0, FOOTER_Y, PW, 2).fill(C.accent)
+
+    doc.fillColor(C.primaryLight).font('Helvetica').fontSize(7)
     doc.text(
-      'Documento gerado pelo PetLink (petlink.app) — não possui validade oficial como documento veterinário.',
-      30, doc.page.height - 40,
-      { width: pageWidth, align: 'center' }
+      'Documento gerado pelo PetLink (petlink.app) · Não substitui documentação veterinária oficial · Mantenha sempre com o seu pet',
+      ML, FOOTER_Y + 14, { width: CW, align: 'center' }
     )
 
     doc.end()

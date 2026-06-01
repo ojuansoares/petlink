@@ -16,8 +16,8 @@ function getLocalDateString(date: Date = new Date()): string {
 export function configureNotifications() {
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
-      shouldShowAlert: false,
-      shouldShowBanner: false,
+      shouldShowAlert: true,
+      shouldShowBanner: true,
       shouldShowList: true,
       shouldPlaySound: true,
       shouldSetBadge: true,

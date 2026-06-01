@@ -12,6 +12,9 @@ export type OfflineUserProfile = {
   bio: string | null
   updated_at: string | null
   pets_count?: number
+  posts_count?: number
+  followers_count?: number
+  following_count?: number
   birth_date: string | null
 }
 
@@ -54,6 +57,9 @@ function toOfflineProfile(record: ProfileModelLike): OfflineUserProfile {
     bio: record.bio ?? null,
     updated_at: record.updatedAt ? toIso(record.updatedAt) : null,
     pets_count: record.petsCount ?? 0,
+    posts_count: record.postsCount ?? 0,
+    followers_count: record.followersCount ?? 0,
+    following_count: record.followingCount ?? 0,
     birth_date: record.birthDate ?? null,
   }
 }
@@ -93,6 +99,9 @@ export const ProfileOfflineRepository = {
           record.bio = profile.bio ?? null
           record.updatedAt = toTimestamp(profile.updated_at)
           record.petsCount = profile.pets_count ?? 0
+          record.postsCount = profile.posts_count ?? 0
+          record.followersCount = profile.followers_count ?? 0
+          record.followingCount = profile.following_count ?? 0
           record.birthDate = profile.birth_date ?? null
         })
       } else {
@@ -106,6 +115,9 @@ export const ProfileOfflineRepository = {
           record.bio = profile.bio ?? null
           record.updatedAt = toTimestamp(profile.updated_at)
           record.petsCount = profile.pets_count ?? 0
+          record.postsCount = profile.posts_count ?? 0
+          record.followersCount = profile.followers_count ?? 0
+          record.followingCount = profile.following_count ?? 0
           record.birthDate = profile.birth_date ?? null
         })
       }

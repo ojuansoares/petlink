@@ -338,7 +338,7 @@ export function Calendar({ petId, petName, birthDate }: CalendarProps) {
       return (
         <View style={styles.modalContent}>
           {media?.type === 'photo' ? (
-            <Image source={{ uri: media.value }} style={styles.detailPhoto} contentFit="cover" />
+            <Image source={media.value ?? undefined} style={styles.detailPhoto} contentFit="cover" />
           ) : media?.type === 'color' ? (
             <View style={[styles.detailColorBanner, { backgroundColor: media.value }]} />
           ) : null}

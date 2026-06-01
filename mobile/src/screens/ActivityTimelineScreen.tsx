@@ -184,7 +184,7 @@ export default function ActivityTimelineScreen() {
           <Avatar
             size={72}
             name={petName}
-            source={pet?.photo_url ? { uri: pet.photo_url } : undefined}
+            source={pet?.photo_url ?? undefined}
           />
           <View style={{ gap: 2, alignItems: 'center' }}>
             <Heading size="xl" weight="800">Atividades</Heading>
@@ -251,7 +251,7 @@ export default function ActivityTimelineScreen() {
             <Avatar
               size={72}
               name={petName}
-              source={pet?.photo_url ? { uri: pet.photo_url } : undefined}
+              source={pet?.photo_url ?? undefined}
             />
             <View style={{ gap: 2, alignItems: 'center' }}>
               <Heading size="xl" weight="800">Atividades</Heading>

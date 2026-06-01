@@ -82,7 +82,7 @@ export function LikesSheet({ visible, onClose, post }: LikesSheetProps) {
         >
           <Avatar
             name={item.username ?? item.userId}
-            source={item.avatar_url ? { uri: item.avatar_url } : undefined}
+            source={item.avatar_url ?? undefined}
             size={36}
             level={item.level}
           />

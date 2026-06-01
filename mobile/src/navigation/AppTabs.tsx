@@ -14,7 +14,7 @@ import FeedScreen from '../screens/FeedScreen'
 import ProfileScreen from '../screens/ProfileScreen'
 import { useAppDispatch, useAppSelector } from '../store'
 import { selectUser } from '../store/slices/authSlice'
-import { fetchMyProfileThunk, selectProfile } from '../store/slices/profileSlice'
+import { fetchMyProfileThunk, selectProfile, selectProfileLoading } from '../store/slices/profileSlice'
 import { fetchPetsThunk } from '../store/slices/petsSlice'
 import { fetchGamificationThunk, selectGamification } from '../store/slices/gamificationSlice'
 
@@ -56,16 +56,15 @@ function UserRegionHeader() {
   )
 }
 
-function HeaderActions() {
+const HeaderActions = React.memo(function HeaderActionsInner() {
   const navigation = useNavigation<any>()
-  const dispatch = useAppDispatch()
   const { colors } = useTheme()
-  const user = useAppSelector(selectUser)
-  const profile = useAppSelector(selectProfile)
-  const gamificationStats = useAppSelector(selectGamification)
 
-  const avatarName = profile?.name ?? user?.name ?? 'Usuario'
-  const avatarSource = profile?.avatar_url ? { uri: profile.avatar_url } : undefined
+  // select minimal primitives to avoid unnecessary re-renders
+  const avatarName = useAppSelector((s: any) => s.profile.profile?.name ?? s.auth.user?.name ?? 'Usuario')
+  const avatarSource = useAppSelector((s: any) => s.profile.profile?.avatar_url ?? undefined)
+  const isProfileLoading = useAppSelector(selectProfileLoading)
+  const level = useAppSelector((s: any) => s.gamification.stats?.level)
 
   const navigateToProfile = () => {
     navigation.getParent()?.navigate('Tabs', { screen: 'Profile' })
@@ -90,7 +89,13 @@ function HeaderActions() {
         accessibilityRole="button"
         accessibilityLabel="Abrir perfil"
       >
-        <Avatar name={avatarName} source={avatarSource} size={34} level={gamificationStats?.level} />
+        <Avatar
+          name={avatarName}
+          source={avatarSource}
+          size={34}
+          level={level}
+          loading={isProfileLoading && !avatarSource}
+        />
       </Pressable>
 
       <Pressable
@@ -104,7 +109,7 @@ function HeaderActions() {
       </Pressable>
     </>
   )
-}
+})
 
 
 const ICONS: Record<string, { active: any, inactive: any, label: string }> = {

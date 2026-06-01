@@ -240,7 +240,7 @@ export function ConsultationScreen() {
         style={[styles.gridCard, { width: cardSize, height: cardSize, backgroundColor: bgColor, borderColor: withAlpha(colors.border, 0.5) }]}
       >
         {hasPhoto ? (
-          <ImageBackground source={{ uri: media.value }} style={StyleSheet.absoluteFill} resizeMode="cover">
+          <ImageBackground source={media.value ?? undefined} style={StyleSheet.absoluteFill} resizeMode="cover">
             <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.3)' }]} />
           </ImageBackground>
         ) : media?.type === 'color' ? (
@@ -284,7 +284,7 @@ export function ConsultationScreen() {
       <View>
         <ScrollView showsVerticalScrollIndicator={false}>
           {media?.type === 'photo' ? (
-          <Image source={{ uri: media.value }} style={styles.detailPhoto} contentFit="cover" />
+          <Image source={media.value ?? undefined} style={styles.detailPhoto} contentFit="cover" />
         ) : media?.type === 'color' ? (
           <View style={[styles.detailColorBanner, { backgroundColor: media.value }]} />
         ) : null}
@@ -484,7 +484,7 @@ export function ConsultationScreen() {
 
             {mediaType === 'photo' && mediaValue ? (
               <View style={styles.photoPreviewWrap}>
-                <Image source={{ uri: mediaValue }} style={styles.photoPreview} contentFit="cover" />
+                <Image source={mediaValue ?? undefined} style={styles.photoPreview} contentFit="cover" />
                 <Pressable onPress={() => { setMediaType(null); setMediaValue('') }} style={styles.removeMediaBtn}>
                   <Ionicons name="close-circle" size={22} color={colors.destructive} />
                 </Pressable>

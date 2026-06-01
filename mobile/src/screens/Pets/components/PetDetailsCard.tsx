@@ -96,7 +96,7 @@ export function PetDetailsCard({
     <View style={styles.detailCard}>
       <View style={styles.avatarShell}>
         <Pressable onPress={onExpandImage} style={styles.avatarPressable}>
-          <Avatar size={140} name={pet.name} source={pet.photo_url ? { uri: pet.photo_url } : undefined} />
+          <Avatar size={140} name={pet.name} source={pet.photo_url ?? undefined} />
         </Pressable>
 
         {pet.tags && pet.tags.length > 0 && (

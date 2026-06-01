@@ -52,7 +52,7 @@ export default function UiExamples() {
         <Avatar name="Luna Silva" />
         <Avatar
           name="Pipoca"
-          source={{ uri: 'https://images.unsplash.com/photo-1517849845537-4d257902454a' }}
+          source={'https://images.unsplash.com/photo-1517849845537-4d257902454a'}
         />
       </View>
     </ScrollView>

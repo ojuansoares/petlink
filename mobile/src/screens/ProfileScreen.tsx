@@ -22,7 +22,7 @@ import { ProfileGrid } from '../components/ui/ProfileGrid'
 import { SegmentedTabs } from '../components/ui/SegmentedTabs'
 import { useTheme } from '../hooks/useTheme'
 import { useAppDispatch, useAppSelector } from '../store'
-import { selectProfile, updateProfileThunk } from '../store/slices/profileSlice'
+import { selectProfile, selectProfileLoading, updateProfileThunk } from '../store/slices/profileSlice'
 import {
   fetchMyPostsThunk,
   selectMyPosts,
@@ -77,6 +77,7 @@ export default function ProfileScreen() {
 
   const currentUser = useAppSelector(selectUser)
   const profile = useAppSelector(selectProfile)
+  const isProfileLoading = useAppSelector(selectProfileLoading)
   const posts = useAppSelector(selectMyPosts)
   const isPostsLoading = useAppSelector(selectIsLoadingMyPosts)
   const pets = useAppSelector(selectPetsList)
@@ -207,7 +208,13 @@ export default function ProfileScreen() {
       <View style={styles.avatarContainer}>
         <PetBubbleRing pets={pets} avatarSize={140}>
           <Pressable onPress={() => setIsImageExpanded(true)} style={styles.avatarPressable}>
-            <Avatar size={140} name={profile?.name} level={myLevel} source={profile?.avatar_url ? { uri: profile.avatar_url } : undefined} />
+            <Avatar
+              size={140}
+              name={profile?.name}
+              level={myLevel}
+              source={profile?.avatar_url ?? undefined}
+              loading={isProfileLoading && !profile?.avatar_url}
+            />
           </Pressable>
         </PetBubbleRing>
         <Pressable onPress={handleStartEdit} style={styles.avatarEditFoot}>
@@ -334,7 +341,7 @@ export default function ProfileScreen() {
             >
               <Avatar
                 name={pet.name}
-                source={pet.photo_url ? { uri: pet.photo_url } : undefined}
+                source={pet.photo_url ?? undefined}
                 size={28}
               />
               <Text size="xs" weight="600" color={selectedPetFilter === pet.id ? 'primary' : 'mutedForeground'}>{pet.name}</Text>
@@ -407,7 +414,7 @@ export default function ProfileScreen() {
         <ScrollView style={styles.editForm} showsVerticalScrollIndicator={false}>
           <View style={styles.editAvatarSection}>
             <View style={styles.avatarPressable}>
-            <Avatar size={120} name={name} source={avatarUrl ? { uri: avatarUrl } : undefined} />
+            <Avatar size={120} name={name} source={avatarUrl ?? undefined} loading={isUploadingAvatar} />
             </View>
             <Button label="Alterar Foto" variant="outline" size="sm" onPress={handlePickAvatar} loading={isUploadingAvatar} />
           </View>
@@ -451,7 +458,7 @@ export default function ProfileScreen() {
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setIsImageExpanded(false)} />
           <View style={{ width: '90%', height: '70%', borderRadius: 20, overflow: 'hidden' }}>
             <Image
-              source={profile?.avatar_url ? { uri: profile.avatar_url } : undefined}
+              source={profile?.avatar_url ?? undefined}
               style={{ width: '100%', height: '100%' }}
               contentFit="contain"
             />

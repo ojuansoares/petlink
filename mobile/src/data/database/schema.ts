@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export const offlineSchema = appSchema({
-  version: 6,
+  version: 7,
   tables: [
     tableSchema({
       name: 'pets',
@@ -51,6 +51,9 @@ export const offlineSchema = appSchema({
         { name: 'bio', type: 'string', isOptional: true },
         { name: 'updated_at', type: 'number' },
         { name: 'pets_count', type: 'number' },
+        { name: 'posts_count', type: 'number' },
+        { name: 'followers_count', type: 'number' },
+        { name: 'following_count', type: 'number' },
         { name: 'birth_date', type: 'string', isOptional: true },
       ],
     }),

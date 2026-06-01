@@ -112,7 +112,7 @@ export function WeeklySummaryCard({ pets }: Props) {
               <View style={styles.header}>
                 <Avatar
                   name={pet.name}
-                  source={pet.photo_url ? { uri: pet.photo_url } : undefined}
+                  source={pet.photo_url ?? undefined}
                   size={32}
                 />
                 <Heading size="xl" weight="800">

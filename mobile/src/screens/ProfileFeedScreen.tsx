@@ -81,7 +81,7 @@ export default function ProfileFeedScreen() {
             <Avatar
               size={36}
               name={post.profiles?.name || 'User'}
-              source={post.profiles?.avatar_url ? { uri: post.profiles.avatar_url } : undefined}
+              source={post.profiles?.avatar_url ?? undefined}
               level={post.profiles?.level}
             />
             <View style={styles.authorMeta}>
@@ -100,7 +100,7 @@ export default function ProfileFeedScreen() {
         </View>
 
         <Image
-          source={{ uri: post.image_url }}
+          source={post.image_url ?? undefined}
           style={[styles.postImage, { width, height: width }]}
           contentFit="cover"
           transition={200}
