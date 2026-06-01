@@ -108,7 +108,7 @@ export default function PublicProfileScreen() {
   const dispatch = useAppDispatch()
   const navigation = useNavigation<NavigationProp>()
   const { colors, isDark, withAlpha } = useTheme()
-  const { width } = useWindowDimensions()
+  const { width, height } = useWindowDimensions()
   const { isOnline } = useNetworkCheck()
   const insets = useSafeAreaInsets()
    
@@ -175,7 +175,7 @@ export default function PublicProfileScreen() {
   }, [route.params.petId, pets])
 
   const renderHeader = () => (
-    <View style={styles.header}>
+    <View style={[styles.header, { paddingBottom: 4 }]}>
       <View style={styles.avatarContainer}>
         <PetBubbleRing pets={pets} avatarSize={140}>
           <Pressable onPress={() => setIsImageExpanded(true)} style={styles.avatarPressable}>
@@ -245,11 +245,11 @@ export default function PublicProfileScreen() {
             <Text size="xs" color="mutedForeground">Posts</Text>
           </View>
           <Pressable style={styles.statItem} onPress={() => setFollowModalType('followers')}>
-            <Text size="lg" weight="800">{formatCount((profile as any)?.followers_count ?? 0)}</Text>
-            <Text size="xs" color="mutedForeground">Seguidores</Text>
-          </Pressable>
-          <Pressable style={styles.statItem} onPress={() => setFollowModalType('following')}>
-            <Text size="lg" weight="800">{formatCount((profile as any)?.following_count ?? 0)}</Text>
+<Text size="lg" weight="800">{formatCount(profile?.followers_count ?? 0)}</Text>
+  <Text size="xs" color="mutedForeground">Seguidores</Text>
+</Pressable>
+<Pressable style={styles.statItem} onPress={() => setFollowModalType('following')}>
+  <Text size="lg" weight="800">{formatCount(profile?.following_count ?? 0)}</Text>
             <Text size="xs" color="mutedForeground">Seguindo</Text>
           </Pressable>
           <View style={styles.statItem}>
@@ -285,14 +285,14 @@ export default function PublicProfileScreen() {
         </View>
 
        <SegmentedTabs
-         options={[
-           { id: 'posts', label: 'Posts' },
-           { id: 'pets', label: 'Pets' }
-         ]}
-         activeId={activeTab}
-         onChange={(id: any) => setActiveTab(id)}
-         style={{ width: '100%', marginBottom: 12 }}
-       />
+          options={[
+            { id: 'posts', label: 'Posts' },
+            { id: 'pets', label: 'Pets' }
+          ]}
+          activeId={activeTab}
+          onChange={(id: any) => setActiveTab(id)}
+          style={{ width: '100%' }}
+        />
 
       {activeTab === 'posts' && pets.length > 1 && posts.length > 0 && (
         <View style={styles.filterContainer}>
@@ -324,19 +324,51 @@ export default function PublicProfileScreen() {
       )
     }
 
+    const GAP = 12
+    const PADDING = 16
+    const cardWidth = (width - PADDING * 2 - GAP) / 2
+
+    const isSingle = pets.length === 1
+
     return (
-      <View style={{ padding: 16, gap: 12 }}>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', padding: PADDING, gap: GAP, justifyContent: isSingle ? 'center' : 'flex-start' }}>
         {pets.map(pet => (
-          <Pressable key={pet.id} onPress={() => setSelectedPet(pet)}>
-            <Card variant="organic" style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12 }}>
-              <Avatar size={50} name={pet.name} source={pet.photo_url ? { uri: pet.photo_url } : undefined} />
-              <View style={{ flex: 1 }}>
-                <Heading size="sm" weight="800">{pet.name}</Heading>
-                <Text size="xs" color="mutedForeground">
-                  {SPECIES_TRANSLATION[pet.species.toLowerCase()] || pet.species} • {pet.breed || 'SRD'}
+          <Pressable
+            key={pet.id}
+            onPress={() => setSelectedPet(pet)}
+            style={{ width: cardWidth }}
+          >
+            <Card
+              variant="organic"
+              style={{ padding: 0, overflow: 'hidden' }}
+            >
+              {pet.photo_url ? (
+                <Image
+                  source={{ uri: pet.photo_url }}
+                  style={{ width: cardWidth, height: cardWidth, borderRadius: 32 }}
+                  contentFit="cover"
+                />
+              ) : (
+                <View style={{
+                  width: cardWidth, height: cardWidth, borderRadius: 32,
+                  backgroundColor: withAlpha(colors.accent, 0.45),
+                  alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <Ionicons name="paw" size={40} color={colors.accentForeground} />
+                </View>
+              )}
+              <View style={{
+                position: 'absolute', bottom: 0, left: 0, right: 0,
+                padding: 10,
+                backgroundColor: withAlpha('#000', 0.45),
+                borderBottomLeftRadius: 32, borderBottomRightRadius: 32,
+              }}>
+                <Heading size="sm" weight="800" style={{ color: '#FFF' }}>{pet.name}</Heading>
+                <Text size="xs" style={{ color: withAlpha('#FFF', 0.85) }}>
+                  {SPECIES_TRANSLATION[pet.species.toLowerCase()] || pet.species}
+                  {pet.breed ? ` • ${pet.breed}` : ''}
                 </Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color={colors.mutedForeground} />
             </Card>
           </Pressable>
         ))}
@@ -397,64 +429,78 @@ export default function PublicProfileScreen() {
           onClose={() => setSelectedPet(null)}
           title={selectedPet.name}
           subtitle={SPECIES_TRANSLATION[selectedPet.species.toLowerCase()] || selectedPet.species}
+          sheetStyle={{ minHeight: height * 0.5 }}
         >
-          <View style={{ padding: 20, alignItems: 'center', gap: 16 }}>
-            <Pressable onPress={() => setIsPetImageExpanded(true)}>
-              <Avatar size={120} name={selectedPet.name} source={selectedPet.photo_url ? { uri: selectedPet.photo_url } : undefined} />
-              {selectedPet.tags && selectedPet.tags.length > 0 && (
-                <View style={{
+          <View style={{ padding: 20, paddingTop: 8, alignItems: 'center', gap: 28 }}>
+            <View>
+              <Pressable onPress={() => setIsPetImageExpanded(true)}>
+                <Avatar size={140} name={selectedPet.name} source={selectedPet.photo_url ? { uri: selectedPet.photo_url } : undefined} />
+                {selectedPet.tags && selectedPet.tags.length > 0 && (
+                  <View style={{
+                    position: 'absolute',
+                    top: -10,
+                    alignSelf: 'center',
+                    flexDirection: 'row',
+                    gap: 3,
+                  }}>
+                    {selectedPet.tags.map((tag: string) => {
+                      const config = getBadgeConfig(tag, isDark)
+                      return (
+                        <View
+                          key={tag}
+                          style={{
+                            width: 24,
+                            height: 24,
+                            borderRadius: 12,
+                            backgroundColor: config.bg,
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            borderWidth: 1,
+                            borderColor: config.border,
+                          }}
+                        >
+                          <Ionicons name={config.icon} size={15} color={config.text} />
+                        </View>
+                      )
+                    })}
+                  </View>
+                )}
+              </Pressable>
+              <Pressable
+                onPress={() => sharePet(userId, selectedPet.id, selectedPet.name)}
+                style={{
                   position: 'absolute',
-                  top: -10,
+                  bottom: -14,
                   alignSelf: 'center',
+                  borderWidth: 1,
+                  borderColor: withAlpha(colors.border, 0.9),
+                  borderRadius: 999,
+                  minHeight: 36,
+                  paddingHorizontal: 16,
                   flexDirection: 'row',
-                  gap: 3,
-                }}>
-                  {selectedPet.tags.map((tag: string) => {
-                    const config = getBadgeConfig(tag, isDark)
-                    return (
-                      <View
-                        key={tag}
-                        style={{
-                          width: 24,
-                          height: 24,
-                          borderRadius: 12,
-                          backgroundColor: config.bg,
-                          justifyContent: 'center',
-                          alignItems: 'center',
-                          borderWidth: 1,
-                          borderColor: config.border,
-                        }}
-                      >
-                        <Ionicons name={config.icon} size={15} color={config.text} />
-                      </View>
-                    )
-                  })}
-                </View>
-              )}
-            </Pressable>
-            <Pressable
-              onPress={() => sharePet(userId, selectedPet.id, selectedPet.name)}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 6,
-                paddingVertical: 8,
-                paddingHorizontal: 16,
-                borderRadius: 8,
-                backgroundColor: colors.muted,
-              }}
-            >
-              <Ionicons name="share-outline" size={16} color={colors.primary} />
-              <Text size="sm" weight="700" color="primary">Compartilhar</Text>
-            </Pressable>
-            <View style={{ width: '100%', gap: 8 }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  alignItems: 'center',
+                  gap: 6,
+                  backgroundColor: withAlpha(colors.card, 0.94),
+                }}
+              >
+                <Ionicons name="share-outline" size={16} color={colors.primary} />
+                <Text size="sm" weight="700" color="primary">Compartilhar</Text>
+              </Pressable>
+            </View>
+            <View style={{ width: '100%', borderRadius: 12, backgroundColor: colors.card, overflow: 'hidden' }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12, paddingHorizontal: 14 }}>
                 <Text weight="700">Idade:</Text>
                 <Text>{calculateAge(selectedPet.birth_date)}</Text>
               </View>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <View style={{ height: 1, backgroundColor: withAlpha(colors.border, 0.5) }} />
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12, paddingHorizontal: 14 }}>
                 <Text weight="700">Raça:</Text>
                 <Text>{selectedPet.breed || 'SRD'}</Text>
+              </View>
+              <View style={{ height: 1, backgroundColor: withAlpha(colors.border, 0.5) }} />
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12, paddingHorizontal: 14 }}>
+                <Text weight="700">Peso:</Text>
+                <Text>{selectedPet.weight_kg ? `${selectedPet.weight_kg} kg` : '--'}</Text>
               </View>
             </View>
           </View>

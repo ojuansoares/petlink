@@ -1,4 +1,8 @@
 import { supabaseAdmin } from '../../config/supabase'
+import { Post } from '../../models/Post'
+import { Comment } from '../../models/Comment'
+import { Like } from '../../models/Like'
+import { CommentLike } from '../../models/CommentLike'
 
 export type Group = {
   id: string
@@ -346,20 +350,20 @@ export const groupsRepository = {
   },
 
   async delete(groupId: string): Promise<void> {
-    const { data: groupPosts } = await supabaseAdmin
-      .from('posts')
-      .select('id')
-      .eq('group_id', groupId)
-
-    const postIds = (groupPosts ?? []).map((p: any) => p.id)
+    const groupPosts = await Post.find({ groupId }).select('_id').lean()
+    const postIds = groupPosts.map((p: any) => p._id)
 
     if (postIds.length > 0) {
-      await supabaseAdmin.from('feed_photos').delete().in('post_id', postIds)
-      await supabaseAdmin.from('post_comments').delete().in('post_id', postIds)
-      await supabaseAdmin.from('post_likes').delete().in('post_id', postIds)
+      const comments = await Comment.find({ postId: { $in: postIds } }).select('_id').lean()
+      const commentIds = comments.map((c: any) => c._id)
+      if (commentIds.length > 0) {
+        await CommentLike.deleteMany({ commentId: { $in: commentIds } })
+      }
+      await Comment.deleteMany({ postId: { $in: postIds } })
+      await Like.deleteMany({ postId: { $in: postIds } })
+      await Post.deleteMany({ _id: { $in: postIds } })
     }
 
-    await supabaseAdmin.from('posts').delete().eq('group_id', groupId)
     await supabaseAdmin.from('group_members').delete().eq('group_id', groupId)
     await supabaseAdmin.from('group_invites').delete().eq('group_id', groupId)
     await supabaseAdmin.from('groups').delete().eq('id', groupId)

@@ -54,10 +54,21 @@ export async function getExpoPushToken(): Promise<string | null> {
   }
 }
 
-export async function registerPushTokenOnServer(token: string) {
+// ─── Native FCM Token (para Firebase Admin SDK) ───────────────
+export async function getDevicePushToken(): Promise<string | null> {
+  try {
+    const { data } = await Notifications.getDevicePushTokenAsync()
+    return data
+  } catch {
+    console.warn('[Notif] Device push token indisponível')
+    return null
+  }
+}
+
+export async function registerPushTokenOnServer(token: string, fcmToken?: string | null) {
   const platform = Platform.OS === 'ios' ? 'ios' : 'android'
   try {
-    await api.post('/notifications/register-token', { token, platform })
+    await api.post('/notifications/register-token', { token, platform, fcmToken: fcmToken ?? undefined })
   } catch (err) {
     console.error('[Notif] Erro ao registrar push token no servidor:', err)
   }

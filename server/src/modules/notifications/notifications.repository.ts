@@ -59,11 +59,11 @@ export const notificationsRepository = {
     if (error) throw error
   },
 
-  async registerPushToken(userId: string, token: string, platform: 'ios' | 'android'): Promise<void> {
+  async registerPushToken(userId: string, token: string, platform: 'ios' | 'android', fcmToken?: string): Promise<void> {
     const { error: upsertError } = await supabaseAdmin
       .from('push_tokens')
       .upsert(
-        { user_id: userId, token, platform, created_at: new Date().toISOString() },
+        { user_id: userId, token, platform, fcm_token: fcmToken ?? null, created_at: new Date().toISOString() },
         { onConflict: 'user_id', ignoreDuplicates: false }
       )
 

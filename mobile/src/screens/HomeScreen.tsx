@@ -9,6 +9,7 @@ import {
   View,
   ActivityIndicator,
   useWindowDimensions,
+  Animated,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useNavigation } from '@react-navigation/native'
@@ -32,10 +33,25 @@ import { format, parseISO } from 'date-fns'
 import { CreatePostModal } from '../components/ui/CreatePostModal'
 import { WebView } from 'react-native-webview'
 
+const SPECIES_TRANSLATION: Record<string, string> = {
+  dog: 'Cachorro',
+  cat: 'Gato',
+  bird: 'Pássaro',
+  fish: 'Peixe',
+  rodent: 'Roedor',
+  rabbit: 'Coelho',
+  hamster: 'Hamster',
+  turtle: 'Tartaruga',
+  horse: 'Cavalo',
+  other: 'Outro',
+}
+
 type NavProp = StackNavigationProp<AppStackParamList>
 
 export default function HomeScreen() {
   const { colors, withAlpha, mode } = useTheme()
+  const borderW = mode === 'dark' ? 2 : 1.5
+  const borderA = mode === 'dark' ? 0.75 : 0.25
   const { width: screenWidth } = useWindowDimensions()
   const cardWidth = screenWidth - 32
   const navigation = useNavigation<NavProp>()
@@ -194,7 +210,7 @@ export default function HomeScreen() {
 
   function renderNoPetState() {
     return (
-      <View style={[styles.emptyContainer, { backgroundColor: colors.card, borderColor: withAlpha(colors.border, 0.6) }]}>
+      <View style={[styles.emptyContainer, { backgroundColor: colors.card, borderColor: withAlpha(colors.border, 0.6), borderWidth: borderW }]}>
         <View style={[styles.emptyIconWrapper, { backgroundColor: withAlpha(colors.primary, 0.1) }]}>
           <Ionicons name="paw" size={48} color={colors.primary} />
         </View>
@@ -216,7 +232,7 @@ export default function HomeScreen() {
   function renderPetSparseOnboarding() {
     if (!activePet) return null
     return (
-      <Card variant="organic" style={[styles.onboardingCard, { backgroundColor: mode === 'light' ? '#F0FDF4' : '#142b1b', borderColor: '#22c55e33' }]}>
+      <Card variant="organic" style={[styles.onboardingCard, { backgroundColor: mode === 'light' ? '#F0FDF4' : '#142b1b', borderColor: '#22c55e33', borderWidth: borderW }]}>
         <View style={styles.onboardingContent}>
           <View style={[styles.onboardingIcon, { backgroundColor: withAlpha('#22C55E', 0.1) }]}>
             <Ionicons name="sparkles" size={24} color="#22C55E" />
@@ -284,7 +300,7 @@ export default function HomeScreen() {
           }
         }}
       >
-        <Card variant="organic" style={[styles.reminderCard, { backgroundColor: bgColor, borderColor: `${accentColor}33` }]}>
+        <Card variant="organic" style={[styles.reminderCard, { backgroundColor: bgColor, borderColor: `${accentColor}33`, borderWidth: borderW, shadowOpacity: 0, elevation: 0 }]}>
           <View style={[styles.iconCircle, { backgroundColor: withAlpha(accentColor, 0.1) }]}>
             <Ionicons name={iconName as any} size={24} color={accentColor} />
           </View>
@@ -300,6 +316,72 @@ export default function HomeScreen() {
     )
   }
 
+  function SkeletonBlock({ style }: { style?: any }) {
+    const opacity = useRef(new Animated.Value(0.15)).current
+
+    useEffect(() => {
+      const anim = Animated.loop(
+        Animated.sequence([
+          Animated.timing(opacity, { toValue: 0.4, duration: 800, useNativeDriver: true }),
+          Animated.timing(opacity, { toValue: 0.15, duration: 800, useNativeDriver: true }),
+        ])
+      )
+      anim.start()
+      return () => anim.stop()
+    }, [])
+
+    return (
+      <Animated.View
+        style={[
+          { backgroundColor: colors.mutedForeground, borderRadius: 8, opacity },
+          style,
+        ]}
+      />
+    )
+  }
+
+  function HomeSkeleton() {
+    return (
+      <>
+        <View style={styles.header}>
+          <View style={{ flex: 1, gap: 6 }}>
+            <SkeletonBlock style={{ width: 80, height: 14, borderRadius: 6 }} />
+            <SkeletonBlock style={{ width: 160, height: 28, borderRadius: 8 }} />
+          </View>
+          <SkeletonBlock style={{ width: 48, height: 48, borderRadius: 24 }} />
+        </View>
+        <View style={[styles.petDashboardCard, { borderWidth: borderW, borderColor: withAlpha(colors.border, borderA), padding: 16, gap: 12 }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <SkeletonBlock style={{ width: 56, height: 56, borderRadius: 28 }} />
+            <View style={{ flex: 1, gap: 4 }}>
+              <SkeletonBlock style={{ width: 120, height: 18, borderRadius: 6 }} />
+              <SkeletonBlock style={{ width: 80, height: 12, borderRadius: 6 }} />
+            </View>
+          </View>
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <SkeletonBlock style={{ flex: 1, height: 48, borderRadius: 12 }} />
+            <SkeletonBlock style={{ flex: 1, height: 48, borderRadius: 12 }} />
+            <SkeletonBlock style={{ flex: 1, height: 48, borderRadius: 12 }} />
+          </View>
+        </View>
+        <View style={[styles.quickActionsRow, screenWidth < 400 && styles.quickActionsRowNarrow, { marginBottom: 16, gap: 10 }]}>
+          {[0, 1, 2, 3].map((i) => (
+            <SkeletonBlock key={i} style={{ width: (screenWidth < 400 ? (screenWidth - 32 - 10) / 2 : (screenWidth - 32 - 30) / 4), height: 80, borderRadius: 16 }} />
+          ))}
+        </View>
+        <View style={{ gap: 12, marginBottom: 16 }}>
+          <SkeletonBlock style={{ width: '100%', height: 180, borderRadius: 16 }} />
+          <SkeletonBlock style={{ width: '100%', height: 180, borderRadius: 16 }} />
+        </View>
+        <View style={{ gap: 8, marginBottom: 16 }}>
+          <SkeletonBlock style={{ width: 140, height: 20, borderRadius: 6 }} />
+          <SkeletonBlock style={{ width: '100%', height: 80, borderRadius: 14 }} />
+          <SkeletonBlock style={{ width: '100%', height: 80, borderRadius: 14 }} />
+        </View>
+      </>
+    )
+  }
+
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
@@ -308,9 +390,19 @@ export default function HomeScreen() {
     >
       {/* HEADER */}
       <View style={styles.header}>
-        <View style={{ flex: 1 }}>
+        <View style={{ flex: 1, minWidth: 0 }}>
           <Text size="sm" color="mutedForeground">{greeting}!</Text>
-          <Heading size="3xl" weight="800">{profile?.name || 'Humano'} 👋</Heading>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'nowrap' }}>
+            <Heading
+              size="3xl"
+              weight="800"
+              numberOfLines={1}
+              style={{ flexShrink: 1 }}
+            >
+              {profile?.name || 'Humano'}
+            </Heading>
+            <Heading size="3xl">👋</Heading>
+          </View>
         </View>
         <Pressable onPress={() => navigation.navigate('Profile' as never)}>
           <Avatar
@@ -350,6 +442,7 @@ export default function HomeScreen() {
                       backgroundColor: colors.card,
                       borderColor: withAlpha(colors.border, 0.6),
                       width: cardWidth,
+                      borderWidth: borderW,
                     },
                   ]}
                 >
@@ -367,7 +460,7 @@ export default function HomeScreen() {
                         {pet.species && (
                           <View style={[styles.tag, { backgroundColor: withAlpha(colors.primary, 0.1) }]}>
                             <Text size="xs" weight="700" color="primary">
-                              {pet.species.charAt(0).toUpperCase() + pet.species.slice(1)}
+                              {SPECIES_TRANSLATION[pet.species.toLowerCase()] || pet.species}
                             </Text>
                           </View>
                         )}
@@ -439,10 +532,7 @@ export default function HomeScreen() {
           {isPetSparse && renderPetSparseOnboarding()}
         </>
       ) : petsLoading ? (
-        <View style={[styles.emptyContainer, { backgroundColor: colors.card, borderColor: withAlpha(colors.border, 0.6), justifyContent: 'center', alignItems: 'center', minHeight: 120 }]}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text color="mutedForeground" size="sm" style={{ marginTop: 12 }}>Carregando seus pets...</Text>
-        </View>
+        <HomeSkeleton />
       ) : (
         renderNoPetState()
       )}
@@ -452,42 +542,42 @@ export default function HomeScreen() {
         <View style={[styles.quickActionsRow, screenWidth < 400 && styles.quickActionsRowNarrow, { marginBottom: 16 }]}>  
           <Pressable
             onPress={() => setShowCreatePost(true)}
-            style={[styles.quickActionBtn, { backgroundColor: colors.card, borderColor: withAlpha(colors.border, 0.6) }, screenWidth < 400 ? { width: (screenWidth - 32 - 10) / 2 } : { width: (screenWidth - 32 - 30) / 4 }]}
+            style={[styles.quickActionBtn, { backgroundColor: withAlpha(colors.primary, 0.12), borderColor: withAlpha(colors.primary, borderA), borderWidth: borderW }, screenWidth < 400 ? { width: (screenWidth - 32 - 10) / 2 } : { width: (screenWidth - 32 - 30) / 4 }]}
           >
-            <View style={[styles.quickActionIcon, { backgroundColor: withAlpha(colors.primary, 0.1) }]}>
-              <Ionicons name="add-circle" size={22} color={colors.primary} />
+            <View style={[styles.quickActionIcon, { backgroundColor: colors.primary }]}>
+              <Ionicons name="add-circle" size={22} color="#FFF" />
             </View>
-            <Text size="xs" weight="700" style={{ marginTop: 4 }}>Criar post</Text>
+            <Text size="xs" weight="700" style={{ marginTop: 4, color: colors.primary }}>Criar post</Text>
           </Pressable>
 
           <Pressable
             onPress={() => {}}
-            style={[styles.quickActionBtn, { backgroundColor: colors.card, borderColor: withAlpha(colors.border, 0.6) }, screenWidth < 400 ? { width: (screenWidth - 32 - 10) / 2 } : { width: (screenWidth - 32 - 30) / 4 }]}
+            style={[styles.quickActionBtn, { backgroundColor: withAlpha('#8B5CF6', 0.12), borderColor: withAlpha('#8B5CF6', borderA), borderWidth: borderW }, screenWidth < 400 ? { width: (screenWidth - 32 - 10) / 2 } : { width: (screenWidth - 32 - 30) / 4 }]}
           >
-            <View style={[styles.quickActionIcon, { backgroundColor: withAlpha('#8B5CF6', 0.1) }]}>
-              <Ionicons name="walk-outline" size={22} color="#8B5CF6" />
+            <View style={[styles.quickActionIcon, { backgroundColor: '#8B5CF6' }]}>
+              <Ionicons name="walk-outline" size={22} color="#FFF" />
             </View>
-            <Text size="xs" weight="700" style={{ marginTop: 4 }}>Passeio</Text>
+            <Text size="xs" weight="700" style={{ marginTop: 4, color: '#8B5CF6' }}>Passeio</Text>
           </Pressable>
 
           <Pressable
             onPress={() => navigation.navigate('Consultation', { petId: activePet.id, petName: activePet.name, autoOpenModal: true })}
-            style={[styles.quickActionBtn, { backgroundColor: colors.card, borderColor: withAlpha(colors.border, 0.6) }, screenWidth < 400 ? { width: (screenWidth - 32 - 10) / 2 } : { width: (screenWidth - 32 - 30) / 4 }]}
+            style={[styles.quickActionBtn, { backgroundColor: withAlpha('#3B82F6', 0.12), borderColor: withAlpha('#3B82F6', borderA), borderWidth: borderW }, screenWidth < 400 ? { width: (screenWidth - 32 - 10) / 2 } : { width: (screenWidth - 32 - 30) / 4 }]}
           >
-            <View style={[styles.quickActionIcon, { backgroundColor: withAlpha('#3B82F6', 0.1) }]}>
-              <Ionicons name="calendar" size={22} color="#3B82F6" />
+            <View style={[styles.quickActionIcon, { backgroundColor: '#3B82F6' }]}>
+              <Ionicons name="calendar" size={22} color="#FFF" />
             </View>
-            <Text size="xs" weight="700" style={{ marginTop: 4 }}>Agendar consulta</Text>
+            <Text size="xs" weight="700" style={{ marginTop: 4, color: '#3B82F6' }}>Agendar consulta</Text>
           </Pressable>
 
           <Pressable
             onPress={() => navigation.navigate('FeedingPlan', { petId: activePet.id, petName: activePet.name })}
-            style={[styles.quickActionBtn, { backgroundColor: colors.card, borderColor: withAlpha(colors.border, 0.6) }, screenWidth < 400 ? { width: (screenWidth - 32 - 10) / 2 } : { width: (screenWidth - 32 - 30) / 4 }]}
+            style={[styles.quickActionBtn, { backgroundColor: withAlpha('#F97316', 0.12), borderColor: withAlpha('#F97316', borderA), borderWidth: borderW }, screenWidth < 400 ? { width: (screenWidth - 32 - 10) / 2 } : { width: (screenWidth - 32 - 30) / 4 }]}
           >
-            <View style={[styles.quickActionIcon, { backgroundColor: withAlpha('#F97316', 0.1) }]}>
-              <Ionicons name="restaurant" size={22} color="#F97316" />
+            <View style={[styles.quickActionIcon, { backgroundColor: '#F97316' }]}>
+              <Ionicons name="restaurant" size={22} color="#FFF" />
             </View>
-            <Text size="xs" weight="700" style={{ marginTop: 4 }}>Alimentação</Text>
+            <Text size="xs" weight="700" style={{ marginTop: 4, color: '#F97316' }}>Alimentação</Text>
           </Pressable>
         </View>
       )}

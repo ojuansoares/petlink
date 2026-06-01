@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator,
-  Pressable, ScrollView, ImageBackground, useWindowDimensions,
+  Pressable, ScrollView, ImageBackground, useWindowDimensions, Animated,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
@@ -372,8 +372,50 @@ export function ConsultationScreen() {
     )
   }
 
+  function SkeletonBlock({ style }: { style?: any }) {
+    const opacity = useRef(new Animated.Value(0.15)).current
+
+    useEffect(() => {
+      const anim = Animated.loop(
+        Animated.sequence([
+          Animated.timing(opacity, { toValue: 0.4, duration: 800, useNativeDriver: true }),
+          Animated.timing(opacity, { toValue: 0.15, duration: 800, useNativeDriver: true }),
+        ])
+      )
+      anim.start()
+      return () => anim.stop()
+    }, [])
+
+    return (
+      <Animated.View
+        style={[
+          { backgroundColor: colors.mutedForeground, borderRadius: 8, opacity },
+          style,
+        ]}
+      />
+    )
+  }
+
   if (loading) {
-    return <ActivityIndicator style={{ flex: 1 }} size="large" color={colors.primary} />
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={{ padding: 16 }}>
+          <SkeletonBlock style={{ width: 200, height: 22, borderRadius: 6, marginBottom: 16 }} />
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <View style={{ flex: 1, gap: 12 }}>
+              {[0, 1].map((i) => (
+                <SkeletonBlock key={i} style={{ height: 140, borderRadius: 14 }} />
+              ))}
+            </View>
+            <View style={{ flex: 1, gap: 12 }}>
+              {[0, 1].map((i) => (
+                <SkeletonBlock key={i} style={{ height: 140, borderRadius: 14 }} />
+              ))}
+            </View>
+          </View>
+        </View>
+      </View>
+    )
   }
 
   return (

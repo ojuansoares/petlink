@@ -39,8 +39,9 @@ import {
   createNotificationChannel,
   requestNotificationPermission,
   getExpoPushToken,
+  getDevicePushToken,
   registerPushTokenOnServer,
-  restoreScheduledNotifications,
+
   scheduleAllFromApi,
   setupNotificationCategories,
   addNotificationResponseReceivedListener,
@@ -371,9 +372,12 @@ function AppContent() {
       const granted = await requestNotificationPermission()
       if (!granted) return
 
-      const token = await getExpoPushToken()
-      if (token) {
-        await registerPushTokenOnServer(token)
+      const [expoToken, deviceToken] = await Promise.all([
+        getExpoPushToken(),
+        getDevicePushToken(),
+      ])
+      if (expoToken) {
+        await registerPushTokenOnServer(expoToken, deviceToken)
       }
 
       await restoreScheduledNotifications()

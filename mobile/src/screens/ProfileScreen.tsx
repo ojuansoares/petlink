@@ -274,11 +274,11 @@ export default function ProfileScreen() {
           <Text size="xs" color="mutedForeground">Posts</Text>
         </View>
         <Pressable style={styles.statItem} onPress={() => setFollowModalType('followers')}>
-          <Text size="lg" weight="800">{formatCount((profile as any)?.followers_count ?? 0)}</Text>
-          <Text size="xs" color="mutedForeground">Seguidores</Text>
-        </Pressable>
-        <Pressable style={styles.statItem} onPress={() => setFollowModalType('following')}>
-          <Text size="lg" weight="800">{formatCount((profile as any)?.following_count ?? 0)}</Text>
+<Text size="lg" weight="800">{formatCount(profile?.followers_count ?? 0)}</Text>
+  <Text size="xs" color="mutedForeground">Seguidores</Text>
+</Pressable>
+<Pressable style={styles.statItem} onPress={() => setFollowModalType('following')}>
+  <Text size="lg" weight="800">{formatCount(profile?.following_count ?? 0)}</Text>
           <Text size="xs" color="mutedForeground">Seguindo</Text>
         </Pressable>
         <View style={styles.statItem}>

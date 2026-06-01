@@ -202,7 +202,7 @@ const styles = StyleSheet.create({
   card: {
     padding: 20,
     borderRadius: 24,
-    borderWidth: 1,
+    borderWidth: 1.5,
   },
   header: {
     flexDirection: 'row',

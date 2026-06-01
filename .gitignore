@@ -52,3 +52,6 @@ mobile/.env
 /ios
 /android
 .aider*
+
+# Firebase service account keys
+/server/credentials/

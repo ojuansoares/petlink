@@ -35,12 +35,12 @@ export const notificationsController = {
       const authReq = req as AuthRequest
       if (!authReq.user) return res.status(401).json({ error: 'Não autenticado' })
 
-      const { token, platform } = req.body
+      const { token, platform, fcmToken } = req.body
       if (!token || !platform) {
         return res.status(400).json({ error: 'token e platform são obrigatórios' })
       }
 
-      await notificationsService.registerPushToken(authReq.user.id, token, platform)
+      await notificationsService.registerPushToken(authReq.user.id, token, platform, fcmToken)
       return res.status(201).json({ registered: true })
     } catch (err: any) {
       const statusCode = err instanceof AppError ? err.statusCode : 500

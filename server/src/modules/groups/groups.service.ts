@@ -1,6 +1,8 @@
 import { AppError } from '../../shared/AppError'
 import { groupsRepository, type CreateGroupInput, type UpdateGroupInput } from './groups.repository'
 import { postsRepository } from '../posts/posts.repository'
+import { supabaseAdmin } from '../../config/supabase'
+import { sendPush } from '../push/push.service'
 
 export const groupsService = {
   async create(input: CreateGroupInput, userId: string) {
@@ -141,7 +143,23 @@ export const groupsService = {
     const pending = await groupsRepository.findPendingInvite(groupId, invitedUserId)
     if (pending) return pending
 
-    return groupsRepository.createInvite(groupId, invitedUserId, requesterId)
+    const invite = await groupsRepository.createInvite(groupId, invitedUserId, requesterId)
+
+    const { data: requesterProfile } = await supabaseAdmin
+      .from('profiles')
+      .select('name')
+      .eq('id', requesterId)
+      .maybeSingle()
+
+    sendPush(
+      invitedUserId,
+      'social',
+      'Convite para grupo',
+      `${requesterProfile?.name ?? 'Alguém'} te convidou para "${group.name}"`,
+      { screen: 'Groups', groupId },
+    )
+
+    return invite
   },
 
   async listPendingInvites(userId: string) {

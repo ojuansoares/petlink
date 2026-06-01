@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Pressable } from 'react-native';
+import { View, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Pressable, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
 import { Text, Heading } from '../../components/ui/Typography';
@@ -401,8 +401,48 @@ export function VaccineScreen() {
       );
     };
 
+  function SkeletonBlock({ style }: { style?: any }) {
+    const opacity = useRef(new Animated.Value(0.15)).current
+
+    useEffect(() => {
+      const anim = Animated.loop(
+        Animated.sequence([
+          Animated.timing(opacity, { toValue: 0.4, duration: 800, useNativeDriver: true }),
+          Animated.timing(opacity, { toValue: 0.15, duration: 800, useNativeDriver: true }),
+        ])
+      )
+      anim.start()
+      return () => anim.stop()
+    }, [])
+
+    return (
+      <Animated.View
+        style={[
+          { backgroundColor: colors.mutedForeground, borderRadius: 8, opacity },
+          style,
+        ]}
+      />
+    )
+  }
+
   if (loading) {
-    return <ActivityIndicator style={{ flex: 1 }} size="large" color={colors.primary} />;
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={{ paddingHorizontal: 16, paddingTop: 8, gap: 12 }}>
+          <SkeletonBlock style={{ height: 44, borderRadius: 12 }} />
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <SkeletonBlock style={{ flex: 1, height: 36, borderRadius: 8 }} />
+            <SkeletonBlock style={{ flex: 1, height: 36, borderRadius: 8 }} />
+          </View>
+          <SkeletonBlock style={{ width: 160, height: 16, borderRadius: 6 }} />
+        </View>
+        <View style={{ padding: 16, gap: 12 }}>
+          {[0, 1, 2, 3].map((i) => (
+            <SkeletonBlock key={i} style={{ height: 80, borderRadius: 14 }} />
+          ))}
+        </View>
+      </View>
+    );
   }
 
   return (

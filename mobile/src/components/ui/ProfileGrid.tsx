@@ -1,11 +1,11 @@
-import React from 'react'
+import React, { useEffect, useRef } from 'react'
 import {
   FlatList,
   Pressable,
   StyleSheet,
   View,
-  ActivityIndicator,
   useWindowDimensions,
+  Animated,
 } from 'react-native'
 import { Image } from 'expo-image'
 import { Ionicons } from '@expo/vector-icons'
@@ -53,6 +53,31 @@ const PostItem = React.memo(({ post, onPress, size }: { post: Post; onPress: (p:
  * Optimized Grid for displaying posts in a profile-style layout.
  * Columns adjust based on screen width: 3 on phones, 4 on tablets.
  */
+function SkeletonBlock({ style }: { style?: any }) {
+  const { colors } = useTheme()
+  const opacity = useRef(new Animated.Value(0.15)).current
+
+  useEffect(() => {
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 0.4, duration: 800, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0.15, duration: 800, useNativeDriver: true }),
+      ])
+    )
+    anim.start()
+    return () => anim.stop()
+  }, [])
+
+  return (
+    <Animated.View
+      style={[
+        { backgroundColor: colors.mutedForeground, opacity },
+        style,
+      ]}
+    />
+  )
+}
+
 export function ProfileGrid({
   posts,
   loading,
@@ -74,8 +99,13 @@ export function ProfileGrid({
 
   if (loading && posts.length === 0) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator color={colors.primary} />
+      <View style={{ flex: 1 }}>
+        {ListHeaderComponent}
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+          {Array.from({ length: 9 }).map((_, i) => (
+            <SkeletonBlock key={i} style={{ width: itemSize, height: itemSize, padding: 0.5, borderRadius: 0 }} />
+          ))}
+        </View>
       </View>
     )
   }
@@ -104,11 +134,6 @@ export function ProfileGrid({
 }
 
 const styles = StyleSheet.create({
-  loadingContainer: {
-    padding: 60,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   pinnedIcon: {
     position: 'absolute',
     top: 4,

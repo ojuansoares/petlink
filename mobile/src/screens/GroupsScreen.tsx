@@ -1,5 +1,5 @@
-import React, { useEffect, useCallback, useState } from 'react'
-import { View, FlatList, Pressable, ActivityIndicator, StyleSheet, Modal } from 'react-native'
+import React, { useEffect, useCallback, useState, useRef } from 'react'
+import { View, FlatList, Pressable, ActivityIndicator, StyleSheet, Modal, Animated } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useNavigation } from '@react-navigation/native'
 import { StackNavigationProp } from '@react-navigation/stack'
@@ -125,6 +125,46 @@ export default function GroupsScreen() {
     />
   )
 
+  function SkeletonBlock({ style }: { style?: any }) {
+    const opacity = useRef(new Animated.Value(0.15)).current
+
+    useEffect(() => {
+      const anim = Animated.loop(
+        Animated.sequence([
+          Animated.timing(opacity, { toValue: 0.4, duration: 800, useNativeDriver: true }),
+          Animated.timing(opacity, { toValue: 0.15, duration: 800, useNativeDriver: true }),
+        ])
+      )
+      anim.start()
+      return () => anim.stop()
+    }, [])
+
+    return (
+      <Animated.View
+        style={[
+          { backgroundColor: colors.mutedForeground, borderRadius: 8, opacity },
+          style,
+        ]}
+      />
+    )
+  }
+
+  function GroupCardSkeleton() {
+    return (
+      <View style={[styles.groupCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={styles.groupHeader}>
+          <SkeletonBlock style={{ width: 64, height: 64, borderRadius: 32 }} />
+          <View style={styles.groupInfo}>
+            <SkeletonBlock style={{ width: '70%', height: 18, borderRadius: 6 }} />
+            <SkeletonBlock style={{ width: '40%', height: 12, borderRadius: 6, marginTop: 6 }} />
+            <SkeletonBlock style={{ width: '90%', height: 12, borderRadius: 6, marginTop: 6 }} />
+          </View>
+          <SkeletonBlock style={{ width: 20, height: 20, borderRadius: 10 }} />
+        </View>
+      </View>
+    )
+  }
+
   const listEmpty = () => {
     if (activeTab === 'mine' && isLoadingMy) return null
     return (
@@ -140,6 +180,9 @@ export default function GroupsScreen() {
       </View>
     )
   }
+
+  const showMySkeleton = activeTab === 'mine' && isLoadingMy && myGroups.length === 0
+  const showDiscoverSkeleton = activeTab === 'discover' && isLoadingDiscover && discoverGroups.length === 0
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -189,6 +232,11 @@ export default function GroupsScreen() {
               )}
             </View>
           )}
+          {showMySkeleton ? (
+            <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
+              {[0, 1, 2].map((i) => <GroupCardSkeleton key={i} />)}
+            </View>
+          ) : (
           <FlatList
             data={myGroups}
             renderItem={({ item }) => (
@@ -201,10 +249,16 @@ export default function GroupsScreen() {
             refreshing={isLoadingMy}
             onRefresh={() => { dispatch(fetchMyGroupsThunk()); dispatch(fetchPendingInvitesThunk()) }}
           />
+          )}
         </View>
       )}
 
       {activeTab === 'discover' && (
+        showDiscoverSkeleton ? (
+          <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
+            {[0, 1, 2].map((i) => <GroupCardSkeleton key={i} />)}
+          </View>
+        ) : (
         <FlatList
           data={discoverGroups}
           renderItem={({ item }) => (
@@ -223,6 +277,7 @@ export default function GroupsScreen() {
           refreshing={isLoadingDiscover && discoverPage === 1}
           onRefresh={() => dispatch(fetchDiscoverGroupsThunk(1))}
         />
+        )
       )}
 
       {/* FAB — Criar grupo */}
@@ -468,14 +523,16 @@ const styles = StyleSheet.create({
     width: '100%',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    paddingBottom: 50,
-    maxHeight: '90%',
+    paddingTop: 24,
+    paddingBottom: 16,
+    maxHeight: '80%',
   },
-  sheetHandle: { alignItems: 'center', paddingTop: 12 },
+  sheetHandle: { alignItems: 'center', paddingTop: 4 },
   handleBar: { width: 40, height: 5, borderRadius: 2.5 },
   loadingContainer: { padding: 50, alignItems: 'center' },
   detailContent: {
-    padding: 32,
+    padding: 24,
+    paddingBottom: 8,
     alignItems: 'center',
   },
   invitesSection: {

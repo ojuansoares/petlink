@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react'
-import { View, FlatList, ScrollView, Pressable, StyleSheet, ActivityIndicator, TextInput, Modal, KeyboardAvoidingView, Platform } from 'react-native'
+import { View, FlatList, ScrollView, Pressable, StyleSheet, ActivityIndicator, TextInput, Modal, KeyboardAvoidingView, Platform, Animated } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native'
 import { StackNavigationProp } from '@react-navigation/stack'
@@ -397,10 +397,10 @@ function EditGroupModal({
 
   return (
     <Modal visible={visible} animationType="slide" transparent statusBarTranslucent onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={s.backdrop}
-      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={[s.backdrop, { justifyContent: 'flex-end' }]}
+        >
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <View style={[s.editSheet, { backgroundColor: colors.background, paddingBottom: Math.max(insets.bottom, 20) }]}>
           <View style={s.sheetHandle}>
@@ -729,10 +729,72 @@ export default function GroupDetailScreen() {
     )
   }, [isMember, isAdmin, colors, groupId, groupInfo])
 
+  function SkeletonBlock({ style }: { style?: any }) {
+    const opacity = useRef(new Animated.Value(0.15)).current
+
+    useEffect(() => {
+      const anim = Animated.loop(
+        Animated.sequence([
+          Animated.timing(opacity, { toValue: 0.4, duration: 800, useNativeDriver: true }),
+          Animated.timing(opacity, { toValue: 0.15, duration: 800, useNativeDriver: true }),
+        ])
+      )
+      anim.start()
+      return () => anim.stop()
+    }, [])
+
+    return (
+      <Animated.View
+        style={[
+          { backgroundColor: colors.mutedForeground, borderRadius: 8, opacity },
+          style,
+        ]}
+      />
+    )
+  }
+
   if (!groupInfo) {
     return (
-      <View style={[s.loadingContainer, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View style={[s.container, { backgroundColor: colors.background }]}>
+        <View style={[s.groupHeader, { borderBottomColor: colors.border }]}>
+          <View style={s.groupInfo}>
+            <SkeletonBlock style={{ width: 64, height: 64, borderRadius: 32 }} />
+            <View style={s.groupMeta}>
+              <SkeletonBlock style={{ width: '60%', height: 20, borderRadius: 6 }} />
+              <SkeletonBlock style={{ width: '80%', height: 14, borderRadius: 6, marginTop: 4 }} />
+              <SkeletonBlock style={{ width: '30%', height: 14, borderRadius: 6, marginTop: 4 }} />
+            </View>
+          </View>
+          <SkeletonBlock style={{ width: 24, height: 24, borderRadius: 12 }} />
+        </View>
+        <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingVertical: 12 }}>
+          <SkeletonBlock style={{ flex: 1, height: 36, borderRadius: 8 }} />
+          <SkeletonBlock style={{ flex: 1, height: 36, borderRadius: 8 }} />
+        </View>
+        <View style={{ padding: 16, gap: 16 }}>
+          {[0, 1, 2].map((i) => (
+            <View key={i} style={[s.postCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View style={s.postHeader}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <SkeletonBlock style={{ width: 32, height: 32, borderRadius: 16 }} />
+                  <View style={{ gap: 4 }}>
+                    <SkeletonBlock style={{ width: 100, height: 14, borderRadius: 6 }} />
+                    <SkeletonBlock style={{ width: 60, height: 10, borderRadius: 6 }} />
+                  </View>
+                </View>
+              </View>
+              <SkeletonBlock style={{ width: '100%', height: 200, borderRadius: 0, marginBottom: 0 }} />
+              <View style={{ padding: 12, gap: 8 }}>
+                <SkeletonBlock style={{ width: '70%', height: 14, borderRadius: 6 }} />
+                <View style={{ flexDirection: 'row', gap: 16 }}>
+                  <SkeletonBlock style={{ width: 22, height: 22, borderRadius: 11 }} />
+                  <SkeletonBlock style={{ width: 22, height: 22, borderRadius: 11 }} />
+                </View>
+                <SkeletonBlock style={{ width: '40%', height: 10, borderRadius: 6 }} />
+              </View>
+            </View>
+          ))}
+        </View>
       </View>
     )
   }
@@ -785,7 +847,30 @@ export default function GroupDetailScreen() {
           ListHeaderComponent={isMember ? renderPostsHeader : <View />}
           ListEmptyComponent={
             isLoadingPosts ? (
-              <View style={s.emptyState}><ActivityIndicator color={colors.primary} /></View>
+              <View style={{ gap: 16 }}>
+                {[0, 1, 2].map((i) => (
+                  <View key={i} style={[s.postCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                    <View style={s.postHeader}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                        <SkeletonBlock style={{ width: 32, height: 32, borderRadius: 16 }} />
+                        <View style={{ gap: 4 }}>
+                          <SkeletonBlock style={{ width: 100, height: 14, borderRadius: 6 }} />
+                          <SkeletonBlock style={{ width: 60, height: 10, borderRadius: 6 }} />
+                        </View>
+                      </View>
+                    </View>
+                    <SkeletonBlock style={{ width: '100%', height: 200, borderRadius: 0 }} />
+                    <View style={{ padding: 12, gap: 8 }}>
+                      <SkeletonBlock style={{ width: '70%', height: 14, borderRadius: 6 }} />
+                      <View style={{ flexDirection: 'row', gap: 16 }}>
+                        <SkeletonBlock style={{ width: 22, height: 22, borderRadius: 11 }} />
+                        <SkeletonBlock style={{ width: 22, height: 22, borderRadius: 11 }} />
+                      </View>
+                      <SkeletonBlock style={{ width: '40%', height: 10, borderRadius: 6 }} />
+                    </View>
+                  </View>
+                ))}
+              </View>
             ) : (
               <View style={s.emptyState}>
                 <Ionicons name="chatbubbles-outline" size={40} color={colors.mutedForeground} />
@@ -878,7 +963,7 @@ export default function GroupDetailScreen() {
       {/* Edit group modal */}
       <EditGroupModal
         visible={showEditGroup}
-        onClose={() => setShowEditGroup(false)}
+        onClose={() => { setShowEditGroup(false); loadGroupDetails() }}
         group={{ id: groupId, name: groupInfo.name, description: groupInfo.description, photo_url: groupInfo.photo_url, species: groupInfo.species, location: groupInfo.location }}
       />
 
@@ -1023,7 +1108,7 @@ const s = StyleSheet.create({
   },
 
   // EditGroupModal styles
-  editSheet: { width: '100%', height: '85%', borderTopLeftRadius: 34, borderTopRightRadius: 34 },
+  editSheet: { width: '100%', height: '92%', borderTopLeftRadius: 34, borderTopRightRadius: 34 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 12 },
   closeButton: { padding: 4 },
   content: { flex: 1 },

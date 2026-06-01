@@ -6,7 +6,7 @@ export const useFeedStyles = makeStyles((theme) => ({
     backgroundColor: theme.colors.background,
   },
   postContainer: {
-    marginBottom: 12,
+    marginBottom: 0,
     backgroundColor: theme.colors.card,
   },
   postHeader: {

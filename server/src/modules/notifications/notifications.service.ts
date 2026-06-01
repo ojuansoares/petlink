@@ -9,8 +9,8 @@ export const notificationsService = {
     await notificationsRepository.markAllRead(userId)
   },
 
-  async registerPushToken(userId: string, token: string, platform: 'ios' | 'android') {
-    await notificationsRepository.registerPushToken(userId, token, platform)
+  async registerPushToken(userId: string, token: string, platform: 'ios' | 'android', fcmToken?: string) {
+    await notificationsRepository.registerPushToken(userId, token, platform, fcmToken)
   },
 
   async getPreferences(userId: string) {

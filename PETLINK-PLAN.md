@@ -570,8 +570,8 @@ O header do perfil (foto, nome, stats) permanece igual. Abaixo dele, um `Segment
 - [x] `gamification.api.ts` — `getMyStats()` e `getUserStats(userId)`
 - [x] `levelColors.ts` — cores por nível (Bronze→Rubi) e por XP (bronze→rubi)
 - [x] Perfil público: nível e badges exibidos ao lado do nome; modal de conquistas ao clicar
-- [ ] ProfileScreen: adicionar `SegmentedTabs` (Posts | Conquistas) abaixo do header (pendente — gamificação acessível via botão no AppTabs header)**
-- [ ] Feedback visual ao desbloquear badge (modal "Conquista desbloqueada!")**
+- [x] ProfileScreen: adicionar `SegmentedTabs` (Posts | Conquistas) abaixo do header
+- [x] Feedback visual ao desbloquear badge (modal "Conquista desbloqueada!")
 
 ---
 
@@ -588,11 +588,7 @@ O header do perfil (foto, nome, stats) permanece igual. Abaixo dele, um `Segment
 
 ---
 
-### Fase 6 — Passeio (Walk Tracking) & Histórico de Notificações
-
-**Status:** ⏳ (pendente)
-
-#### 6.1 — Passeio
+### Fase 6 — Passeio (Walk Tracking)
 
 **Backend já tem:** CRUD básico (`GET /walks?petId=`, `POST /walks`) no módulo `walks/`. Frontend tem slice (`walksSlices.ts`).
 
@@ -605,20 +601,6 @@ O header do perfil (foto, nome, stats) permanece igual. Abaixo dele, um `Segment
 | W5 | Postar passeio (vínculo com feed) | Botão "Compartilhar" no dashboard final → abre criação de post com overlay do mapa da rota sobre a foto (ou como imagem separada). Usar `staticMapUrl` da OpenStreetMap/Mapbox pra gerar a imagem da rota. |
 | W6 | Histórico completo | Lista de passeios (FlatList) igual vacinas, com data, distância, duração. Tap → abre detalhes com mapa estático. |
 | W7 | Notificações de lembrete | Lembrete agendado: "Hora de passear com o {petName}!" (local push, igual vacinas). |
-
-#### 6.2 — Histórico de Notificações (Sininho)
-
-| # | Tarefa | Detalhes |
-|---|--------|----------|
-| N1 | Tabela `notifications` no Supabase | Já existe — `id, user_id, title, body, data (jsonb), type, read, created_at`. |
-| N2 | Ícone do sininho no header | Substituir ou adicionar ícone de sino no topo do app (HomeScreen/header global). Badge com contagem de não lidas. |
-| N3 | Tela `NotificationHistoryScreen` | FlatList com todas notificações do usuário, ordenadas por `created_at DESC`. Cada uma com: ícone do tipo (vacina, alimentação, like, comentário, seguir, nível, conquista, grupo, passeio), título, corpo, timestamp relativo ("há 2h"). |
-| N4 | Tipos de notificação suportados | **Social:** "Fulano curtiu seu post", "Cicrano comentou: ...", "Beltrano começou a seguir você". **Gamificação:** "Você subiu para o nível X!", "Conquista desbloqueada: X". **Saúde:** lembretes de vacina, alimentação ("Hora de alimentar o {pet}"). **Grupo:** "Você foi convidado para o grupo X", "{nome} aceitou seu convite". **Passeio:** lembrete de passeio. |
-| N5 | Ações inline nas notificações | Botões direto na notificação da lista: vacina → "Marcar aplicada"; alimentação → "Já alimentei"; seguir → "Seguir de volta". Chamam o mesmo handler que as ações da push notification. |
-| N6 | Marcar como lida | Tap na notificação → marca `read = true` no Supabase + atualiza badge. Se tiver ação vinculada (ex: abrir tela do post, perfil do usuário, tela da vacina), navega pra tela correta. |
-| N7 | Limpar notificações | Botão "Limpar todas" no header da tela. Swipe to delete em cada item (marcar `read = true` ou deletar). |
-| N8 | Badge count no sininho | `GET /notifications/unread-count` no backend. Atualizar via polling ou push event. Mostrar badge vermelho no ícone. |
-| N9 | Notificações do servidor já salvam na tabela | O `push.service.ts` já insere na tabela `notifications` ao disparar push. Só precisa conectar o frontend para likes, comentários, seguir. Gamificação e conquistas precisam ser integradas (disparar notificação ao subir de nível / desbloquear conquista). |
 
 ---
 

@@ -218,11 +218,46 @@ export default function FeedingScreen({ route }: any) {
     ]).start()
   }
 
+  function SkeletonBlock({ style }: { style?: any }) {
+    const opacity = useRef(new Animated.Value(0.15)).current
+
+    useEffect(() => {
+      const anim = Animated.loop(
+        Animated.sequence([
+          Animated.timing(opacity, { toValue: 0.4, duration: 800, useNativeDriver: true }),
+          Animated.timing(opacity, { toValue: 0.15, duration: 800, useNativeDriver: true }),
+        ])
+      )
+      anim.start()
+      return () => anim.stop()
+    }, [])
+
+    return (
+      <Animated.View
+        style={[
+          { backgroundColor: colors.mutedForeground, borderRadius: 8, opacity },
+          style,
+        ]}
+      />
+    )
+  }
+
   // ── Loading ──
   if (mode === 'loading') {
     return (
-      <View style={[styles.container, styles.center, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={[styles.scroll, { paddingTop: 60 }]}>
+          <View style={styles.header}>
+            <View style={[styles.iconCircle, { backgroundColor: withAlpha('#F97316', 0.15) }]}>
+              <Ionicons name="restaurant-outline" size={28} color="#F97316" />
+            </View>
+            <Heading size="xl" weight="800">Alimentação de Hoje</Heading>
+            <Text color="mutedForeground">{petName}</Text>
+          </View>
+          {[0, 1, 2].map((i) => (
+            <SkeletonBlock key={i} style={{ height: 100, borderRadius: 16 }} />
+          ))}
+        </View>
       </View>
     )
   }
@@ -245,7 +280,7 @@ export default function FeedingScreen({ route }: any) {
           </View>
 
           {meals.map((meal, index) => (
-            <View key={index} style={[styles.mealCard, { backgroundColor: colors.card, borderColor: withAlpha(colors.border, 0.8) }]}>
+            <View key={index} style={[styles.mealCard, { backgroundColor: withAlpha(colors.muted, 0.4), borderColor: withAlpha(colors.border, 0.8) }]}>
               <View style={styles.mealHeader}>
                 <TextInput
                   style={[styles.mealNameInput, { color: colors.foreground, borderBottomColor: colors.border }]}
@@ -325,6 +360,7 @@ export default function FeedingScreen({ route }: any) {
           onViewModeChange={setScoreViewMode}
           referenceDate={scoreRefDate}
           onReferenceDateChange={setScoreRefDate}
+          isLoading={isLoadingScore}
         />
 
         {isLoadingLogs ? (
@@ -337,7 +373,7 @@ export default function FeedingScreen({ route }: any) {
               <Pressable
                 key={log.id}
                 style={[styles.logCard, {
-                  backgroundColor: isChecked ? withAlpha('#22C55E', 0.08) : colors.card,
+                  backgroundColor: isChecked ? withAlpha('#22C55E', 0.08) : withAlpha(colors.muted, 0.4),
                   borderColor: isChecked ? withAlpha('#22C55E', 0.3) : withAlpha(colors.border, 0.8),
                 }]}
                 onPress={() => handleCheck(log)}

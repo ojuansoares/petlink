@@ -4,6 +4,8 @@ import { petsRepository } from '../pets/pets.repository'
 import { groupsRepository } from '../groups/groups.repository'
 import { uploadsService } from '../uploads/uploads.service'
 import { optimizePostUrls } from '../../shared/cloudinaryUtils'
+import { supabaseAdmin } from '../../config/supabase'
+import { sendPush } from '../push/push.service'
 
 function groupAndShuffleByDay(posts: any[]): any[] {
   const groups: Record<string, any[]> = {}
@@ -66,6 +68,26 @@ export const postsService = {
       location: payload.location?.trim() || null,
       group_id: payload.group_id,
     })
+
+    if (isGroupPost && payload.group_id) {
+      const members = await groupsRepository.getMembers(payload.group_id)
+      const { data: authorProfile } = await supabaseAdmin
+        .from('profiles')
+        .select('name')
+        .eq('id', authorId)
+        .maybeSingle()
+
+      for (const member of members) {
+        if (member.user_id === authorId) continue
+        sendPush(
+          member.user_id,
+          'social',
+          'Novo post no grupo',
+          `${authorProfile?.name ?? 'Alguém'} publicou no grupo`,
+          { screen: 'Group', groupId: payload.group_id },
+        )
+      }
+    }
 
     return post
   },

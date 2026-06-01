@@ -599,7 +599,7 @@ export default function PetsScreen() {
               title="Alimentação"
               subtitle="Refeições e horários"
               icon="restaurant-outline"
-              color={colors.card}
+              color={withAlpha('#F97316', 0.12)}
               borderColor="#F97316"
               iconColor="#F97316"
               badge="Diário"
@@ -609,9 +609,9 @@ export default function PetsScreen() {
               title="Passeios"
               subtitle="Em breve"
               icon="walk-outline"
-              color={colors.muted}
-              borderColor={colors.mutedForeground}
-              iconColor={colors.mutedForeground}
+              color={withAlpha('#8B5CF6', 0.12)}
+              borderColor="#8B5CF6"
+              iconColor="#8B5CF6"
               badge="Em breve"
               onPress={() => dispatch(showToast({ type: 'info', title: 'Passeios', message: 'Passeios em breve!' }))}
             />
@@ -619,9 +619,9 @@ export default function PetsScreen() {
               title="Atividades"
               subtitle={`Timeline de ${activePet.name}`}
               icon="time-outline"
-              color={colors.card}
-              borderColor={colors.primary}
-              iconColor={colors.primary}
+              color={withAlpha('#EC4899', 0.12)}
+              borderColor="#EC4899"
+              iconColor="#EC4899"
               badge="Histórico"
               onPress={() => navigation.navigate('ActivityTimeline', { petId: activePet.id, petName: activePet.name })}
             />

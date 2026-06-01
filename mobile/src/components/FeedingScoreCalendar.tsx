@@ -13,6 +13,7 @@ interface FeedingScoreCalendarProps {
   onViewModeChange: (mode: 'weekly' | 'monthly') => void
   referenceDate: Date
   onReferenceDateChange: (date: Date) => void
+  isLoading?: boolean
 }
 
 function getScoreColor(dayScore: DayScore | undefined, colors: any, withAlpha: any): string {
@@ -28,6 +29,7 @@ export function FeedingScoreCalendar({
   onViewModeChange,
   referenceDate,
   onReferenceDateChange,
+  isLoading = false,
 }: FeedingScoreCalendarProps) {
   const { colors, withAlpha } = useTheme()
 
@@ -103,6 +105,15 @@ export function FeedingScoreCalendar({
       </View>
 
       {/* Day grid */}
+      {isLoading ? (
+        <View style={styles.grid}>
+          {Array.from({ length: 28 }).map((_, i) => (
+            <View key={i} style={styles.dayCell}>
+              <View style={[styles.dayCircle, { backgroundColor: withAlpha(colors.mutedForeground, 0.08) }]} />
+            </View>
+          ))}
+        </View>
+      ) : (
       <View style={styles.grid}>
         {/* Leading padding for monthly view */}
         {viewMode === 'monthly' && days[0].getDay() > 0 && (
@@ -138,6 +149,7 @@ export function FeedingScoreCalendar({
           )
         })}
       </View>
+      )}
 
       {/* Legend */}
       <View style={styles.legend}>

@@ -9,6 +9,7 @@ export interface UserProfile extends OfflineUserProfile {
   posts_count?: number
   pets_count?: number
   followers_count?: number
+  following_count?: number
 }
 
 interface ProfileState {
@@ -200,16 +201,22 @@ const profileSlice = createSlice({
         s.error = (a.payload as string) ?? 'Erro ao carregar perfil público'
       })
 
-    // Handle follow/unfollow thunks to update the public profile's followers count
+    // Handle follow/unfollow thunks to update counts optimistically
     builder
       .addCase(followUserThunk.fulfilled, (s, a) => {
         if (s.publicProfile && s.publicProfile.id === a.payload) {
           s.publicProfile.followers_count = (s.publicProfile.followers_count ?? 0) + 1
         }
+        if (s.profile) {
+          s.profile.following_count = (s.profile.following_count ?? 0) + 1
+        }
       })
       .addCase(unfollowUserThunk.fulfilled, (s, a) => {
         if (s.publicProfile && s.publicProfile.id === a.payload) {
           s.publicProfile.followers_count = Math.max(0, (s.publicProfile.followers_count ?? 1) - 1)
+        }
+        if (s.profile) {
+          s.profile.following_count = Math.max(0, (s.profile.following_count ?? 1) - 1)
         }
       })
 

@@ -195,8 +195,6 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   postContainer: {
-    marginBottom: 8,
-    borderBottomWidth: 1,
     paddingBottom: 12,
   },
   postHeader: {

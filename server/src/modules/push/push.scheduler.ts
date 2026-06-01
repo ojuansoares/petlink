@@ -38,9 +38,47 @@ async function checkVaccines(): Promise<void> {
   }
 }
 
+async function checkConsultations(): Promise<void> {
+  const today = getLocalDateString()
+
+  const tomorrow = new Date()
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  const tomorrowStr = getLocalDateString(tomorrow)
+
+  const { data: consultations, error } = await supabaseAdmin
+    .from('consultations')
+    .select('id, pet_id, owner_id, vet_name, consulted_at, reason, pets!inner(name)')
+    .gte('consulted_at', today)
+    .lte('consulted_at', `${tomorrowStr}T23:59:59`)
+    .eq('notified', false)
+
+  if (error || !consultations?.length) return
+
+  for (const consultation of consultations) {
+    const petName = (consultation as any).pets?.name ?? 'Pet'
+    const dateStr = (consultation.consulted_at as string)?.split('T')[0] ?? today
+    const isToday = dateStr === today
+    const prefix = isToday ? '🔔 Hoje' : '📅 Amanhã'
+
+    await sendPush(
+      consultation.owner_id,
+      'geofence',
+      `${prefix}: Consulta do ${petName}`,
+      `${consultation.reason ?? 'Consulta'} com ${consultation.vet_name ?? 'veterinário'} — ${dateStr}`,
+      { screen: 'Consultation', consultationId: consultation.id, petId: consultation.pet_id, petName },
+    )
+
+    await supabaseAdmin
+      .from('consultations')
+      .update({ notified: true })
+      .eq('id', consultation.id)
+  }
+}
+
 export function startPushScheduler(): void {
   cron.schedule('0 8 * * *', () => {
     checkVaccines()
+    checkConsultations()
   })
 
   console.log('Push scheduler started (daily at 08:00)')

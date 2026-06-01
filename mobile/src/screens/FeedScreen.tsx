@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react'
-import { View, FlatList, RefreshControl, ActivityIndicator, Pressable } from 'react-native'
+import { View, FlatList, RefreshControl, ActivityIndicator, Pressable, Animated, ScrollView } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useNavigation } from '@react-navigation/native'
 import { StackNavigationProp } from '@react-navigation/stack'
@@ -41,6 +41,70 @@ export default function FeedScreen() {
   const navigation = useNavigation<NavigationProp>()
   const { colors } = useTheme()
   const { isOnline } = useNetworkCheck()
+
+  const { withAlpha } = useTheme()
+
+  function SkeletonBlock({ style }: { style?: any }) {
+    const opacity = useRef(new Animated.Value(0.15)).current
+
+    useEffect(() => {
+      const anim = Animated.loop(
+        Animated.sequence([
+          Animated.timing(opacity, { toValue: 0.4, duration: 800, useNativeDriver: true }),
+          Animated.timing(opacity, { toValue: 0.15, duration: 800, useNativeDriver: true }),
+        ])
+      )
+      anim.start()
+      return () => anim.stop()
+    }, [])
+
+    return (
+      <Animated.View
+        style={[
+          { backgroundColor: colors.mutedForeground, borderRadius: 8, opacity },
+          style,
+        ]}
+      />
+    )
+  }
+
+  function FeedSkeleton() {
+    return (
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 100 }}
+        refreshControl={
+          <RefreshControl refreshing={activeTab === 'recommended' ? isLoading : isLoadingFollowedFeed} onRefresh={onRefresh} tintColor={colors.primary} />
+        }
+      >
+        {renderHeader()}
+        {[0, 1, 2].map((i) => (
+          <View key={i} style={[styles.postContainer, { padding: 0 }]}>
+            <View style={styles.postHeader}>
+              <View style={styles.userInfo}>
+                <SkeletonBlock style={{ width: 36, height: 36, borderRadius: 18 }} />
+                <View style={{ gap: 4 }}>
+                  <SkeletonBlock style={{ width: 120, height: 14, borderRadius: 6 }} />
+                  <SkeletonBlock style={{ width: 80, height: 10, borderRadius: 6 }} />
+                </View>
+              </View>
+              <SkeletonBlock style={{ width: 20, height: 20, borderRadius: 10 }} />
+            </View>
+            <SkeletonBlock style={{ width: '100%', aspectRatio: 1, borderRadius: 0 }} />
+            <View style={styles.postFooter}>
+              <View style={{ flexDirection: 'row', gap: 16 }}>
+                <SkeletonBlock style={{ width: 26, height: 26, borderRadius: 13 }} />
+                <SkeletonBlock style={{ width: 26, height: 26, borderRadius: 13 }} />
+              </View>
+              <SkeletonBlock style={{ width: '50%', height: 14, borderRadius: 6, marginTop: 8 }} />
+              <SkeletonBlock style={{ width: '80%', height: 12, borderRadius: 6, marginTop: 6 }} />
+              <SkeletonBlock style={{ width: '30%', height: 10, borderRadius: 6, marginTop: 8 }} />
+            </View>
+          </View>
+        ))}
+      </ScrollView>
+    )
+  }
 
    const currentUser = useAppSelector((state: any) => state.auth.user)
    const posts = useAppSelector(selectFeed)
@@ -125,7 +189,7 @@ export default function FeedScreen() {
           borderColor: colors.primary,
           borderRadius: 12,
           paddingVertical: 10,
-          marginBottom: 12,
+          marginBottom: 4,
         }}
       >
         <Ionicons name="people-outline" size={20} color={colors.primary} />
@@ -144,7 +208,7 @@ export default function FeedScreen() {
             dispatch(fetchFollowedFeedThunk(isOnline))
           }
         }}
-        style={{ marginBottom: 12 }}
+        style={{ marginBottom: 0 }}
       />
     </View>
   )
@@ -160,31 +224,36 @@ export default function FeedScreen() {
    }, [isLoading, isLoadingFollowedFeed, activeTab])
 
    const listData = useMemo(
-     () => activeTab === 'recommended' ? posts : followedFeed,
-     [activeTab, posts, followedFeed]
+      () => activeTab === 'recommended' ? posts : followedFeed,
+      [activeTab, posts, followedFeed]
    )
 
+   const showSkeleton = activeTab === 'recommended' ? (isLoading && posts.length === 0) : (isLoadingFollowedFeed && followedFeed.length === 0)
+
    return (
-     <View style={styles.container}>
-       {renderHeader()}
-       
-       <FlatList
-         data={listData}
-         renderItem={renderItem}
-         keyExtractor={(item) => item.id}
-         onEndReached={loadMore}
-         onEndReachedThreshold={0.5}
-         refreshControl={
-           <RefreshControl refreshing={activeTab === 'recommended' ? isLoading : isLoadingFollowedFeed} onRefresh={onRefresh} tintColor={colors.primary} />
-         }
-         ListEmptyComponent={listEmpty}
-         showsVerticalScrollIndicator={false}
-         initialNumToRender={4}
-         maxToRenderPerBatch={4}
-         windowSize={5}
-         removeClippedSubviews={true}
-         contentContainerStyle={{ paddingBottom: 100 }}
-       />
+      <View style={styles.container}>
+        {showSkeleton ? (
+          <FeedSkeleton />
+        ) : (
+        <FlatList
+          data={listData}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.id}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.5}
+          ListHeaderComponent={renderHeader()}
+          refreshControl={
+            <RefreshControl refreshing={activeTab === 'recommended' ? isLoading : isLoadingFollowedFeed} onRefresh={onRefresh} tintColor={colors.primary} />
+          }
+          ListEmptyComponent={listEmpty}
+          showsVerticalScrollIndicator={false}
+          initialNumToRender={4}
+          maxToRenderPerBatch={4}
+          windowSize={5}
+          removeClippedSubviews={true}
+          contentContainerStyle={{ paddingBottom: 100 }}
+        />
+        )}
 
       {selectedPost && (
         <PostOptionsModal
