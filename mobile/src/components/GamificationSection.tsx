@@ -123,7 +123,7 @@ function AchievementBadge({ achievement, size = 'small', newlyUnlocked = false, 
               ? withAlpha(badgeColor, 0.15)
               : withAlpha(colors.muted, 0.5),
             borderColor: achievement.unlocked ? badgeColor : colors.border,
-            transform: newlyUnlocked ? [{ scale: pulseAnim }] : undefined,
+            ...(newlyUnlocked ? { transform: [{ scale: pulseAnim }] } : {}),
           },
         ]}
       >

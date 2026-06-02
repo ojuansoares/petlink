@@ -1251,6 +1251,33 @@ ANDROID_ADB_SERVER_PORT=5040 npx expo run:android
 
 ## Princípios
 
+## Arquivos alterados nesta sessão (02/06/2026) — Correção: reload de imagens + forEach crash
+
+### Problemas corrigidos
+
+| # | Problema | Causa raiz | Solução |
+|---|----------|------------|---------|
+| 1 | `TypeError: Cannot read property 'forEach' of null` no `processTransform` | `transform: cond ? [{ scale }] : undefined` deixava `transform: undefined` no estilo → `processTransform` iterava sobre `null` | `...(cond ? { transform: […] } : {})` — quando `false`, a chave `transform` não existe |
+| 2 | Avatar recarregava ao trocar de tab (Posts/Conquistas) | `&&` condicional desmontava o header ao trocar de tab; novo `Avatar` resetava `loaded=false` | ProfileScreen usa `StyleSheet.absoluteFill` + alternância `opacity`/`pointerEvents` — **ambos os tabs ficam sempre montados** |
+| 3 | Miniatura da navbar recarregava ao navegar entre telas | `expo-image` recebia `source={{ uri }}` — novo objeto a cada render; componente remontado perdia estado `loaded` | Avatar: `source` passado como **string direta**; cache global `loadedUris` (`Set`) — se URI já foi carregada, `ready` começa `true`, sem flash |
+
+### Mobile
+
+| Arquivo | Mudança |
+|---------|---------|
+| `src/components/ui/Avatar.tsx` | **Reescrito** — cache global `loadedUris`, `source` string direta, `onLoad` persiste no Set, `ready` inicializado do cache. Sem `Animated.Value`/`opacity` gerenciado manualmente |
+| `src/screens/ProfileScreen.tsx` | Tabs usam `StyleSheet.absoluteFill` + `opacity` + `pointerEvents` — ambos sempre montados |
+| `src/store/slices/gamificationSlice.ts` | `unlockedAchievements` e `nextAchievements` normalizados com `?? []` no `fulfilled` |
+| `src/components/GamificationSection.tsx` | `transform` condicional trocado de `?: undefined` para `...()` spread — evita `transform: undefined` |
+
+### Por que não precisa rebuildar
+
+Nenhuma das alterações mexe em código nativo (native modules, podfile, gradle). São apenas mudanças em `.ts`/`.tsx`. Basta `expo start -c` para limpar o cache do Metro bundler.
+
+---
+
+## Princípios
+
 1. **KISS** — cada feature resolve um problema real.
 2. **Servidor primeiro** — toda feature nova começa com a rota, depois o app.
 3. **Offline first** — app funciona sem internet.

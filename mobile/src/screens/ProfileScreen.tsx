@@ -105,6 +105,7 @@ export default function ProfileScreen() {
   const [profileTab, setProfileTab] = useState<'posts' | 'conquistas'>('posts')
   const gamificationStats = useAppSelector(selectGamification)
   const myLevel = gamificationStats?.level
+  const unlockedAchievements = gamificationStats?.unlockedAchievements ?? []
 
   const handleProfileTabChange = useCallback((tab: string) => {
     setProfileTab(tab as 'posts' | 'conquistas')
@@ -230,11 +231,11 @@ export default function ProfileScreen() {
             <Text size="xs" weight="800" style={{ color: '#fff' }}>Nv. {myLevel}</Text>
           </View>
         )}
-        {gamificationStats && gamificationStats.unlockedAchievements.length > 0 && (
+        {unlockedAchievements.length > 0 && (
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            {gamificationStats.unlockedAchievements.slice(-4).reverse().map((ach: any, i: number) => {
+            {unlockedAchievements.slice(-4).reverse().map((ach: any, i: number) => {
               const badgeColor = getBadgeColor(ach.xp_reward)
-              const total = gamificationStats.unlockedAchievements.length
+              const total = unlockedAchievements.length
               const isLast = i === 3 || (total >= 4 && i === 3)
               return (
                 <View
@@ -374,7 +375,10 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.container}>
-      {profileTab === 'posts' && (
+      <View
+        style={[StyleSheet.absoluteFill, { opacity: profileTab === 'posts' ? 1 : 0 }]}
+        pointerEvents={profileTab === 'posts' ? 'auto' : 'none'}
+      >
         <ProfileGrid
           posts={filteredPosts}
           loading={isPostsLoading}
@@ -390,15 +394,18 @@ export default function ProfileScreen() {
           onRefresh={onRefresh}
           refreshing={isRefreshing}
         />
-      )}
+      </View>
 
-      {profileTab === 'conquistas' && (
+      <View
+        style={[StyleSheet.absoluteFill, { opacity: profileTab === 'conquistas' ? 1 : 0 }]}
+        pointerEvents={profileTab === 'conquistas' ? 'auto' : 'none'}
+      >
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, paddingBottom: 100 }}>
           {renderHeader()}
           {tabsComponent}
           <GamificationSection />
         </ScrollView>
-      )}
+      </View>
 
       <AppModal
         visible={isEditModalOpen}

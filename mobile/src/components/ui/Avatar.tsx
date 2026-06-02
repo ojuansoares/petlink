@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, memo } from 'react'
+import React, { useCallback, useMemo, useState, memo } from 'react'
 import { ActivityIndicator, StyleSheet, View } from 'react-native'
 import { Image as ExpoImage } from 'expo-image'
 import { useTheme } from '../../hooks/useTheme'
@@ -21,6 +21,8 @@ function toInitials(name?: string): string {
   return `${parts[0][0]}${parts[1][0]}`.toUpperCase()
 }
 
+const loadedUris = new Set<string>()
+
 function AvatarComponent({ name, source, size = 48, level, loading = false }: Readonly<AvatarProps>) {
   const { colors, withAlpha } = useTheme()
   const initials = useMemo(() => toInitials(name), [name])
@@ -31,17 +33,12 @@ function AvatarComponent({ name, source, size = 48, level, loading = false }: Re
   }
 
   const imageUri = resolveUri(source)
-  const [loaded, setLoaded] = useState(false)
-  const [hasImageError, setHasImageError] = useState(false)
+  const [ready, setReady] = useState(imageUri ? loadedUris.has(imageUri) : false)
 
-  useEffect(() => {
-    setHasImageError(false)
-    // keep `loaded` false until the image actually emits `onLoad`
-    setLoaded(false)
+  const handleLoad = useCallback(() => {
+    if (imageUri) loadedUris.add(imageUri)
+    setReady(true)
   }, [imageUri])
-
-  const shouldShowImage = Boolean(imageUri) && !hasImageError
-  const shouldShowFallback = !shouldShowImage && !loading
 
   return (
     <View
@@ -56,38 +53,26 @@ function AvatarComponent({ name, source, size = 48, level, loading = false }: Re
         },
       ]}
     >
-      {shouldShowImage && imageUri ? (
-        <ExpoImage
-          source={{ uri: imageUri }}
-          style={[
-            StyleSheet.absoluteFillObject,
-            {
-              width: size,
-              height: size,
-              borderRadius: size / 2,
-              opacity: loaded ? 1 : 0,
-            },
-          ]}
-          contentFit="cover"
-          cachePolicy="memory-disk"
-          transition={250}
-          onLoad={() => setLoaded(true)}
-          onError={() => {
-            setHasImageError(true)
-            setLoaded(false)
-          }}
-        />
-      ) : null}
-
       {loading ? (
         <ActivityIndicator size={size >= 56 ? 'large' : 'small'} color={colors.accentForeground} />
-      ) : null}
-
-      {shouldShowFallback ? (
-        <Text weight="700" style={{ color: colors.accentForeground }}>
-          {initials}
-        </Text>
-      ) : null}
+      ) : (
+        <>
+          {!ready ? (
+            <Text weight="700" style={{ color: colors.accentForeground }}>
+              {initials}
+            </Text>
+          ) : null}
+          {imageUri ? (
+            <ExpoImage
+              source={imageUri}
+              style={StyleSheet.absoluteFill}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              onLoad={handleLoad}
+            />
+          ) : null}
+        </>
+      )}
     </View>
   )
 }

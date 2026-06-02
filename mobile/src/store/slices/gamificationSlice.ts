@@ -49,13 +49,18 @@ const gamificationSlice = createSlice({
         if (!a.payload) return
         const oldLevel = s.stats?.level ?? 0
         s.lastLevel = oldLevel
+        const payload = a.payload
         const oldUnlocked = new Set((s.stats?.unlockedAchievements ?? []).map((a) => a.id))
-        s.newlyUnlockedIds = (a.payload.unlockedAchievements ?? [])
+        s.newlyUnlockedIds = (payload.unlockedAchievements ?? [])
           .filter((ach) => !oldUnlocked.has(ach.id))
           .map((ach) => ach.id)
-        s.stats = a.payload
-        if (oldLevel > 0 && a.payload.level > oldLevel) {
-          s.pendingLevelUp = a.payload.level
+        s.stats = {
+          ...payload,
+          unlockedAchievements: payload.unlockedAchievements ?? [],
+          nextAchievements: payload.nextAchievements ?? [],
+        }
+        if (oldLevel > 0 && payload.level > oldLevel) {
+          s.pendingLevelUp = payload.level
         }
       })
       .addCase(fetchGamificationThunk.rejected, (s, a) => { s.isLoading = false; s.error = a.payload as string })
