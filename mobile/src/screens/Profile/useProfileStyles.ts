@@ -43,12 +43,23 @@ export const useProfileStyles = makeStyles((theme) => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginBottom: 8,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 20,
+    marginBottom: 20,
+    flexWrap: 'wrap',
+  },
+  infoDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
   },
   bio: {
     textAlign: 'center',
-    paddingHorizontal: 20,
-    marginBottom: 20,
   },
    statsRow: {
      flexDirection: 'row',
@@ -63,11 +74,12 @@ export const useProfileStyles = makeStyles((theme) => ({
      alignItems: 'center',
    },
    // Follow button
-   followButtonContainer: {
-     alignSelf: 'stretch',
-     paddingHorizontal: 16,
-     marginBottom: 16,
-   },
+    followButtonContainer: {
+      alignSelf: 'stretch',
+      paddingHorizontal: 16,
+      marginTop: 12,
+      marginBottom: 8,
+    },
    followButton: {
      flexDirection: 'row',
      alignItems: 'center',

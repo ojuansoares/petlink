@@ -58,10 +58,11 @@ export function ConsultationScreen() {
   const [loading, setLoading] = useState(true);
   const [mediaMap, setMediaMap] = useState<Record<string, ConsultationMedia>>({});
 
-  const [isModalVisible, setModalVisible] = useState(!!autoOpenModal);
+  const [isModalVisible, setModalVisible] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [currentConsultation, setCurrentConsultation] = useState<Consultation | null>(null);
   const [isOptionsVisible, setOptionsVisible] = useState(false);
+  const autoOpenedRef = useRef(false);
 
   const [detailConsultation, setDetailConsultation] = useState<Consultation | null>(null);
   const [isDetailVisible, setIsDetailVisible] = useState(false);
@@ -119,6 +120,16 @@ export function ConsultationScreen() {
     setMediaValue('');
     setIsUploadingPhoto(false);
   }, []);
+
+  useEffect(() => {
+    if (autoOpenModal && !loading && !autoOpenedRef.current) {
+      autoOpenedRef.current = true;
+      setIsEditMode(false);
+      setCurrentConsultation(null);
+      resetForm();
+      setModalVisible(true);
+    }
+  }, [autoOpenModal, loading, resetForm]);
 
   const handleAdd = () => {
     setIsEditMode(false);
@@ -240,7 +251,7 @@ export function ConsultationScreen() {
         style={[styles.gridCard, { width: cardSize, height: cardSize, backgroundColor: bgColor, borderColor: withAlpha(colors.border, 0.5) }]}
       >
         {hasPhoto ? (
-          <ImageBackground source={media.value ?? undefined} style={StyleSheet.absoluteFill} resizeMode="cover">
+          <ImageBackground source={{ uri: media.value }} style={StyleSheet.absoluteFill} resizeMode="cover">
             <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.3)' }]} />
           </ImageBackground>
         ) : media?.type === 'color' ? (

@@ -1,5 +1,5 @@
-import React, { useCallback, useMemo, useState, memo } from 'react'
-import { ActivityIndicator, StyleSheet, View } from 'react-native'
+import React, { useCallback, useEffect, useMemo, useRef, useState, memo } from 'react'
+import { ActivityIndicator, Animated, StyleSheet, View } from 'react-native'
 import { Image as ExpoImage } from 'expo-image'
 import { useTheme } from '../../hooks/useTheme'
 import { Text } from './Typography'
@@ -33,12 +33,46 @@ function AvatarComponent({ name, source, size = 48, level, loading = false }: Re
   }
 
   const imageUri = resolveUri(source)
+
+  const lastUriRef = useRef(imageUri)
   const [ready, setReady] = useState(imageUri ? loadedUris.has(imageUri) : false)
+  const [hasError, setHasError] = useState(false)
+
+  if (lastUriRef.current !== imageUri) {
+    lastUriRef.current = imageUri
+    setReady(imageUri ? loadedUris.has(imageUri) : false)
+    setHasError(false)
+  }
+
+  const isLoading = Boolean(imageUri) && !ready && !hasError
+
+  const pulseAnim = useRef(new Animated.Value(0.15)).current
+
+  useEffect(() => {
+    if (!isLoading) {
+      pulseAnim.setValue(0.15)
+      return
+    }
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 0.4, duration: 800, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 0.15, duration: 800, useNativeDriver: true }),
+      ])
+    )
+    anim.start()
+    return () => anim.stop()
+  }, [isLoading, pulseAnim])
 
   const handleLoad = useCallback(() => {
     if (imageUri) loadedUris.add(imageUri)
     setReady(true)
+    setHasError(false)
   }, [imageUri])
+
+  const handleError = useCallback(() => {
+    setReady(false)
+    setHasError(true)
+  }, [])
 
   return (
     <View
@@ -57,18 +91,26 @@ function AvatarComponent({ name, source, size = 48, level, loading = false }: Re
         <ActivityIndicator size={size >= 56 ? 'large' : 'small'} color={colors.accentForeground} />
       ) : (
         <>
-          {!ready ? (
+          {isLoading ? (
+            <Animated.View
+              style={[
+                StyleSheet.absoluteFill,
+                { borderRadius: size / 2, backgroundColor: colors.mutedForeground, opacity: pulseAnim },
+              ]}
+            />
+          ) : (
             <Text weight="700" style={{ color: colors.accentForeground }}>
               {initials}
             </Text>
-          ) : null}
-          {imageUri ? (
+          )}
+          {imageUri && !hasError ? (
             <ExpoImage
               source={imageUri}
               style={StyleSheet.absoluteFill}
               contentFit="cover"
               cachePolicy="memory-disk"
               onLoad={handleLoad}
+              onError={handleError}
             />
           ) : null}
         </>

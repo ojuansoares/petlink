@@ -265,15 +265,21 @@ export default function ProfileScreen() {
         )}
       </View>
 
-      {profile?.location && (
-        <View style={styles.locationRow}>
-          <Ionicons name="location-sharp" size={14} color={colors.primary} />
-          <Text size="sm" weight="600" color="mutedForeground">{profile.location}</Text>
+      {(profile?.location || profile?.bio) ? (
+        <View style={styles.infoRow}>
+          {profile?.location && (
+            <View style={styles.locationRow}>
+              <Ionicons name="location-sharp" size={14} color={colors.primary} />
+              <Text size="sm" weight="600" color="mutedForeground">{profile.location}</Text>
+            </View>
+          )}
+          {profile?.location && profile?.bio && (
+            <View style={[styles.infoDot, { backgroundColor: colors.mutedForeground }]} />
+          )}
+          {profile?.bio ? (
+            <Text size="sm" color="mutedForeground" style={styles.bio}>{profile.bio}</Text>
+          ) : null}
         </View>
-      )}
-
-      {profile?.bio ? (
-        <Text size="sm" color="mutedForeground" style={styles.bio}>{profile.bio}</Text>
       ) : null}
 
       <View style={styles.statsRow}>

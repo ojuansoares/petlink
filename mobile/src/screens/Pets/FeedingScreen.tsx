@@ -61,15 +61,17 @@ export default function FeedingScreen({ route }: any) {
     setLoadingPlan(true)
     setMode('loading')
     setMeals([])
-    fetchedMonthsRef.current = new Set() // reset month cache for new pet
-    dispatch(fetchFeedingPlanThunk(petId)).then(() => setLoadingPlan(false))
+    fetchedMonthsRef.current = new Set()
+    Promise.all([
+      dispatch(fetchFeedingPlanThunk(petId)),
+      dispatch(fetchFeedingLogsThunk({ petId, date: today })),
+    ]).finally(() => setLoadingPlan(false))
   }, [dispatch, petId])
 
   useEffect(() => {
     if (loadingPlan) return
     if (plan.length > 0) {
       setMode('check')
-      dispatch(fetchFeedingLogsThunk({ petId, date: today }))
     } else {
       setMode('create')
       setMeals([{ meal_name: 'Refeição 1', meal_time: (() => { const d = new Date(); d.setHours(8, 0, 0, 0); return d })(), quantity: '' }])
