@@ -1,3 +1,4 @@
+import { initSentry } from './config/sentry'
 import { env } from './config/env'
 import { connectMongo } from './config/mongoose'
 import app from './app'
@@ -7,6 +8,7 @@ const host = env.HOST
 const port = Number(env.PORT)
 
 async function start() {
+  initSentry()
   await connectMongo()
   startPushScheduler()
 

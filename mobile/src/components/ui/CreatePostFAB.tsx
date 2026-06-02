@@ -2,7 +2,13 @@ import React, { useCallback, useState } from 'react'
 import { Pressable, StyleSheet, View, Text } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated'
+import Animated, { 
+  useSharedValue, 
+  useAnimatedStyle, 
+  withTiming, 
+  withDelay, 
+  Easing 
+} from 'react-native-reanimated'
 import { useTheme } from '../../hooks/useTheme'
 import { useAppDispatch } from '../../store'
 import { setShowCreatePost, setLoadingPetsForPost } from '../../store/slices/uiSlice'
@@ -27,21 +33,35 @@ export function CreatePostFAB() {
   const backdropOpacity = useSharedValue(0)
 
   const animate = useCallback((toOpen: boolean) => {
-    rotate.value = withTiming(toOpen ? 45 : 0, { duration: 300, easing: Easing.out(Easing.cubic) })
+    const duration = 250;
 
-    // Walk button animation (appears first - from bottom)
-    walkScale.value = withTiming(toOpen ? 1 : 0, { duration: 280, easing: Easing.out(Easing.cubic) })
-    walkOpacity.value = withTiming(toOpen ? 1 : 0, { duration: 200, easing: Easing.out(Easing.cubic) })
-    walkTranslateY.value = withTiming(toOpen ? 0 : 40, { duration: 280, easing: Easing.out(Easing.cubic) })
+    // Rotação do botão principal
+    rotate.value = withTiming(toOpen ? 45 : 0, { duration, easing: Easing.out(Easing.cubic) })
+    backdropOpacity.value = withTiming(toOpen ? 1 : 0, { duration, easing: Easing.inOut(Easing.cubic) })
 
-    // Post button animation (appears second with delay)
-    setTimeout(() => {
-      postScale.value = withTiming(toOpen ? 1 : 0, { duration: 280, easing: Easing.out(Easing.cubic) })
-      postOpacity.value = withTiming(toOpen ? 1 : 0, { duration: 200, easing: Easing.out(Easing.cubic) })
-      postTranslateY.value = withTiming(toOpen ? 0 : 40, { duration: 280, easing: Easing.out(Easing.cubic) })
-    }, toOpen ? 80 : 0)
+    if (toOpen) {
+      // ANIMAÇÃO DE ABERTURA
+      // Botão Passeio (Aparece primeiro)
+      walkScale.value = withTiming(1, { duration, easing: Easing.out(Easing.back(1.5)) })
+      walkOpacity.value = withTiming(1, { duration })
+      walkTranslateY.value = withTiming(0, { duration, easing: Easing.out(Easing.cubic) })
 
-    backdropOpacity.value = withTiming(toOpen ? 1 : 0, { duration: 200, easing: Easing.inOut(Easing.cubic) })
+      // Botão Post (Aparece em seguida)
+      postScale.value = withDelay(80, withTiming(1, { duration, easing: Easing.out(Easing.back(1.5)) }))
+      postOpacity.value = withDelay(80, withTiming(1, { duration }))
+      postTranslateY.value = withDelay(80, withTiming(0, { duration, easing: Easing.out(Easing.cubic) }))
+    } else {
+      // ANIMAÇÃO DE FECHAMENTO (Cascata reversa)
+      // Botão Post (Some primeiro)
+      postScale.value = withTiming(0, { duration: 200, easing: Easing.in(Easing.cubic) })
+      postOpacity.value = withTiming(0, { duration: 200 })
+      postTranslateY.value = withTiming(20, { duration: 200, easing: Easing.in(Easing.cubic) })
+
+      // Botão Passeio (Some em seguida)
+      walkScale.value = withDelay(50, withTiming(0, { duration: 200, easing: Easing.in(Easing.cubic) }))
+      walkOpacity.value = withDelay(50, withTiming(0, { duration: 200 }))
+      walkTranslateY.value = withDelay(50, withTiming(20, { duration: 200, easing: Easing.in(Easing.cubic) }))
+    }
   }, [])
 
   const toggle = useCallback(() => {
@@ -105,6 +125,7 @@ export function CreatePostFAB() {
         />
       </Animated.View>
 
+      {/* Botão Passeio */}
       <Animated.View
         style={[
           walkAnim,
@@ -118,13 +139,13 @@ export function CreatePostFAB() {
       >
         <Pressable
           onPress={handleWalk}
-          android_ripple={{ color: 'transparent' }}
           style={({ pressed }) => [
             styles.optionBtn,
             {
-              backgroundColor: withAlpha(colors.primary, pressed ? 0.9 : 0.93),
+              // Agora está 0.78, igual ao Post!
+              backgroundColor: withAlpha(colors.primary, pressed ? 0.9 : 0.85),
               borderColor: withAlpha(colors.primaryForeground, 0.24),
-              opacity: pressed ? 0.9 : 1,
+              opacity: pressed ? 0.8 : 1, 
             },
           ]}
         >
@@ -135,6 +156,7 @@ export function CreatePostFAB() {
         </Pressable>
       </Animated.View>
 
+      {/* Botão Post */}
       <Animated.View
         style={[
           postAnim,
@@ -148,13 +170,12 @@ export function CreatePostFAB() {
       >
         <Pressable
           onPress={handleCreatePost}
-          android_ripple={{ color: 'transparent' }}
           style={({ pressed }) => [
             styles.optionBtn,
             {
-              backgroundColor: withAlpha(colors.primary, pressed ? 0.9 : 0.78),
+              backgroundColor: withAlpha(colors.primary, pressed ? 0.9 : 0.85),
               borderColor: withAlpha(colors.primaryForeground, 0.24),
-              opacity: pressed ? 0.9 : 1,
+              opacity: pressed ? 0.8 : 1,
             },
           ]}
         >
@@ -165,6 +186,7 @@ export function CreatePostFAB() {
         </Pressable>
       </Animated.View>
 
+      {/* Botão Principal (FAB) */}
       <Animated.View
         style={[
           styles.fab,
@@ -180,7 +202,7 @@ export function CreatePostFAB() {
           style={({ pressed }) => [
             styles.fabInner,
             {
-              opacity: pressed ? 0.8 : 1,
+              opacity: pressed ? 0.7 : 1,
             },
           ]}
           accessibilityRole="button"
@@ -227,12 +249,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 16,
     borderWidth: 1.5,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    overflow: 'hidden',
   },
   optionIcon: {
     width: 36,

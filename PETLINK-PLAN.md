@@ -285,7 +285,7 @@ server/src/
 
 ---
 
-### Fase 3 — Push Notifications
+### Fase 3 — Push Notifications ✅ (concluída)
 
 #### 3.1 — Servidor: infra de disparo
 
@@ -294,11 +294,14 @@ server/src/
 | 39 | `POST /notifications/register-token` | ✅ | Já existe no módulo `notifications/` |
 | 40 | Instalar `expo-server-sdk` e `node-cron` | ✅ | server/package.json |
 | 41 | Adicionar `EXPO_ACCESS_TOKEN` ao `env.ts` | ⏭️ | Não necessário — Expo Push API não requer token |
-| 42 | Criar módulo `push/` com `push.service.ts` | ✅ | `sendPush()`: busca token, envia via Expo, trata DeviceNotRegistered, salva notificação |
-| 43 | Criar `push.scheduler.ts` | ✅ | Cron diário 08:00 — vacinas vencendo (`notified=false`) |
+| 42 | Criar módulo `push/` com `push.service.ts` | ✅ | Dual transport FCM + Expo fallback; preference check por tipo; `sendPush()` orquestra tudo |
+| 43 | Criar `push.scheduler.ts` | ✅ | Cron diário 08:00 BRT — vacinas vencendo + consultas futuras (`notified=false`) |
 | 44 | Gatilho social: like | ✅ | `likes.service.ts` → push pro autor do post |
 | 45 | Gatilho social: comentário | ✅ | `comments.service.ts` → push pro autor do post |
 | 46 | Gatilho social: seguir | ✅ | `follows.service.ts` → push pra quem foi seguido |
+| — | Gatilho: curtir comentário | ✅ | `commentLikes.service.ts:19-25` — push pro autor do comentário |
+| — | Gatilho: post em grupo | ✅ | `posts.service.ts:82-89` — push pros membros do grupo |
+| — | Gatilho: convite pra grupo | ✅ | `groups.service.ts:154-160` — push pro usuário convidado |
 
 #### 3.2 — Mobile: wiring
 
@@ -318,9 +321,9 @@ server/src/
 | 53 | Configurar EAS Build para FCM | ✅ | Chave FCM enviada via `eas credentials` |
 | 54 | Testar push em produção (APK + EAS) | ✅ | Push do servidor chega no app via FCM |
 
----
+**Obs.:** Notificações de alimentação são agendadas localmente no app (`scheduleFeedingNotifications()`) porque cada pet tem plano com horários customizados — não passam pelo servidor. Vacinas e aniversários também usam agendamento local com backup/restore via AsyncStorage.
 
-### Fase 4 — Social & Engajamento
+### Fase 4 — Social & Engajamento ✅ (concluída)
 
 | # | Tarefa | Status |
 |---|--------|--------|
@@ -579,12 +582,62 @@ O header do perfil (foto, nome, stats) permanece igual. Abaixo dele, um `Segment
 
 | # | Tarefa |
 |---|--------|
-| 47 | Testes unitários (Jest) |
-| 48 | Error tracking (Sentry) |
+| 47 | ✅ Testes unitários (Jest) |
+| 48 | ✅ Error tracking (Sentry) |
 | 49 | CI/CD (GitHub Actions) |
 | 50 | Analytics |
 | 51 | Tratamento de erros consistente |
 | 52 | Performance (virtualização, lazy loading) |
+
+---
+
+## Item 48 — Error tracking (Sentry) — Implementação
+
+### Backend (Express)
+
+**Arquivos criados/alterados:**
+- `server/src/config/sentry.ts` — Inicialização do Sentry com integração Express
+- `server/src/config/env.ts` — Adicionado `SENTRY_DSN` opcional e `NODE_ENV`
+- `server/src/server.ts` — `initSentry()` chamado ao startup
+- `server/src/app.ts` — Middleware Sentry para requisições e erros
+- `server/.env.example` — Documentado `SENTRY_DSN`
+
+**Configuração:**
+```env
+SENTRY_DSN=https://xxxxx@xxxxx.ingest.sentry.io/xxxxx
+```
+
+**Funcionalidades:**
+- Captura automática de erros não tratados
+- Rastreamento de performance (tracing) com sample rate 10% em produção
+- Profiling habilitado
+- Filtro de health checks
+- Integração com Express HTTP e transações
+
+### Mobile (React Native)
+
+**Arquivos criados/alterados:**
+- `mobile/src/config/sentry.ts` — Inicialização do Sentry para React Native
+- `mobile/App.tsx` — Import e inicialização de Sentry no AppContent
+- `mobile/.env.example` — Documentado `EXPO_PUBLIC_SENTRY_DSN`
+
+**Configuração:**
+```env
+EXPO_PUBLIC_SENTRY_DSN=https://xxxxx@xxxxx.ingest.sentry.io/xxxxx
+```
+
+**Funcionalidades:**
+- Captura de erros não tratados em tempo de execução
+- Rastreamento de performance
+- Sample rate 100% em development, 10% em produção
+- Integração com React Native para erros de UI
+
+**Próximas melhorias opcionais:**
+- Source maps Upload (melhor stack traces)
+- Release tracking
+- Session replay (debugging)
+- Custom contexts (user ID, pet ID)
+- Breadcrumbs para ações do usuário
 
 ---
 
@@ -968,12 +1021,14 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=
 - **H5 — Feed de atividades**: Timeline cronológica (peso, vacinas, consultas, posts) com paginação. Endpoint `GET /pets/:petId/timeline`. Botão "Atividades" na aba Controle do PetsScreen.
 - **H8 — Responsividade**: `useWindowDimensions` reativo substitui `Dimensions.get('window')` estático em toda a base. ProfileGrid adaptável (3 colunas phone / 4 tablets). Quick actions com `flexWrap` em telas estreitas. Imports mortos removidos.
 - **Offline HomeCache**: cache de reminders e weekly summary na tabela `sync_meta` do WatermelonDB. API functions salvam no cache após sucesso e retornam cache quando offline. HomeScreen permanece bonita sem internet.
+- **Fase 3 — Push Notifications**: Infra completa — dual transport FCM+Expo, cron scheduler (vacinas, consultas), 7 gatilhos sociais (like, comentário, seguir, curtir comentário, post grupo, convite grupo), agendamento local (alimentação, vacina, aniversário) com backup/restore, deep links, action buttons.
+- **Fase 4 — Social & Engajamento**: Grupos v2 (feed de posts, membros, fixar posts, likes, comentários, busca), Grupos v3 (convite interno com busca de usuários, aceitar/recusar), Gamificação (níveis, XP, badges com progresso, modal de detalhes, feedback visual de desbloqueio).
 
 **Pendentes:**
 
-Nenhum — todas as tarefas H1-H8 estão concluídas. ✅
+Nenhum — Fases 1-4 e tarefas H1-H8 estão concluídas. ✅
 
-Próximas fases disponíveis: Onboarding, Testes (Jest), Sentry, CI/CD.
+Próximas fases disponíveis: Fase 5 (Qualidade — testes, Sentry, CI/CD, analytics), Fase 6 (Passeio — walk tracking), Onboarding, Splash animada, Login Social.
 
 ---
 

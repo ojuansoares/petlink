@@ -6,6 +6,7 @@ import * as Linking from 'expo-linking'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context'
 import NetInfo from '@react-native-community/netinfo'
+import * as Sentry from '@sentry/react-native'
 // Fraunces removida para um visual mais clean e "fofo" (sans-serif rounded)
 import {
   Nunito_400Regular,
@@ -28,6 +29,7 @@ import { selectIsDark, systemThemeChanged, setOnline, showToast } from './src/st
 import { hydrateActivePetThunk } from './src/store/slices/petsSlice'
 import { api, setApiOnlineStatus } from './src/api/axios'
 import { supabase } from './src/config/supabase'
+import { initSentry } from './src/config/sentry'
 import RootNavigator from './src/navigation/RootNavigator'
 import { tokens, withAlpha } from './src/theme'
 import OnboardingScreen, { OnboardingStep } from './src/screens/OnboardingScreen'
@@ -232,6 +234,11 @@ function AppContent() {
 
   // Consideramos carregado se o Nunito estiver pronto
   const fontsLoaded = nunitoLoaded
+
+  // Initialize Sentry
+  React.useEffect(() => {
+    initSentry()
+  }, [])
 
   // Lê o Keychain e restaura a sessão e o pet ativo ao abrir o app
   useEffect(() => {

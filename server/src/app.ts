@@ -1,5 +1,6 @@
 import express from 'express'
 import swaggerUi from 'swagger-ui-express'
+import * as Sentry from '@sentry/node'
 import authRoutes from './modules/auth/auth.routes'
 import profileRoutes from './modules/profile/profile.routes'
 import petsRoutes from './modules/pets/pets.routes'
@@ -22,6 +23,9 @@ import { swaggerSpec } from './config/swagger'
 
 const app = express()
 app.use(express.json())
+
+// Sentry request handler middleware
+Sentry.setupExpressErrorHandler(app)
 
 app.use((req, res, next) => {
   const startedAt = Date.now()

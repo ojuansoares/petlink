@@ -9,7 +9,8 @@
     "kill:8081": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"Get-NetTCPConnection -LocalPort 8081 -State Listen -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }\"",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "test": "jest"
   },
   "dependencies": {
     "@expo-google-fonts/fraunces": "^0.4.1",
@@ -22,6 +23,7 @@
     "@react-navigation/native": "^7.2.1",
     "@react-navigation/stack": "^7.8.8",
     "@reduxjs/toolkit": "^2.11.2",
+    "@sentry/react-native": "^8.13.0",
     "@supabase/supabase-js": "^2.100.1",
     "axios": "^1.13.6",
     "date-fns": "^4.1.0",
@@ -63,7 +65,12 @@
     "tailwindcss": "^3.4.19"
   },
   "devDependencies": {
+    "@testing-library/react-native": "^13.3.3",
+    "@types/jest": "^30.0.0",
     "@types/react": "~19.2.2",
+    "jest": "^29.7.0",
+    "jest-expo": "^56.0.4",
+    "react-test-renderer": "^19.2.0",
     "typescript": "~5.9.2"
   },
   "private": true,

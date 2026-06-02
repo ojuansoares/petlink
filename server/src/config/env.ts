@@ -9,12 +9,14 @@ const envSchema = z.object({
   CLOUDINARY_CLOUD_NAME: z.string().min(1).optional(),
   CLOUDINARY_API_KEY: z.string().min(1).optional(),
   CLOUDINARY_API_SECRET: z.string().min(1).optional(),
+  SENTRY_DSN: z.string().url().optional(),
   HOST: z.string().default('0.0.0.0'),
   PORT: z.string().default('3000'),
   API_URL: z.string().url().default('http://localhost:3000'),
   MONGODB_URI: z.string().min(1),
   FIREBASE_SERVICE_ACCOUNT_PATH: z.string().optional(),
   FIREBASE_PROJECT_ID: z.string().optional(),
+  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
 })
 
 export const env = envSchema.parse(process.env)
