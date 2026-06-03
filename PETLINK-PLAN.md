@@ -641,19 +641,89 @@ EXPO_PUBLIC_SENTRY_DSN=https://xxxxx@xxxxx.ingest.sentry.io/xxxxx
 
 ---
 
-### Fase 6 — Passeio (Walk Tracking)
+### Fase 6 — Passeio (Walk Tracking) — Estilo Strava 🏃‍♂️
 
-**Backend já tem:** CRUD básico (`GET /walks?petId=`, `POST /walks`) no módulo `walks/`. Frontend tem slice (`walksSlices.ts`).
+**Backend já tem:** CRUD básico (`GET /walks?petId=`, `POST /walks`) no módulo `walks/`. Frontend tem slice (`walksSlices.ts`) e `LocationService.ts` com `watchPosition()` + `haversineDistance()`.
 
-| # | Tarefa | Detalhes |
-|---|--------|----------|
-| W1 | Tela `WalkScreen` com mapa em tempo real | `expo-map-view` + localização em background (`expo-location`). Botão "Iniciar passeio" → começa a gravar a rota (GPS points a cada N segundos). Botão "Finalizar" → para gravação. |
-| W2 | Rota no mapa (polyline overlay) | Durante o passeio, desenhar a linha percorrida no mapa. Ao finalizar, mostrar o traçado completo com zoom ajustado. |
-| W3 | Dashboard final do passeio | Ao encerrar: duração, distância total (em km), velocidade média, calorias estimadas, mapa com rota estática. Salvar no Supabase (`walks`) com `route: { lat, lng }[]`, `distance_km`, `duration_min`, `avg_speed`, `calories`. |
-| W4 | Calendário de passeios | Igual ao feeding — mini calendário com marcação nos dias que tiveram passeio. Tap no dia → lista dos passeios daquele dia. |
-| W5 | Postar passeio (vínculo com feed) | Botão "Compartilhar" no dashboard final → abre criação de post com overlay do mapa da rota sobre a foto (ou como imagem separada). Usar `staticMapUrl` da OpenStreetMap/Mapbox pra gerar a imagem da rota. |
-| W6 | Histórico completo | Lista de passeios (FlatList) igual vacinas, com data, distância, duração. Tap → abre detalhes com mapa estático. |
-| W7 | Notificações de lembrete | Lembrete agendado: "Hora de passear com o {petName}!" (local push, igual vacinas). |
+#### Visão geral
+
+Tela principal de passeios, inspirada no Strava:
+- Botão enorme "Começar Passeio"
+- Abaixo: cards de métricas (total km, total passeios, média tempo)
+- Calendário estilo alimentação (semanal/mensal) com dias marcados
+- Aba "Histórico" com lista de cards retangulares
+
+#### Cards do histórico (Strava-style)
+- Visão externa já mostra dados estatísticos (distância, duração, pace)
+- Lado esquerdo do card: foto do passeio OU cor de preferência OU cor aleatória
+- Overlay da rota do mapa por cima da imagem (linha do percurso)
+
+#### Gravação do passeio
+- GPS a cada 5 segundos guardando { lat, lng, timestamp }
+- Botões: Iniciar → Pausar/Retomar → Finalizar | Descartar | Salvar
+- Mapa em tempo real com polyline do trajeto
+- Ao final: mapa com rota completa, linha do percurso, pontos de início/fim
+- Cálculos: distância total (Haversine), duração, velocidade média, gráfico de velocidade, calorias estimadas
+- Overlay da rota sobre a foto do passeio (estilo Strava)
+
+#### Offline first
+- Se sem internet: fila no AsyncStorage (WalkQueueRepository)
+- Quando voltar: processa fila em ordem
+- Máx 3 tentativas, depois descarta (dead letter)
+
+#### Tabela `walks` (Supabase) — colunas adicionadas
+
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| `photo_url` | `text` | URL da foto do passeio (upload opcional) |
+| `calories` | `numeric` | Calorias estimadas |
+| `avg_pace_min_km` | `numeric` | Pace médio (min/km) |
+| `max_speed_kmh` | `numeric` | Velocidade máxima |
+
+#### Endpoints do servidor
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| `GET` | `/walks?petId=` | Lista passeios do pet |
+| `POST` | `/walks` | Criar passeio |
+| `GET` | `/walks/:id` | Detalhes de um passeio |
+| `PUT` | `/walks/:id` | Atualizar passeio (foto, notas) |
+| `DELETE` | `/walks/:id` | Deletar passeio |
+| `GET` | `/walks/stats?petId=&start=&end=` | Agregação para calendário (distância total por dia) |
+
+#### Telas
+
+| Tela | Descrição |
+|------|-----------|
+| `WalkScreen` | Tela principal: botão "Começar Passeio", métricas, calendário, abas (Resumo / Histórico) |
+| `WalkRecordingScreen` | Mapa em tempo real + polyline + timer + distancia + velocidade + botões (pausar/parar) |
+| `WalkDetailScreen` | Pós-passeio: mapa com rota completa, stats, foto com overlay da rota, salvar/descartar |
+
+#### Arquivos do servidor
+
+| Arquivo | Mudança |
+|---------|---------|
+| `server/src/modules/walks/walks.routes.ts` | +3 rotas (GET /:id, PUT /:id, DELETE /:id, GET /stats) |
+| `server/src/modules/walks/walks.controller.ts` | +4 handlers |
+| `server/src/modules/walks/walks.service.ts` | +4 métodos + stats aggregation + calorias |
+| `server/src/modules/walks/walks.repository.ts` | +4 métodos + stats query |
+
+#### Arquivos mobile
+
+| Arquivo | Descrição |
+|---------|-----------|
+| `mobile/src/api/walks.api.ts` | **Novo** — funções de API dedicadas |
+| `mobile/src/store/slices/walksSlices.ts` | Atualizado — novos thunks + offline queue |
+| `mobile/src/data/repositories/WalkQueueRepository.ts` | **Novo** — fila offline AsyncStorage |
+| `mobile/src/screens/WalkScreen.tsx` | **Novo** — tela principal |
+| `mobile/src/screens/WalkRecordingScreen.tsx` | **Novo** — gravação ao vivo |
+| `mobile/src/screens/WalkDetailScreen.tsx` | **Novo** — detalhes pós-passeio |
+| `mobile/src/components/walks/WalkCard.tsx` | **Novo** — card de histórico |
+| `mobile/src/components/walks/WalkCalendar.tsx` | **Novo** — calendário semanal/mensal |
+| `mobile/src/components/walks/WalkStatsCard.tsx` | **Novo** — card de métrica |
+| `mobile/src/navigation/types.ts` | +3 rotas |
+| `mobile/src/screens/HomeScreen.tsx` | Navegar para WalkScreen |
+| `mobile/src/screens/PetsScreen.tsx` | Navegar para WalkScreen |
 
 ---
 

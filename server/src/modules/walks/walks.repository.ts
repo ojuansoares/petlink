@@ -1,18 +1,22 @@
 import { supabaseAdmin } from '../../config/supabase'
 
 export type Walk = {
-  id:          string
-  pet_id:      string
-  owner_id:    string
-  started_at:  string
-  ended_at:    string | null
-  distance_m:  number
-  duration_s:  number
-  steps_count: number | null
-  avg_speed_kmh: number | null
-  route:       unknown
-  notes:       string | null
-  created_at:  string
+  id:              string
+  pet_id:          string
+  owner_id:        string
+  started_at:      string
+  ended_at:        string | null
+  distance_m:      number
+  duration_s:      number
+  steps_count:     number | null
+  avg_speed_kmh:   number | null
+  avg_pace_min_km: number | null
+  max_speed_kmh:   number | null
+  calories:        number | null
+  photo_url:       string | null
+  route:           unknown
+  notes:           string | null
+  created_at:      string
 }
 
 export const walksRepository = {
@@ -27,6 +31,17 @@ export const walksRepository = {
     return (data ?? []) as Walk[]
   },
 
+  async findById(id: string): Promise<Walk | null> {
+    const { data, error } = await supabaseAdmin
+      .from('walks')
+      .select('*')
+      .eq('id', id)
+      .single()
+
+    if (error) return null
+    return data as Walk
+  },
+
   async create(input: {
     pet_id: string
     owner_id: string
@@ -36,6 +51,10 @@ export const walksRepository = {
     duration_s: number
     steps_count?: number | null
     avg_speed_kmh?: number | null
+    avg_pace_min_km?: number | null
+    max_speed_kmh?: number | null
+    calories?: number | null
+    photo_url?: string | null
     route: unknown
     notes?: string | null
   }) {
@@ -50,6 +69,10 @@ export const walksRepository = {
         duration_s: input.duration_s,
         steps_count: input.steps_count ?? null,
         avg_speed_kmh: input.avg_speed_kmh ?? null,
+        avg_pace_min_km: input.avg_pace_min_km ?? null,
+        max_speed_kmh: input.max_speed_kmh ?? null,
+        calories: input.calories ?? null,
+        photo_url: input.photo_url ?? null,
         route: input.route,
         notes: input.notes ?? null,
       })
@@ -58,5 +81,45 @@ export const walksRepository = {
 
     if (error) throw error
     return data
+  },
+
+  async update(id: string, input: {
+    photo_url?: string | null
+    notes?: string | null
+  }) {
+    const { data, error } = await supabaseAdmin
+      .from('walks')
+      .update({
+        photo_url: input.photo_url,
+        notes: input.notes,
+      })
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  },
+
+  async remove(id: string) {
+    const { error } = await supabaseAdmin
+      .from('walks')
+      .delete()
+      .eq('id', id)
+
+    if (error) throw error
+  },
+
+  async getStats(petId: string, start: string, end: string) {
+    const { data, error } = await supabaseAdmin
+      .from('walks')
+      .select('started_at, distance_m, duration_s, calories')
+      .eq('pet_id', petId)
+      .gte('started_at', start)
+      .lte('started_at', end)
+      .not('ended_at', 'is', null)
+
+    if (error) throw error
+    return data as Pick<Walk, 'started_at' | 'distance_m' | 'duration_s' | 'calories'>[]
   },
 }
