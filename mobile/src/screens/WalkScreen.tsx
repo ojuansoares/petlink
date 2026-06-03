@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import {
   View, FlatList, Pressable, StyleSheet, ActivityIndicator,
-  Platform, Modal,
+  Platform, Modal, ScrollView,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useTheme } from '../hooks/useTheme'
@@ -21,7 +21,6 @@ import { WalkStatsCard } from '../components/walks/WalkStatsCard'
 import { WalkCard } from '../components/walks/WalkCard'
 import { WalkCalendar } from '../components/walks/WalkCalendar'
 import { format, subMonths, addMonths, startOfMonth, endOfMonth } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
 import { scheduleWalkReminder, cancelWalkReminders } from '../services/NotificationService'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
@@ -197,63 +196,68 @@ export default function WalkScreen() {
         </Text>
       </Pressable>
 
-      <View style={styles.statsRow}>
-        <WalkStatsCard icon="map-outline" label="Total" value={totalKmText} color={colors.primary} />
-        <WalkStatsCard icon="footsteps-outline" label="Passeios" value={totalWalksText} color="#8B5CF6" />
-        <WalkStatsCard icon="flame-outline" label="Calorias" value={`${totalCalories}`} color="#F97316" />
-      </View>
-
-      <View style={styles.statsRow}>
-        <WalkStatsCard icon="time-outline" label="Tempo total" value={formatHours(totalDuration)} color="#3B82F6" />
-        <WalkStatsCard icon="speedometer-outline" label="Média/passeio" value={avgKmText} color="#22C55E" />
-        <WalkStatsCard icon="calendar-outline" label="Registros" value={`${stats.length} dias`} color="#EC4899" />
-      </View>
-
-      <Pressable
-        onPress={() => navigation.navigate('SettingsNotifications' as any)}
-        style={[styles.notifHint, { backgroundColor: withAlpha(colors.primary, 0.06), borderColor: withAlpha(colors.primary, 0.2) }]}
-      >
-        <Ionicons name="notifications-outline" size={18} color={colors.mutedForeground} />
-        <Text size="sm" color="mutedForeground" style={{ flex: 1 }}>
-          {frequencySet ? `Lembrete: ${FREQUENCY_OPTIONS.find(o => o.value === frequency)?.label}` : 'Configurar lembretes'}
-        </Text>
-        <Ionicons name="chevron-forward" size={16} color={colors.mutedForeground} style={{ opacity: 0.4 }} />
-      </Pressable>
-
-      <View style={styles.tabRow}>
+      <View style={[styles.tabRow, { borderBottomColor: colors.border }]}>
         <Pressable
           onPress={() => setActiveTab('resumo')}
           style={[styles.tab, activeTab === 'resumo' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
         >
-          <Text weight="700" size="sm" color={activeTab === 'resumo' ? 'primary' : 'mutedForeground'}>Resumo</Text>
+          <Text weight="800" size="sm" color={activeTab === 'resumo' ? 'primary' : 'mutedForeground'}>Resumo</Text>
         </Pressable>
         <Pressable
           onPress={() => setActiveTab('historico')}
           style={[styles.tab, activeTab === 'historico' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
         >
-          <Text weight="700" size="sm" color={activeTab === 'historico' ? 'primary' : 'mutedForeground'}>Histórico</Text>
+          <Text weight="800" size="sm" color={activeTab === 'historico' ? 'primary' : 'mutedForeground'}>Histórico</Text>
         </Pressable>
       </View>
 
       {activeTab === 'resumo' ? (
-        <View style={{ flex: 1 }}>
-          <View style={styles.calendarHeader}>
-            <Pressable onPress={() => setCalendarDate(d => subMonths(d, 1))}>
-              <Ionicons name="chevron-back" size={20} color={colors.primary} />
-            </Pressable>
-            <Text weight="700" size="sm">
-              {format(calendarDate, "MMMM 'de' yyyy", { locale: ptBR })}
-            </Text>
-            <Pressable onPress={() => setCalendarDate(d => addMonths(d, 1))}>
-              <Ionicons name="chevron-forward" size={20} color={colors.primary} />
-            </Pressable>
-          </View>
+        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
           <WalkCalendar
             year={calendarDate.getFullYear()}
             month={calendarDate.getMonth()}
             walkDays={walkDays}
+            onPrevMonth={() => setCalendarDate(d => subMonths(d, 1))}
+            onNextMonth={() => setCalendarDate(d => addMonths(d, 1))}
           />
-        </View>
+
+          <View style={styles.sectionGap} />
+
+          <View style={styles.topicSection}>
+            <Text size="xs" weight="800" color="mutedForeground" style={styles.topicLabel}>DISTÂNCIA</Text>
+            <View style={styles.statsRow}>
+              <WalkStatsCard icon="map-outline" label="Total" value={totalKmText} color={colors.primary} />
+              <WalkStatsCard icon="speedometer-outline" label="Média/passeio" value={avgKmText} color="#22C55E" />
+            </View>
+          </View>
+
+          <View style={styles.topicSection}>
+            <Text size="xs" weight="800" color="mutedForeground" style={styles.topicLabel}>ATIVIDADE</Text>
+            <View style={styles.statsRow}>
+              <WalkStatsCard icon="footsteps-outline" label="Passeios" value={totalWalksText} color="#8B5CF6" />
+              <WalkStatsCard icon="time-outline" label="Tempo total" value={formatHours(totalDuration)} color="#3B82F6" />
+            </View>
+          </View>
+
+          <View style={styles.topicSection}>
+            <Text size="xs" weight="800" color="mutedForeground" style={styles.topicLabel}>DESEMPENHO</Text>
+            <View style={styles.statsRow}>
+              <WalkStatsCard icon="flame-outline" label="Calorias" value={`${totalCalories}`} color="#F97316" />
+              <WalkStatsCard icon="calendar-outline" label="Registros" value={`${stats.length} dias`} color="#EC4899" />
+            </View>
+          </View>
+
+          <Pressable
+            onPress={() => navigation.navigate('SettingsNotifications' as any)}
+            style={[styles.notifHint, { backgroundColor: withAlpha(colors.primary, 0.06), borderColor: withAlpha(colors.primary, 0.2) }]}
+          >
+            <Ionicons name="notifications-outline" size={18} color={colors.mutedForeground} />
+            <Text size="sm" color="mutedForeground" style={{ flex: 1 }}>
+              {frequencySet ? `Lembrete: ${FREQUENCY_OPTIONS.find(o => o.value === frequency)?.label}` : 'Configurar lembretes'}
+            </Text>
+            <Ionicons name="chevron-forward" size={16} color={colors.mutedForeground} style={{ opacity: 0.4 }} />
+          </Pressable>
+        </ScrollView>
       ) : (
         <FlatList
           data={walks}
@@ -311,19 +315,23 @@ const styles = StyleSheet.create({
   },
   tabRow: {
     flexDirection: 'row',
-    marginTop: 8,
-    marginBottom: 12,
-    gap: 24,
+    borderBottomWidth: 1,
+    marginBottom: 8,
   },
   tab: {
-    paddingBottom: 8,
-    paddingHorizontal: 4,
-  },
-  calendarHeader: {
-    flexDirection: 'row',
+    flex: 1,
+    paddingVertical: 12,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
+  },
+  sectionGap: {
+    height: 20,
+  },
+  topicSection: {
+    marginBottom: 16,
+  },
+  topicLabel: {
+    marginBottom: 8,
+    marginLeft: 2,
   },
   empty: {
     alignItems: 'center',

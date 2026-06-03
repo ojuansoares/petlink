@@ -29,6 +29,7 @@ import { useSelector } from 'react-redux';
 import { selectUser } from '../../store/slices/authSlice';
 import { selectIsOnline } from '../../store/slices/uiSlice';
 import { ActionOptionsModal } from '../../components/ui/ActionOptionsModal';
+import { ImagePickerSheet } from '../../components/ui/ImagePickerSheet';
 import { CreatePostModal } from '../../components/ui/CreatePostModal';
 import { PlaceSearchInput, PlaceSelection } from '../../components/places/PlaceSearchInput';
 
@@ -177,22 +178,39 @@ export function ConsultationScreen() {
     setModalVisible(true);
   };
 
-  const handlePickPhoto = async () => {
+  const [showImagePicker, setShowImagePicker] = useState(false)
+
+  const handlePickPhoto = () => setShowImagePicker(true)
+
+  const pickAndUploadPhoto = async (source: 'camera' | 'gallery') => {
     try {
       const ImagePicker = require('expo-image-picker')
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync()
-      if (permission.status !== 'granted') return
 
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.8,
-      })
+      let result
+      if (source === 'camera') {
+        const permission = await ImagePicker.requestCameraPermissionsAsync()
+        if (permission.status !== 'granted') return
+        result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ['images'],
+          allowsEditing: true,
+          aspect: [4, 3],
+          quality: 0.8,
+        })
+      } else {
+        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync()
+        if (permission.status !== 'granted') return
+        result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ['images'],
+          allowsEditing: true,
+          aspect: [4, 3],
+          quality: 0.8,
+        })
+      }
 
       if (result.canceled || !result.assets?.length) return
 
       setIsUploadingPhoto(true)
+      setShowImagePicker(false)
       const asset = result.assets[0]
       const fileName = asset.fileName ?? `consult-${Date.now()}.jpg`
       const mimeType = asset.mimeType ?? 'image/jpeg'
@@ -648,6 +666,13 @@ export function ConsultationScreen() {
           initialPetIds={[postFromConsultation.petId]}
         />
       )}
+
+      <ImagePickerSheet
+        visible={showImagePicker}
+        onClose={() => setShowImagePicker(false)}
+        onCamera={() => pickAndUploadPhoto('camera')}
+        onGallery={() => pickAndUploadPhoto('gallery')}
+      />
     </View>
   )
 }

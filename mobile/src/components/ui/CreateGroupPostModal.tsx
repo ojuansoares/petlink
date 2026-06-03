@@ -12,6 +12,7 @@ import { Button } from './Button'
 import { Input } from './Input'
 import { Heading, Text } from './Typography'
 import { AppLoadingOverlay } from './AppLoadingOverlay'
+import { ImagePickerSheet } from './ImagePickerSheet'
 import { uploadImageWithRetry } from '../../api/uploadWithRetry'
 
 interface CreateGroupPostModalProps {
@@ -30,24 +31,44 @@ export function CreateGroupPostModal({ visible, onClose, groupId }: CreateGroupP
   const [photoUrl, setPhotoUrl] = useState('')
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false)
 
-  const handlePickPhoto = async () => {
+  const [showImagePicker, setShowImagePicker] = useState(false)
+
+  const handlePickPhoto = () => setShowImagePicker(true)
+
+  const pickAndUploadPhoto = async (source: 'camera' | 'gallery') => {
     try {
       setIsUploadingPhoto(true)
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync()
-      if (permission.status !== 'granted') {
-        dispatch(showToast({ type: 'error', title: 'Post', message: 'Permissão necessária para acessar a galeria' }))
-        return
-      }
 
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [4, 5],
-        quality: 0.8,
-      })
+      let result
+      if (source === 'camera') {
+        const permission = await ImagePicker.requestCameraPermissionsAsync()
+        if (permission.status !== 'granted') {
+          dispatch(showToast({ type: 'error', title: 'Câmera', message: 'Permissão necessária para acessar a câmera' }))
+          return
+        }
+        result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ['images'],
+          allowsEditing: true,
+          aspect: [4, 5],
+          quality: 0.8,
+        })
+      } else {
+        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync()
+        if (permission.status !== 'granted') {
+          dispatch(showToast({ type: 'error', title: 'Post', message: 'Permissão necessária para acessar a galeria' }))
+          return
+        }
+        result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ['images'],
+          allowsEditing: true,
+          aspect: [4, 5],
+          quality: 0.8,
+        })
+      }
 
       if (result.canceled || !result.assets?.length) return
 
+      setShowImagePicker(false)
       const asset = result.assets[0]
       const formData = new FormData()
       formData.append('folder', 'petlink/posts')
@@ -66,6 +87,9 @@ export function CreateGroupPostModal({ visible, onClose, groupId }: CreateGroupP
       setIsUploadingPhoto(false)
     }
   }
+
+  const handleCameraPick = () => pickAndUploadPhoto('camera')
+  const handleGalleryPick = () => pickAndUploadPhoto('gallery')
 
   const handlePublish = async () => {
     if (!text.trim() && !photoUrl) {
@@ -163,6 +187,13 @@ export function CreateGroupPostModal({ visible, onClose, groupId }: CreateGroupP
             />
           </View>
         </View>
+
+        <ImagePickerSheet
+          visible={showImagePicker}
+          onClose={() => setShowImagePicker(false)}
+          onCamera={handleCameraPick}
+          onGallery={handleGalleryPick}
+        />
       </KeyboardAvoidingView>
     </Modal>
   )

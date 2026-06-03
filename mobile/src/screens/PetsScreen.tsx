@@ -53,6 +53,7 @@ import { ControlCard } from './Pets/components/ControlCard'
 import { Calendar } from './Pets/components/Calendar'
 import { PetCreationStepContent, FIXED_TAGS } from './Pets/components/PetCreationStepContent'
 import { AppModal } from '../components/ui/AppModal'
+import { ImagePickerSheet } from '../components/ui/ImagePickerSheet'
 import { SegmentedTabs } from '../components/ui/SegmentedTabs'
 
 type PetsScreenNavigationProp = StackNavigationProp<AppStackParamList, 'Tabs'>;
@@ -183,6 +184,7 @@ export default function PetsScreen() {
   const [observations, setObservations] = useState('')
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false)
   const [showBirthDatePicker, setShowBirthDatePicker] = useState(false)
+  const [showImagePicker, setShowImagePicker] = useState(false)
 
   const mainScrollRef = useRef<ScrollView>(null)
 
@@ -355,16 +357,35 @@ export default function PetsScreen() {
     })
   }
 
-  const handlePickPhoto = async () => {
+  const handlePickPhoto = () => setShowImagePicker(true)
+
+  const pickAndUploadPhoto = async (source: 'camera' | 'gallery') => {
     try {
       setIsUploadingPhoto(true)
+      setShowImagePicker(false)
       const imagePicker = require('expo-image-picker')
-      const result = await imagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-      })
+
+      let result
+      if (source === 'camera') {
+        const permission = await imagePicker.requestCameraPermissionsAsync()
+        if (permission.status !== 'granted') {
+          dispatch(showToast({ type: 'error', title: 'Câmera', message: 'Permissão necessária para acessar a câmera' }))
+          return
+        }
+        result = await imagePicker.launchCameraAsync({
+          mediaTypes: ['images'],
+          allowsEditing: true,
+          aspect: [1, 1],
+          quality: 0.8,
+        })
+      } else {
+        result = await imagePicker.launchImageLibraryAsync({
+          mediaTypes: ['images'],
+          allowsEditing: true,
+          aspect: [1, 1],
+          quality: 0.8,
+        })
+      }
 
       if (result.canceled || !result.assets?.length) return
       const asset = result.assets[0]
@@ -380,6 +401,9 @@ export default function PetsScreen() {
       setIsUploadingPhoto(false)
     }
   }
+
+  const handleCameraPick = () => pickAndUploadPhoto('camera')
+  const handleGalleryPick = () => pickAndUploadPhoto('gallery')
 
   const loadFormData = () => {
     if (!activePet) return
@@ -976,6 +1000,13 @@ export default function PetsScreen() {
           </Pressable>
         </View>
       </Modal>
+
+      <ImagePickerSheet
+        visible={showImagePicker}
+        onClose={() => setShowImagePicker(false)}
+        onCamera={handleCameraPick}
+        onGallery={handleGalleryPick}
+      />
     </View>
   )
 }

@@ -13,6 +13,7 @@ import { createPostThunk } from '../../store/slices/postsSlice'
 import { showToast, selectLoadingPetsForPost } from '../../store/slices/uiSlice'
 import { selectPetsList } from '../../store/slices/petsSlice'
 import { Button } from './Button'
+import { ImagePickerSheet } from './ImagePickerSheet'
 import { Input } from './Input'
 import { OptionSelect } from './OptionSelect'
 import { Heading, Text } from './Typography'
@@ -138,25 +139,44 @@ export function CreatePostModal({ visible, onClose, initialPhotoUrl, initialPetI
 
   const petOptions = pets.map(pet => ({ label: pet.name, value: pet.id, photoUrl: pet.photo_url }))
 
-  const handlePickPhoto = async () => {
+  const [showImagePicker, setShowImagePicker] = useState(false)
+
+  const handlePickPhoto = () => setShowImagePicker(true)
+
+  const pickAndUploadPhoto = async (source: 'camera' | 'gallery') => {
     try {
       setIsUploadingPhoto(true)
 
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync()
-      if (permission.status !== 'granted') {
-        dispatch(showToast({ type: 'error', title: 'Post', message: 'Permissão necessária para acessar a galeria' }))
-        return
+      let result
+      if (source === 'camera') {
+        const permission = await ImagePicker.requestCameraPermissionsAsync()
+        if (permission.status !== 'granted') {
+          dispatch(showToast({ type: 'error', title: 'Câmera', message: 'Permissão necessária para acessar a câmera' }))
+          return
+        }
+        result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ['images'],
+          allowsEditing: true,
+          aspect: [4, 5],
+          quality: 0.8,
+        })
+      } else {
+        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync()
+        if (permission.status !== 'granted') {
+          dispatch(showToast({ type: 'error', title: 'Post', message: 'Permissão necessária para acessar a galeria' }))
+          return
+        }
+        result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ['images'],
+          allowsEditing: true,
+          aspect: [4, 5],
+          quality: 0.8,
+        })
       }
-
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [4, 5],
-        quality: 0.8,
-      })
 
       if (result.canceled || !result.assets?.length) return
 
+      setShowImagePicker(false)
       const asset = result.assets[0]
       const fileName = asset.fileName ?? `post-${Date.now()}.jpg`
       const mimeType = asset.mimeType ?? 'image/jpeg'
@@ -388,6 +408,13 @@ export function CreatePostModal({ visible, onClose, initialPhotoUrl, initialPetI
           )}
         </View>
       </KeyboardAvoidingView>
+
+      <ImagePickerSheet
+        visible={showImagePicker}
+        onClose={() => setShowImagePicker(false)}
+        onCamera={() => pickAndUploadPhoto('camera')}
+        onGallery={() => pickAndUploadPhoto('gallery')}
+      />
     </Modal>
   )
 }

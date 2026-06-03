@@ -22,6 +22,7 @@ import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { OptionSelect } from '../components/ui/OptionSelect'
 import { CreateGroupPostModal } from '../components/ui/CreateGroupPostModal'
+import { ImagePickerSheet } from '../components/ui/ImagePickerSheet'
 import { uploadImageWithRetry } from '../api/uploadWithRetry'
 import { useAppDispatch, useAppSelector } from '../store'
 import {
@@ -336,19 +337,37 @@ function EditGroupModal({
     handleGetLocation()
   }, [visible])
 
-  const handlePickPhoto = async () => {
+  const [showImagePicker, setShowImagePicker] = useState(false)
+
+  const handlePickPhoto = () => setShowImagePicker(true)
+
+  const pickAndUploadPhoto = async (source: 'camera' | 'gallery') => {
     try {
       setIsUploadingPhoto(true)
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync()
-      if (permission.status !== 'granted') {
-        dispatch(showToast({ type: 'error', title: 'Grupo', message: 'Permissão necessária para acessar a galeria' }))
-        return
-      }
+      setShowImagePicker(false)
 
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        quality: 0.8,
-      })
+      let result
+      if (source === 'camera') {
+        const permission = await ImagePicker.requestCameraPermissionsAsync()
+        if (permission.status !== 'granted') {
+          dispatch(showToast({ type: 'error', title: 'Câmera', message: 'Permissão necessária para acessar a câmera' }))
+          return
+        }
+        result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ['images'],
+          quality: 0.8,
+        })
+      } else {
+        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync()
+        if (permission.status !== 'granted') {
+          dispatch(showToast({ type: 'error', title: 'Grupo', message: 'Permissão necessária para acessar a galeria' }))
+          return
+        }
+        result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ['images'],
+          quality: 0.8,
+        })
+      }
 
       if (result.canceled || !result.assets?.length) return
 
@@ -370,6 +389,9 @@ function EditGroupModal({
       setIsUploadingPhoto(false)
     }
   }
+
+  const handleCameraPick = () => pickAndUploadPhoto('camera')
+  const handleGalleryPick = () => pickAndUploadPhoto('gallery')
 
   const handleSave = async () => {
     if (!name.trim()) {
@@ -524,6 +546,13 @@ function EditGroupModal({
             />
           </View>
         </View>
+
+        <ImagePickerSheet
+          visible={showImagePicker}
+          onClose={() => setShowImagePicker(false)}
+          onCamera={handleCameraPick}
+          onGallery={handleGalleryPick}
+        />
       </KeyboardAvoidingView>
     </Modal>
   )

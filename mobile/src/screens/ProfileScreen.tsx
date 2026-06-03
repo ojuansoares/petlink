@@ -18,6 +18,7 @@ import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { OptionSelect } from '../components/ui/OptionSelect'
 import { AppModal } from '../components/ui/AppModal'
+import { ImagePickerSheet } from '../components/ui/ImagePickerSheet'
 import { ProfileGrid } from '../components/ui/ProfileGrid'
 import { SegmentedTabs } from '../components/ui/SegmentedTabs'
 import { useTheme } from '../hooks/useTheme'
@@ -178,16 +179,37 @@ export default function ProfileScreen() {
     }
   }, [isEditModalOpen, location, handleGetLocation])
 
-  const handlePickAvatar = async () => {
+  const [showImagePicker, setShowImagePicker] = useState(false)
+
+  const handlePickAvatar = () => setShowImagePicker(true)
+
+  const pickAndUploadAvatar = async (source: 'camera' | 'gallery') => {
     try {
       setIsUploadingAvatar(true)
+      setShowImagePicker(false)
       const imagePicker = require('expo-image-picker')
-      const result = await imagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.7,
-      })
+
+      let result
+      if (source === 'camera') {
+        const permission = await imagePicker.requestCameraPermissionsAsync()
+        if (permission.status !== 'granted') {
+          dispatch(showToast({ type: 'error', title: 'Câmera', message: 'Permissão necessária para acessar a câmera' }))
+          return
+        }
+        result = await imagePicker.launchCameraAsync({
+          mediaTypes: ['images'],
+          allowsEditing: true,
+          aspect: [1, 1],
+          quality: 0.7,
+        })
+      } else {
+        result = await imagePicker.launchImageLibraryAsync({
+          mediaTypes: ['images'],
+          allowsEditing: true,
+          aspect: [1, 1],
+          quality: 0.7,
+        })
+      }
 
       if (result.canceled || !result.assets?.length) return
       const asset = result.assets[0]
@@ -203,6 +225,9 @@ export default function ProfileScreen() {
       setIsUploadingAvatar(false)
     }
   }
+
+  const handleCameraPick = () => pickAndUploadAvatar('camera')
+  const handleGalleryPick = () => pickAndUploadAvatar('gallery')
 
   const renderHeader = () => (
     <View style={styles.header}>
@@ -500,6 +525,13 @@ export default function ProfileScreen() {
       />
       <AppToast />
       <CreatePostFAB />
+
+      <ImagePickerSheet
+        visible={showImagePicker}
+        onClose={() => setShowImagePicker(false)}
+        onCamera={handleCameraPick}
+        onGallery={handleGalleryPick}
+      />
     </View>
   )
 }

@@ -1,10 +1,12 @@
 import React, { useMemo } from 'react'
 import { View, Pressable, StyleSheet } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import { Text } from '../ui/Typography'
 import { useTheme } from '../../hooks/useTheme'
 import {
   startOfMonth, endOfMonth, startOfWeek, endOfWeek,
-  eachDayOfInterval, format, isSameMonth, isSameDay, isToday,
+  eachDayOfInterval, format, isSameMonth, isToday,
+  subMonths, addMonths,
 } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
@@ -13,25 +15,39 @@ interface WalkCalendarProps {
   month: number
   walkDays: Set<string>
   onDayPress?: (date: Date) => void
+  onPrevMonth?: () => void
+  onNextMonth?: () => void
 }
 
 const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 
-export function WalkCalendar({ year, month, walkDays, onDayPress }: WalkCalendarProps) {
+export function WalkCalendar({ year, month, walkDays, onDayPress, onPrevMonth, onNextMonth }: WalkCalendarProps) {
   const { colors, withAlpha } = useTheme()
+  const date = new Date(year, month)
 
   const days = useMemo(() => {
-    const start = startOfWeek(startOfMonth(new Date(year, month)), { weekStartsOn: 0 })
-    const end = endOfWeek(endOfMonth(new Date(year, month)), { weekStartsOn: 0 })
+    const start = startOfWeek(startOfMonth(date), { weekStartsOn: 0 })
+    const end = endOfWeek(endOfMonth(date), { weekStartsOn: 0 })
     return eachDayOfInterval({ start, end })
   }, [year, month])
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.card, { backgroundColor: colors.card, borderColor: withAlpha(colors.border, 0.5) }]}>
+      <View style={styles.header}>
+        <Pressable onPress={onPrevMonth} hitSlop={8}>
+          <Ionicons name="chevron-back" size={18} color={colors.primary} />
+        </Pressable>
+        <Text weight="700" size="sm">
+          {format(date, "MMMM 'de' yyyy", { locale: ptBR })}
+        </Text>
+        <Pressable onPress={onNextMonth} hitSlop={8}>
+          <Ionicons name="chevron-forward" size={18} color={colors.primary} />
+        </Pressable>
+      </View>
       <View style={styles.weekdayRow}>
         {WEEKDAYS.map((wd) => (
           <View key={wd} style={styles.weekdayCell}>
-            <Text size="xs" color="mutedForeground" weight="700">{wd}</Text>
+            <Text size="2xs" color="mutedForeground" weight="700">{wd}</Text>
           </View>
         ))}
       </View>
@@ -39,7 +55,7 @@ export function WalkCalendar({ year, month, walkDays, onDayPress }: WalkCalendar
         {days.map((day) => {
           const dateStr = format(day, 'yyyy-MM-dd')
           const hasWalk = walkDays.has(dateStr)
-          const isCurrentMonth = isSameMonth(day, new Date(year, month))
+          const isCurrentMonth = isSameMonth(day, date)
           const isTodayDate = isToday(day)
 
           return (
@@ -48,11 +64,11 @@ export function WalkCalendar({ year, month, walkDays, onDayPress }: WalkCalendar
               onPress={() => onDayPress?.(day)}
               style={[
                 styles.dayCell,
-                isTodayDate && { backgroundColor: withAlpha(colors.primary, 0.1), borderRadius: 8 },
+                isTodayDate && { backgroundColor: withAlpha(colors.primary, 0.1), borderRadius: 6 },
               ]}
             >
               <Text
-                size="xs"
+                size="2xs"
                 weight={isTodayDate ? '800' : '600'}
                 style={{
                   color: isCurrentMonth ? colors.foreground : withAlpha(colors.mutedForeground, 0.3),
@@ -73,17 +89,25 @@ export function WalkCalendar({ year, month, walkDays, onDayPress }: WalkCalendar
 }
 
 const styles = StyleSheet.create({
-  container: {
-    gap: 4,
+  card: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 12,
+    gap: 6,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   weekdayRow: {
     flexDirection: 'row',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   weekdayCell: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 4,
+    paddingVertical: 2,
   },
   daysGrid: {
     flexDirection: 'row',
@@ -92,12 +116,12 @@ const styles = StyleSheet.create({
   dayCell: {
     width: '14.28%',
     alignItems: 'center',
-    paddingVertical: 6,
-    gap: 2,
+    paddingVertical: 4,
+    gap: 1,
   },
   dot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
   },
 })
