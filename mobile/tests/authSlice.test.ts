@@ -306,7 +306,7 @@ describe('authSlice', () => {
       const store = createStore()
       await store.dispatch(forgotPasswordThunk('bad'))
 
-      expect(store.getState().auth.error).toBe('invalid email')
+      expect(store.getState().auth.error).toBe('Erro ao enviar email. Tente novamente mais tarde.')
     })
   })
 

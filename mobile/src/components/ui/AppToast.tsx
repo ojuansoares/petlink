@@ -82,7 +82,7 @@ export function AppToast() {
             {showLoader && <ActivityIndicator size="small" color={fgColor} style={styles.toastSpinner} />}
             <View style={styles.toastTextWrapper}>
               {title && <Text style={[styles.toastTitle, { color: fgColor }]}>{title}</Text>}
-              <Text style={[styles.toastMessage, { color: fgColor }]}>{toast.message}</Text>
+              <Text style={[styles.toastMessage, { color: fgColor }]} numberOfLines={3} ellipsizeMode="tail">{toast.message}</Text>
             </View>
           </View>
         )

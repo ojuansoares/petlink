@@ -263,7 +263,7 @@ export const forgotPasswordThunk = createAsyncThunk(
           return rejectWithValue('Erro ao enviar email de confirmacao. Verifique SMTP/Auth Logs no Supabase.')
         }
 
-        return rejectWithValue(error.message)
+        return rejectWithValue('Erro ao enviar email. Tente novamente mais tarde.')
       }
 
       return { sent: true }
@@ -278,7 +278,7 @@ export const resetPasswordThunk = createAsyncThunk(
   async (password: string, { rejectWithValue }) => {
     try {
       const { error } = await supabase.auth.updateUser({ password })
-      if (error) return rejectWithValue(error.message)
+      if (error) return rejectWithValue('Erro ao redefinir senha. Tente novamente.')
       await supabase.auth.signOut()
       return { success: true }
     } catch {

@@ -93,6 +93,12 @@ api.interceptors.response.use(
       }
     }
 
+    if (error.code === 'ECONNABORTED' && error.message?.includes('timeout')) {
+      const timeoutError = new Error('Sem resposta do servidor. Verifique sua conexao.')
+      ;(timeoutError as any).isOffline = true
+      throw timeoutError
+    }
+
     throw error
   }
 )

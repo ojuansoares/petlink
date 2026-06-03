@@ -67,13 +67,12 @@ app.use('/gamification', gamificationRoutes)
 app.use('/pets', vaccinationCardRoutes)
 
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  Sentry.captureException(err)
-
   if (err instanceof AppError) {
     res.status(err.statusCode).json({ error: err.message, code: err.code })
     return
   }
 
+  Sentry.captureException(err)
   console.error('[ERRO INESPERADO]:', err)
   res.status(500).json({ error: 'Erro interno inesperado' })
 })
