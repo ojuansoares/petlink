@@ -585,9 +585,9 @@ O header do perfil (foto, nome, stats) permanece igual. Abaixo dele, um `Segment
 | 47 | ✅ Testes unitários (Jest) |
 | 48 | ✅ Error tracking (Sentry) |
 | 49 | ✅ CI/CD (GitHub Actions) |
-| 50 | Analytics |
+| 50 | ⏳ Analytics |
 | 51 | ✅ Tratamento de erros consistente |
-| 52 | Performance (virtualização, lazy loading) |
+| 52 | ⏳ Performance (virtualização, lazy loading) |
 
 ---
 
@@ -1328,6 +1328,31 @@ ANDROID_ADB_SERVER_PORT=5040 npx expo run:android
 ### Por que não precisa rebuildar
 
 Nenhuma das alterações mexe em código nativo (native modules, podfile, gradle). São apenas mudanças em `.ts`/`.tsx`. Basta `expo start -c` para limpar o cache do Metro bundler.
+
+---
+
+---
+
+## Arquivos alterados nesta sessão (03/06/2026) — Item 51: Estado de erro/offline nas telas
+
+### Mobile
+
+| Arquivo | Mudança |
+|---------|---------|
+| `src/screens/ActivityTimelineScreen.tsx` | `error` state + `selectIsOnline` + UI de erro/offline com "Tentar novamente" em vez de catch vazio |
+| `src/screens/Pets/ConsultationScreen.tsx` | `error` state + `selectIsOnline` + UI de erro/offline com "Tentar novamente" em vez de `console.error` silencioso |
+| `src/screens/Pets/VaccineScreen.tsx` | `error` state + `selectIsOnline` + fallback de cache mantido, mas erro visível quando cache vazio |
+
+### Status atual da Fase 5
+
+| # | Tarefa | Status |
+|---|--------|--------|
+| 47 | Testes unitários | ✅ |
+| 48 | Sentry | ✅ |
+| 49 | CI/CD | ✅ |
+| 50 | Analytics | ⏳ |
+| 51 | Tratamento de erros | ✅ |
+| 52 | Performance | ⏳ |
 
 ---
 
