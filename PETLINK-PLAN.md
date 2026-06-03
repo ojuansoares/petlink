@@ -724,6 +724,22 @@ Tela principal de passeios, inspirada no Strava:
 | `mobile/src/navigation/types.ts` | +3 rotas |
 | `mobile/src/screens/HomeScreen.tsx` | Navegar para WalkScreen |
 | `mobile/src/screens/PetsScreen.tsx` | Navegar para WalkScreen |
+| `mobile/src/api/api.ts` | Export walks.api functions |
+
+#### Status
+
+| # | Tarefa | Status |
+|---|--------|--------|
+| W1 | WalkScreen com botão "Começar Passeio", métricas, calendário, histórico | ✅ |
+| W2 | WalkRecordingScreen com GPS 5s, polyline no mapa, pause/stop/discard | ✅ |
+| W3 | WalkDetailScreen com mapa, rota, markers início/fim, stats | ✅ |
+| W4 | WalkCalendar (semanal/mensal) com dias marcados | ✅ |
+| W5 | WalkCard retangular com foto/cor + stats (Strava-style) | ✅ |
+| W6 | WalkStatsCard para métricas | ✅ |
+| W7 | Offline queue (WalkQueueRepository) + processQueue | ✅ |
+| W8 | Server: GET /stats, GET/PUT/DELETE /:id, novos campos (photo_url, calories, pace) | ✅ |
+| W9 | Postar passeio (vínculo com feed) | ⏳ |
+| W10 | Notificações de lembrete de passeio | ⏳ |
 
 ---
 
@@ -1420,9 +1436,41 @@ Nenhuma das alterações mexe em código nativo (native modules, podfile, gradle
 | 47 | Testes unitários | ✅ |
 | 48 | Sentry | ✅ |
 | 49 | CI/CD | ✅ |
-| 50 | Analytics | ⏳ |
+| 50 | Analytics | ⏳ (postergado para o final) |
 | 51 | Tratamento de erros | ✅ |
-| 52 | Performance | ✅ (já implementado — item encerrado) |
+| 52 | Performance | ✅ |
+
+---
+
+## Arquivos alterados nesta sessão (03/06/2026) — Fase 6: Walk Tracking
+
+### Server
+
+| Arquivo | Mudança |
+|---------|---------|
+| `src/modules/walks/walks.routes.ts` | +3 rotas (GET /:id, PUT /:id, DELETE /:id, GET /stats) |
+| `src/modules/walks/walks.controller.ts` | +4 handlers com validação de query params |
+| `src/modules/walks/walks.service.ts` | +4 métodos + estimativa de calorias + cálculo de pace |
+| `src/modules/walks/walks.repository.ts` | +4 métodos + stats query + novos campos (photo_url, calories, pace, max_speed) |
+
+### Mobile
+
+| Arquivo | Mudança |
+|---------|---------|
+| `src/api/walks.api.ts` | **Novo** — funções de API dedicadas (fetchWalks, createWalk, updateWalk, deleteWalk, fetchWalkStats) |
+| `src/data/repositories/WalkQueueRepository.ts` | **Novo** — fila offline AsyncStorage com 3 tentativas |
+| `src/store/slices/walksSlices.ts` | **Reescrito** — novos thunks (fetchById, update, delete, stats, processQueue) + pause/resume + maxSpeed |
+| `src/navigation/types.ts` | +3 rotas (Walk, WalkRecording, WalkDetail) |
+| `src/navigation/RootNavigator.tsx` | +3 telas no AppStack |
+| `src/screens/WalkScreen.tsx` | **Novo** — tela principal: botão start, métricas, calendário, abas Resumo/Histórico |
+| `src/screens/WalkRecordingScreen.tsx` | **Novo** — gravação ao vivo: mapa + polyline + GPS 5s + pause/resume/stop/discard |
+| `src/screens/WalkDetailScreen.tsx` | **Novo** — detalhes pós-passeio: mapa com rota + markers + stats |
+| `src/components/walks/WalkStatsCard.tsx` | **Novo** — card de métrica (ícone + label + valor) |
+| `src/components/walks/WalkCard.tsx` | **Novo** — card de histórico (foto/cor + stats + distância/duração/pace) |
+| `src/components/walks/WalkCalendar.tsx` | **Novo** — calendário mensal com dots nos dias com passeio |
+| `src/screens/PetsScreen.tsx` | ControlCard "Passeios" navega para WalkScreen |
+| `src/api/api.ts` | Export walks API functions |
+| `package.json` | + react-native-maps |
 
 ---
 
