@@ -641,7 +641,7 @@ EXPO_PUBLIC_SENTRY_DSN=https://xxxxx@xxxxx.ingest.sentry.io/xxxxx
 
 ---
 
-### Fase 6 — Passeio (Walk Tracking) — Estilo Strava 🏃‍♂️
+### Fase 6 — Passeio (Walk Tracking) — Estilo Strava ✅
 
 **Backend já tem:** CRUD básico (`GET /walks?petId=`, `POST /walks`) no módulo `walks/`. Frontend tem slice (`walksSlices.ts`) e `LocationService.ts` com `watchPosition()` + `haversineDistance()`.
 
@@ -746,7 +746,7 @@ Tela principal de passeios, inspirada no Strava:
 
 ---
 
-### Fase 7 — Lugares (OpenStreetMap) 🗺️
+### Fase 7 — Lugares (OpenStreetMap) ✅
 
 **API:** OpenStreetMap via Nominatim (proxy no servidor para rate limiting e cache). Usa a mesma biblioteca `react-native-maps` dos passeios.
 
@@ -825,14 +825,14 @@ Search: { tab?: 'pessoas' | 'pets' | 'grupos' | 'locais'; osm_id?: number } | un
 
 | # | Tarefa | Status |
 |---|--------|--------|
-| L1 | Server: módulo `/places` com proxy Nominatim (search + details) | ⏳ |
-| L2 | Server: PlaceReview (MongoDB) — CRUD de avaliações | ⏳ |
-| L3 | Migration SQL: colunas de lugar em `consultations` | ⏳ |
-| L4 | Mobile: aba "Locais" na SearchScreen com busca + mapa + avaliações | ⏳ |
-| L5 | Mobile: `PlaceSearchInput` componente para consulta (create/edit) | ⏳ |
-| L6 | Mobile: campo `clinic` vira link clicável no detail modal | ⏳ |
-| L7 | Mobile: atualizar `Consultation` type + Redux + API (enviar place fields) | ⏳ |
-| L8 | Mobile: navigation params — Search aceita `tab` e `osm_id` | ⏳ |
+| L1 | Server: módulo `/places` com proxy Nominatim (search + details) | ✅ |
+| L2 | Server: PlaceReview (MongoDB) — CRUD de avaliações | ✅ |
+| L3 | Migration SQL: colunas de lugar em `consultations` | ✅ |
+| L4 | Mobile: aba "Locais" na SearchScreen com busca + mapa + avaliações | ✅ |
+| L5 | Mobile: `PlaceSearchInput` componente para consulta (create/edit) | ✅ |
+| L6 | Mobile: campo `clinic` vira link clicável no detail modal | ✅ |
+| L7 | Mobile: atualizar `Consultation` type + Redux + API (enviar place fields) | ✅ |
+| L8 | Mobile: navigation params — Search aceita `tab` e `osm_id` | ✅ |
 
 ---
 
