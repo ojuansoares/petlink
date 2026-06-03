@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import {
-  View, Pressable, StyleSheet, Platform, Alert,
+  View, Pressable, StyleSheet, Platform, Alert, ActivityIndicator,
 } from 'react-native'
 import MapView, { Polyline, PROVIDER_GOOGLE, Region } from 'react-native-maps'
 import { Ionicons } from '@expo/vector-icons'
 import { useTheme } from '../hooks/useTheme'
-import { Text, Heading } from '../components/ui/Typography'
+import { Text } from '../components/ui/Typography'
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native'
 import { AppStackParamList } from '../navigation/types'
 import { useAppDispatch, useAppSelector } from '../store'
@@ -14,9 +14,12 @@ import {
   pauseWalk, resumeWalk, cancelWalk, saveWalkThunk,
   selectActiveWalk, selectIsWalking,
 } from '../store/slices/walksSlices'
-import { watchPosition, haversineDistance, requestLocationPermission } from '../services/LocationService'
+import { watchPosition, haversineDistance, requestLocationPermission, getCurrentPosition } from '../services/LocationService'
 
 type ScreenRoute = RouteProp<AppStackParamList, 'WalkRecording'>
+
+// Phases of the screen
+type Phase = 'preparing' | 'walking'
 
 export default function WalkRecordingScreen() {
   const { colors, withAlpha } = useTheme()
@@ -27,13 +30,16 @@ export default function WalkRecordingScreen() {
   const activeWalk = useAppSelector(selectActiveWalk)
   const isWalking = useAppSelector(selectIsWalking)
 
+  const [phase, setPhase] = useState<Phase>('preparing')
   const [elapsedS, setElapsedS] = useState(0)
   const [region, setRegion] = useState<Region | null>(null)
   const [isPaused, setIsPaused] = useState(false)
+  const [loadingLocation, setLoadingLocation] = useState(true)
   const watchRef = useRef<any>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const lastPointRef = useRef<{ lat: number; lng: number } | null>(null)
 
+  // On mount: request permission and get initial location for map preview
   useEffect(() => {
     (async () => {
       const granted = await requestLocationPermission()
@@ -42,16 +48,33 @@ export default function WalkRecordingScreen() {
         navigation.goBack()
         return
       }
-      dispatch(startWalk({ petId, petName }))
+
+      try {
+        const pos = await getCurrentPosition()
+        if (pos) {
+          setRegion({
+            latitude: pos.lat,
+            longitude: pos.lng,
+            latitudeDelta: 0.01,
+            longitudeDelta: 0.01,
+          })
+        }
+      } catch {
+        // GPS timeout, mapa ficará em placeholder
+      } finally {
+        setLoadingLocation(false)
+      }
     })()
+
     return () => {
       watchRef.current?.remove()
       if (timerRef.current) clearInterval(timerRef.current)
     }
   }, [])
 
+  // When walk becomes active, start GPS tracking
   useEffect(() => {
-    if (!activeWalk) return
+    if (!activeWalk || phase !== 'walking') return
 
     ;(async () => {
       const sub = await watchPosition(
@@ -71,24 +94,21 @@ export default function WalkRecordingScreen() {
             dispatch(updateMaxSpeed(speedKmh))
           }
 
-          if (!region) {
-            setRegion({
-              latitude: lat,
-              longitude: lng,
-              latitudeDelta: 0.01,
-              longitudeDelta: 0.01,
-            })
-          }
+          setRegion(prev => prev
+            ? { ...prev, latitude: lat, longitude: lng }
+            : { latitude: lat, longitude: lng, latitudeDelta: 0.01, longitudeDelta: 0.01 }
+          )
         },
         (err) => console.warn('GPS error:', err),
         { timeInterval: 5000, distanceInterval: 5 },
       )
       watchRef.current = sub
     })()
-  }, [!!activeWalk])
+  }, [!!activeWalk, phase])
 
+  // Timer counter during walking
   useEffect(() => {
-    if (isWalking && !isPaused) {
+    if (phase === 'walking' && isWalking && !isPaused) {
       timerRef.current = setInterval(() => {
         setElapsedS(prev => prev + 1)
       }, 1000)
@@ -98,7 +118,12 @@ export default function WalkRecordingScreen() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current)
     }
-  }, [isWalking, isPaused])
+  }, [phase, isWalking, isPaused])
+
+  const handleBeginWalk = () => {
+    dispatch(startWalk({ petId, petName }))
+    setPhase('walking')
+  }
 
   const handlePause = () => {
     setIsPaused(true)
@@ -125,7 +150,7 @@ export default function WalkRecordingScreen() {
 
             if (!activeWalk) return
             const now = new Date().toISOString()
-            const durationS = Math.floor((Date.now() - new Date(activeWalk.startedAt).getTime()) / 1000) - activeWalk.totalPausedS
+            const durationS = Math.floor((Date.now() - new Date(activeWalk.startedAt).getTime()) / 1000) - Math.round(activeWalk.totalPausedS)
             const avgSpeed = durationS > 0 ? (activeWalk.distanceM / 1000) / (durationS / 3600) : 0
             const avgPace = avgSpeed > 0 ? 60 / avgSpeed : null
 
@@ -135,7 +160,7 @@ export default function WalkRecordingScreen() {
               startedAt: activeWalk.startedAt,
               endedAt: now,
               distanceM: Math.round(activeWalk.distanceM),
-              durationS,
+              durationS: Math.round(durationS),
               stepsCount: null,
               avgSpeedKmh: Math.round(avgSpeed * 10) / 10,
               avgPaceMinKm: avgPace ? Math.round(avgPace * 100) / 100 : null,
@@ -185,6 +210,7 @@ export default function WalkRecordingScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Map (always visible) */}
       <View style={styles.mapContainer}>
         {region ? (
           <MapView
@@ -192,7 +218,7 @@ export default function WalkRecordingScreen() {
             provider={PROVIDER_GOOGLE}
             initialRegion={region}
             showsUserLocation
-            followsUserLocation
+            followsUserLocation={phase === 'walking'}
           >
             {activeWalk && activeWalk.route.length > 1 && (
               <Polyline
@@ -205,49 +231,94 @@ export default function WalkRecordingScreen() {
           </MapView>
         ) : (
           <View style={[styles.mapPlaceholder, { backgroundColor: colors.muted }]}>
-            <Ionicons name="map-outline" size={48} color={colors.mutedForeground} />
-            <Text color="mutedForeground" style={{ marginTop: 8 }}>Aguardando GPS...</Text>
-          </View>
-        )}
-      </View>
-
-      <View style={[styles.infoOverlay, { backgroundColor: withAlpha('#000', 0.6) }]}>
-        <Text weight="800" size="3xl" style={{ color: '#fff' }}>{formatTime(elapsedS)}</Text>
-        <View style={styles.infoRow}>
-          <View style={styles.infoItem}>
-            <Text size="xs" style={{ color: 'rgba(255,255,255,0.7)' }}>Distância</Text>
-            <Text weight="700" size="lg" style={{ color: '#fff' }}>{distanceKm} km</Text>
-          </View>
-          <View style={styles.infoItem}>
-            <Text size="xs" style={{ color: 'rgba(255,255,255,0.7)' }}>Ritmo</Text>
-            <Text weight="700" size="lg" style={{ color: '#fff' }}>
-              {activeWalk && activeWalk.distanceM > 0
-                ? formatTime(Math.round(elapsedS / (activeWalk.distanceM / 1000)))
-                : '—'}
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text color="mutedForeground" style={{ marginTop: 12 }}>
+              {loadingLocation ? 'Obtendo localização...' : 'Aguardando GPS...'}
             </Text>
           </View>
-        </View>
-      </View>
-
-      <View style={styles.controls}>
-        {isPaused ? (
-          <Pressable onPress={handleResume} style={[styles.controlBtn, { backgroundColor: '#22C55E' }]}>
-            <Ionicons name="play" size={32} color="#fff" />
-          </Pressable>
-        ) : (
-          <Pressable onPress={handlePause} style={[styles.controlBtn, { backgroundColor: '#F59E0B' }]}>
-            <Ionicons name="pause" size={32} color="#fff" />
-          </Pressable>
         )}
-
-        <Pressable onPress={handleStop} style={[styles.stopBtn, { backgroundColor: '#EF4444' }]}>
-          <Ionicons name="stop" size={28} color="#fff" />
-        </Pressable>
-
-        <Pressable onPress={handleDiscard} style={[styles.controlBtn, { backgroundColor: withAlpha('#EF4444', 0.3) }]}>
-          <Ionicons name="trash-outline" size={24} color="#EF4444" />
-        </Pressable>
       </View>
+
+      {/* PHASE: preparing — overlay com botão iniciar */}
+      {phase === 'preparing' && (
+        <View style={[styles.preparingOverlay, { backgroundColor: withAlpha('#000', 0.55) }]}>
+          <View style={[styles.preparingCard, { backgroundColor: colors.card }]}>
+            <View style={[styles.preparingIconWrap, { backgroundColor: withAlpha(colors.primary, 0.12) }]}>
+              <Ionicons name="walk" size={40} color={colors.primary} />
+            </View>
+            <Text weight="800" size="xl" style={{ marginTop: 12 }}>
+              Passeio com {petName}
+            </Text>
+            <Text color="mutedForeground" size="sm" style={{ textAlign: 'center', marginTop: 6, lineHeight: 20 }}>
+              O mapa e o GPS estão prontos. Quando quiser começar, pressione o botão abaixo.
+            </Text>
+
+            <Pressable
+              onPress={handleBeginWalk}
+              disabled={loadingLocation && !region}
+              style={({ pressed }) => ([
+                styles.beginBtn,
+                { backgroundColor: colors.primary, opacity: (loadingLocation && !region) ? 0.5 : pressed ? 0.85 : 1 },
+              ])}
+            >
+              <Ionicons name="play" size={22} color="#fff" />
+              <Text weight="800" size="base" style={{ color: '#fff', marginLeft: 8 }}>
+                Iniciar Passeio
+              </Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => navigation.goBack()}
+              style={styles.cancelLink}
+            >
+              <Text color="mutedForeground" size="sm">Cancelar</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
+
+      {/* PHASE: walking — stats overlay + controls */}
+      {phase === 'walking' && (
+        <>
+          <View style={[styles.infoOverlay, { backgroundColor: withAlpha('#000', 0.6) }]}>
+            <Text weight="800" size="3xl" style={{ color: '#fff' }}>{formatTime(elapsedS)}</Text>
+            <View style={styles.infoRow}>
+              <View style={styles.infoItem}>
+                <Text size="xs" style={{ color: 'rgba(255,255,255,0.7)' }}>Distância</Text>
+                <Text weight="700" size="lg" style={{ color: '#fff' }}>{distanceKm} km</Text>
+              </View>
+              <View style={styles.infoItem}>
+                <Text size="xs" style={{ color: 'rgba(255,255,255,0.7)' }}>Ritmo</Text>
+                <Text weight="700" size="lg" style={{ color: '#fff' }}>
+                  {activeWalk && activeWalk.distanceM > 0
+                    ? formatTime(Math.round(elapsedS / (activeWalk.distanceM / 1000)))
+                    : '—'}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.controls}>
+            {isPaused ? (
+              <Pressable onPress={handleResume} style={[styles.controlBtn, { backgroundColor: '#22C55E' }]}>
+                <Ionicons name="play" size={32} color="#fff" />
+              </Pressable>
+            ) : (
+              <Pressable onPress={handlePause} style={[styles.controlBtn, { backgroundColor: '#F59E0B' }]}>
+                <Ionicons name="pause" size={32} color="#fff" />
+              </Pressable>
+            )}
+
+            <Pressable onPress={handleStop} style={[styles.stopBtn, { backgroundColor: '#EF4444' }]}>
+              <Ionicons name="stop" size={28} color="#fff" />
+            </Pressable>
+
+            <Pressable onPress={handleDiscard} style={[styles.controlBtn, { backgroundColor: withAlpha('#EF4444', 0.3) }]}>
+              <Ionicons name="trash-outline" size={24} color="#EF4444" />
+            </Pressable>
+          </View>
+        </>
+      )}
     </View>
   )
 }
@@ -264,6 +335,46 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // Preparing phase
+  preparingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+  preparingCard: {
+    width: '100%',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    padding: 28,
+    paddingBottom: Platform.OS === 'ios' ? 52 : 36,
+    alignItems: 'center',
+    gap: 4,
+  },
+  preparingIconWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  beginBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    paddingVertical: 18,
+    borderRadius: 20,
+    marginTop: 20,
+  },
+  cancelLink: {
+    marginTop: 12,
+    padding: 8,
+  },
+  // Walking phase
   infoOverlay: {
     position: 'absolute',
     top: Platform.OS === 'ios' ? 100 : 60,
