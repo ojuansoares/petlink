@@ -585,9 +585,9 @@ O header do perfil (foto, nome, stats) permanece igual. Abaixo dele, um `Segment
 | 47 | ✅ Testes unitários (Jest) |
 | 48 | ✅ Error tracking (Sentry) |
 | 49 | ✅ CI/CD (GitHub Actions) |
-| 50 | ⏳ Analytics |
+| 50 | ⏳ Analytics (postergado para o final do plano) |
 | 51 | ✅ Tratamento de erros consistente |
-| 52 | ⏳ Performance (virtualização, lazy loading) |
+| 52 | ✅ Performance (já implementado: FlatList otimizada, paginação, memo, lazy loading de imagens) |
 
 ---
 
@@ -1352,7 +1352,7 @@ Nenhuma das alterações mexe em código nativo (native modules, podfile, gradle
 | 49 | CI/CD | ✅ |
 | 50 | Analytics | ⏳ |
 | 51 | Tratamento de erros | ✅ |
-| 52 | Performance | ⏳ |
+| 52 | Performance | ✅ (já implementado — item encerrado) |
 
 ---
 
