@@ -26,6 +26,7 @@ import { format, parseISO } from 'date-fns';
 import { DateInput } from '../../components/ui/DateInput';
 import { useSelector } from 'react-redux';
 import { selectUser } from '../../store/slices/authSlice';
+import { selectIsOnline } from '../../store/slices/uiSlice';
 import { ActionOptionsModal } from '../../components/ui/ActionOptionsModal';
 import { CreatePostModal } from '../../components/ui/CreatePostModal';
 
@@ -56,6 +57,8 @@ export function ConsultationScreen() {
 
   const [consultations, setConsultations] = useState<Consultation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const isOnline = useSelector(selectIsOnline);
   const [mediaMap, setMediaMap] = useState<Record<string, ConsultationMedia>>({});
 
   const [isModalVisible, setModalVisible] = useState(false);
@@ -89,6 +92,7 @@ export function ConsultationScreen() {
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
+      setError(false);
       const fetched = await getConsultationsByPetId(petId);
       setConsultations(fetched);
       const ids = fetched.map((c) => c.id);
@@ -98,8 +102,8 @@ export function ConsultationScreen() {
         mediaList.forEach((m) => { map[m.consultationId] = m });
         setMediaMap(map);
       }
-    } catch (error) {
-      console.error(error);
+    } catch {
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -404,6 +408,26 @@ export function ConsultationScreen() {
           style,
         ]}
       />
+    )
+  }
+
+  if (error && !loading && consultations.length === 0) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }]}>
+        <Ionicons name={isOnline ? 'alert-circle-outline' : 'cloud-offline-outline'} size={48} color={colors.mutedForeground} style={{ opacity: 0.3 }} />
+        <Text color="mutedForeground" style={{ marginTop: 12, textAlign: 'center' }}>
+          {isOnline ? 'Erro ao carregar consultas' : 'Sem conexão com a internet'}
+        </Text>
+        <Text size="sm" color="mutedForeground" style={{ textAlign: 'center', marginTop: 4 }}>
+          {isOnline ? 'Verifique sua conexão e tente novamente.' : 'Conecte-se para ver as consultas do pet.'}
+        </Text>
+        <Pressable
+          onPress={() => { setLoading(true); loadData() }}
+          style={({ pressed }) => ([{ paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12, marginTop: 20, opacity: pressed ? 0.8 : 1, backgroundColor: colors.primary }])}
+        >
+          <Text weight="700" size="sm" style={{ color: '#fff' }}>Tentar novamente</Text>
+        </Pressable>
+      </View>
     )
   }
 

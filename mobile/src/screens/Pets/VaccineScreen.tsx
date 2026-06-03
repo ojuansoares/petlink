@@ -17,6 +17,7 @@ import { format, parseISO, startOfDay, addDays, isBefore } from 'date-fns';
 import { DateInput } from '../../components/ui/DateInput';
 import { useSelector } from 'react-redux';
 import { selectUser } from '../../store/slices/authSlice';
+import { selectIsOnline } from '../../store/slices/uiSlice';
 import { useAppDispatch } from '../../store';
 import { fetchGamificationThunk } from '../../store/slices/gamificationSlice';
 import { ActionOptionsModal } from '../../components/ui/ActionOptionsModal';
@@ -43,6 +44,8 @@ export function VaccineScreen() {
   const [items, setItems] = useState<Vaccine[]>([]);
   const [allItems, setAllItems] = useState<Vaccine[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const isOnline = useSelector(selectIsOnline);
   const [isModalVisible, setModalVisible] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [currentItem, setCurrentItem] = useState<Vaccine | null>(null);
@@ -79,15 +82,18 @@ export function VaccineScreen() {
   const fetchItems = useCallback(async () => {
     try {
       setLoading(true);
+      setError(false);
       const fetchedItems = await getVaccinesByPetId(petId);
       setAllItems(fetchedItems);
       const filteredItems = fetchedItems.filter(item => item.type === activeTab);
       setItems(filteredItems);
-    } catch (error) {
+    } catch {
+      setError(true);
       const cached = await vaccineCacheRepository.getVaccines(petId);
       if (cached) {
         setAllItems(cached);
         setItems(cached.filter(item => item.type === activeTab));
+        setError(false);
       }
     } finally {
       setLoading(false);
@@ -422,6 +428,26 @@ export function VaccineScreen() {
           style,
         ]}
       />
+    )
+  }
+
+  if (error && !loading && items.length === 0) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }]}>
+        <Ionicons name={isOnline ? 'alert-circle-outline' : 'cloud-offline-outline'} size={48} color={colors.mutedForeground} style={{ opacity: 0.3 }} />
+        <Text color="mutedForeground" style={{ marginTop: 12, textAlign: 'center' }}>
+          {isOnline ? 'Erro ao carregar vacinas' : 'Sem conexão com a internet'}
+        </Text>
+        <Text size="sm" color="mutedForeground" style={{ textAlign: 'center', marginTop: 4 }}>
+          {isOnline ? 'Verifique sua conexão e tente novamente.' : 'Conecte-se para ver as vacinas do pet.'}
+        </Text>
+        <Pressable
+          onPress={() => { setLoading(true); fetchItems() }}
+          style={({ pressed }) => ([{ paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12, marginTop: 20, opacity: pressed ? 0.8 : 1, backgroundColor: colors.primary }])}
+        >
+          <Text weight="700" size="sm" style={{ color: '#fff' }}>Tentar novamente</Text>
+        </Pressable>
+      </View>
     )
   }
 

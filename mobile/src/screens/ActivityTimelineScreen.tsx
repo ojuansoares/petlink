@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   Platform,
   Animated,
+  Pressable,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useRoute, RouteProp } from '@react-navigation/native'
@@ -18,6 +19,7 @@ import { format, parseISO, isToday, isYesterday } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { useAppSelector } from '../store'
 import { selectPetsList } from '../store/slices/petsSlice'
+import { selectIsOnline } from '../store/slices/uiSlice'
 
 type ScreenRoute = RouteProp<AppStackParamList, 'ActivityTimeline'>
 
@@ -81,9 +83,12 @@ export default function ActivityTimelineScreen() {
   const [hasMore, setHasMore] = useState(true)
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
+  const [error, setError] = useState(false)
+  const isOnline = useAppSelector(selectIsOnline)
 
   const fetchData = useCallback(async (pageNum: number, append = false) => {
     try {
+      setError(false)
       const res = await fetchTimeline(petId, pageNum)
       if (append) {
         setEvents(prev => [...prev, ...res.events])
@@ -92,7 +97,7 @@ export default function ActivityTimelineScreen() {
       }
       setHasMore(res.hasMore)
     } catch {
-      // silent
+      setError(true)
     } finally {
       setLoading(false)
       setLoadingMore(false)
@@ -168,6 +173,40 @@ export default function ActivityTimelineScreen() {
           style,
         ]}
       />
+    )
+  }
+
+  if (error && !loading && events.length === 0) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={styles.backgroundArt} pointerEvents="none">
+          <View style={[styles.blobTopRight, { backgroundColor: withAlpha('#EC4899', 0.06) }]} />
+          <View style={[styles.blobTopLeft, { backgroundColor: withAlpha('#EC4899', 0.04) }]} />
+          <View style={[styles.blobBottom, { backgroundColor: withAlpha('#8B5CF6', 0.03) }]} />
+        </View>
+        <View style={styles.header}>
+          <Avatar size={72} name={petName} source={pet?.photo_url ?? undefined} />
+          <View style={{ gap: 2, alignItems: 'center' }}>
+            <Heading size="xl" weight="800">Atividades</Heading>
+            <Text color="mutedForeground">{petName}</Text>
+          </View>
+        </View>
+        <View style={styles.empty}>
+          <Ionicons name={isOnline ? 'alert-circle-outline' : 'cloud-offline-outline'} size={48} color={colors.mutedForeground} style={{ opacity: 0.3 }} />
+          <Text color="mutedForeground" style={{ marginTop: 12, textAlign: 'center' }}>
+            {isOnline ? 'Erro ao carregar atividades' : 'Sem conexão com a internet'}
+          </Text>
+          <Text size="sm" color="mutedForeground" style={{ textAlign: 'center', marginTop: 4 }}>
+            {isOnline ? 'Verifique sua conexão e tente novamente.' : 'Conecte-se para ver as atividades do pet.'}
+          </Text>
+          <Pressable
+            onPress={() => { setLoading(true); setPage(1); fetchData(1) }}
+            style={({ pressed }) => ([styles.retryButton, { opacity: pressed ? 0.8 : 1, backgroundColor: colors.primary }])}
+          >
+            <Text weight="700" size="sm" style={{ color: '#fff' }}>Tentar novamente</Text>
+          </Pressable>
+        </View>
+      </View>
     )
   }
 
@@ -379,5 +418,11 @@ const styles = StyleSheet.create({
   empty: {
     alignItems: 'center',
     paddingVertical: 60,
+  },
+  retryButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginTop: 20,
   },
 })
