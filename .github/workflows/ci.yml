@@ -11,6 +11,9 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  # Usar Node 24 no runner (default a partir de Jun 2026)
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
   # Valores dummy para CI — testes mockam serviços externos.
   # Sobrescreva via GitHub Secrets (Settings → Secrets and variables → Actions)
   # se quiser rodar integration tests no futuro.
@@ -60,7 +63,7 @@ jobs:
           cache: npm
           cache-dependency-path: mobile/package-lock.json
 
-      - run: npm ci
+      - run: npm ci --legacy-peer-deps
 
       - run: npx tsc --noEmit
 
