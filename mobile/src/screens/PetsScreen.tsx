@@ -607,13 +607,12 @@ export default function PetsScreen() {
             />
             <ControlCard
               title="Passeios"
-              subtitle="Em breve"
+              subtitle="Histórico de passeios"
               icon="walk-outline"
               color={withAlpha('#8B5CF6', 0.12)}
               borderColor="#8B5CF6"
               iconColor="#8B5CF6"
-              badge="Em breve"
-              onPress={() => dispatch(showToast({ type: 'info', title: 'Passeios', message: 'Passeios em breve!' }))}
+              onPress={() => navigation.navigate('Walk', { petId: activePet.id, petName: activePet.name })}
             />
             <ControlCard
               title="Atividades"

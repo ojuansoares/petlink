@@ -21,6 +21,9 @@ import { VaccineScreen } from '../screens/Pets/VaccineScreen';
 import { ConsultationScreen } from '../screens/Pets/ConsultationScreen';
 import FeedingScreen from '../screens/Pets/FeedingScreen';
 import ActivityTimelineScreen from '../screens/ActivityTimelineScreen';
+import WalkScreen from '../screens/WalkScreen';
+import WalkRecordingScreen from '../screens/WalkRecordingScreen';
+import WalkDetailScreen from '../screens/WalkDetailScreen';
 import ResetPasswordScreen from '../screens/ResetPasswordScreen';
 
 const linking: LinkingOptions<AppStackParamList> = {
@@ -188,6 +191,31 @@ function AuthenticatedNavigator() {
         options={{
           title: 'Perfil',
           headerLeft: PublicProfileBackButton,
+        }}
+      />
+      <AppStack.Screen
+        name="Walk"
+        component={WalkScreen}
+        options={({ route }) => ({
+          title: `Passeios - ${route.params.petName}`,
+          headerLeft: SettingsBackButton,
+        })}
+      />
+      <AppStack.Screen
+        name="WalkRecording"
+        component={WalkRecordingScreen}
+        options={{
+          title: 'Passeio',
+          headerLeft: SettingsBackButton,
+          headerShown: false,
+        }}
+      />
+      <AppStack.Screen
+        name="WalkDetail"
+        component={WalkDetailScreen}
+        options={{
+          title: 'Detalhes do Passeio',
+          headerLeft: SettingsBackButton,
         }}
       />
       <AppStack.Screen

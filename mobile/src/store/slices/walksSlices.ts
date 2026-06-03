@@ -1,53 +1,68 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit'
-import { api } from '../../api/axios'
+import {
+  fetchWalks,
+  fetchWalkById,
+  createWalk,
+  updateWalk,
+  deleteWalk,
+  fetchWalkStats,
+  type Walk,
+  type WalkPoint,
+  type WalkStats,
+} from '../../api/walks.api'
+import { walkQueueRepository } from '../../data/repositories/WalkQueueRepository'
 
-// ─── Types ───────────────────────────────────────────────────
-export interface WalkPoint {
-  lat:       number
-  lng:       number
-  timestamp: string
-}
-
-export interface Walk {
-  id:           string
-  petId:        string
-  ownerId:      string
-  startedAt:    string
-  endedAt:      string | null
-  distanceM:    number
-  durationS:    number
-  stepsCount:   number | null
-  avgSpeedKmh:  number | null
-  route:        WalkPoint[]
-  notes:        string | null
-  createdAt:    string
-}
+export type { Walk, WalkPoint, WalkStats }
 
 interface ActiveWalk {
-  petId:     string
+  petId: string
+  petName: string
   startedAt: string
-  route:     WalkPoint[]
+  route: WalkPoint[]
   distanceM: number
-  stepsCount: number
+  maxSpeedKmh: number
+  pausedAt: string | null
+  totalPausedS: number
 }
 
 interface WalksState {
-  list:       Walk[]
-  active:     ActiveWalk | null   // passeio em andamento
-  isLoading:  boolean
-  isSaving:   boolean
-  error:      string | null
+  list: Walk[]
+  active: ActiveWalk | null
+  isLoading: boolean
+  isSaving: boolean
+  error: string | null
+  stats: WalkStats[]
+  statsLoading: boolean
 }
 
-// ─── Thunks ──────────────────────────────────────────────────
+const initialState: WalksState = {
+  list: [],
+  active: null,
+  isLoading: false,
+  isSaving: false,
+  error: null,
+  stats: [],
+  statsLoading: false,
+}
+
 export const fetchWalksThunk = createAsyncThunk(
   'walks/fetchAll',
   async (petId: string, { rejectWithValue }) => {
     try {
-      const { data } = await api.get(`/walks?petId=${petId}`)
-      return data as Walk[]
+      return await fetchWalks(petId)
     } catch (err: any) {
       return rejectWithValue(err.response?.data?.error ?? 'Erro ao buscar passeios')
+    }
+  }
+)
+
+export const fetchWalkByIdThunk = createAsyncThunk(
+  'walks/fetchById',
+  async (id: string, { rejectWithValue }) => {
+    try {
+      return await fetchWalkById(id)
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.error ?? 'Erro ao buscar passeio')
     }
   }
 )
@@ -56,50 +71,111 @@ export const saveWalkThunk = createAsyncThunk(
   'walks/save',
   async (payload: Omit<Walk, 'id' | 'createdAt'>, { rejectWithValue }) => {
     try {
-      const { data } = await api.post('/walks', payload)
-      return data as Walk
+      return await createWalk(payload)
     } catch (err: any) {
+      if (err.isOffline) {
+        await walkQueueRepository.enqueue(payload)
+        return {} as Walk
+      }
       return rejectWithValue(err.response?.data?.error ?? 'Erro ao salvar passeio')
     }
   }
 )
 
-// ─── Slice ───────────────────────────────────────────────────
-const initialState: WalksState = {
-  list:      [],
-  active:    null,
-  isLoading: false,
-  isSaving:  false,
-  error:     null,
-}
+export const updateWalkThunk = createAsyncThunk(
+  'walks/update',
+  async ({ id, data }: { id: string; data: { photoUrl?: string; notes?: string } }, { rejectWithValue }) => {
+    try {
+      return await updateWalk(id, data)
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.error ?? 'Erro ao atualizar passeio')
+    }
+  }
+)
+
+export const deleteWalkThunk = createAsyncThunk(
+  'walks/delete',
+  async (id: string, { rejectWithValue }) => {
+    try {
+      await deleteWalk(id)
+      return id
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.error ?? 'Erro ao deletar passeio')
+    }
+  }
+)
+
+export const fetchWalkStatsThunk = createAsyncThunk(
+  'walks/fetchStats',
+  async ({ petId, start, end }: { petId: string; start: string; end: string }, { rejectWithValue }) => {
+    try {
+      return await fetchWalkStats(petId, start, end)
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.error ?? 'Erro ao buscar estatísticas')
+    }
+  }
+)
+
+export const processWalkQueueThunk = createAsyncThunk(
+  'walks/processQueue',
+  async (_, { rejectWithValue }) => {
+    try {
+      let count = 0
+      await walkQueueRepository.processQueue(async (payload) => {
+        await createWalk(payload)
+        count++
+      })
+      return count
+    } catch (err: any) {
+      return rejectWithValue(err.message)
+    }
+  }
+)
 
 const walksSlice = createSlice({
   name: 'walks',
   initialState,
   reducers: {
-    startWalk: (state, action: PayloadAction<{ petId: string }>) => {
+    startWalk: (state, action: PayloadAction<{ petId: string; petName: string }>) => {
       state.active = {
-        petId:      action.payload.petId,
-        startedAt:  new Date().toISOString(),
-        route:      [],
-        distanceM:  0,
-        stepsCount: 0,
+        petId: action.payload.petId,
+        petName: action.payload.petName,
+        startedAt: new Date().toISOString(),
+        route: [],
+        distanceM: 0,
+        maxSpeedKmh: 0,
+        pausedAt: null,
+        totalPausedS: 0,
       }
     },
 
     addRoutePoint: (state, action: PayloadAction<WalkPoint & { distanceDelta: number }>) => {
       if (!state.active) return
       state.active.route.push({
-        lat:       action.payload.lat,
-        lng:       action.payload.lng,
+        lat: action.payload.lat,
+        lng: action.payload.lng,
         timestamp: action.payload.timestamp,
       })
       state.active.distanceM += action.payload.distanceDelta
     },
 
-    incrementSteps: (state, action: PayloadAction<number>) => {
+    updateMaxSpeed: (state, action: PayloadAction<number>) => {
       if (!state.active) return
-      state.active.stepsCount += action.payload
+      if (action.payload > state.active.maxSpeedKmh) {
+        state.active.maxSpeedKmh = action.payload
+      }
+    },
+
+    pauseWalk: (state) => {
+      if (!state.active) return
+      state.active.pausedAt = new Date().toISOString()
+    },
+
+    resumeWalk: (state) => {
+      if (!state.active || !state.active.pausedAt) return
+      const pausedDuration = Date.now() - new Date(state.active.pausedAt).getTime()
+      state.active.totalPausedS += pausedDuration / 1000
+      state.active.pausedAt = null
     },
 
     cancelWalk: (state) => {
@@ -108,26 +184,48 @@ const walksSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      .addCase(fetchWalksThunk.pending,   (s) => { s.isLoading = true })
+      .addCase(fetchWalksThunk.pending, (s) => { s.isLoading = true; s.error = null })
       .addCase(fetchWalksThunk.fulfilled, (s, a) => { s.isLoading = false; s.list = a.payload })
-      .addCase(fetchWalksThunk.rejected,  (s, a) => { s.isLoading = false; s.error = a.payload as string })
+      .addCase(fetchWalksThunk.rejected, (s, a) => { s.isLoading = false; s.error = a.payload as string })
 
     builder
-      .addCase(saveWalkThunk.pending,   (s) => { s.isSaving = true })
+      .addCase(saveWalkThunk.pending, (s) => { s.isSaving = true })
       .addCase(saveWalkThunk.fulfilled, (s, a) => {
         s.isSaving = false
-        s.active   = null
-        s.list.unshift(a.payload)
+        s.active = null
+        if (a.payload?.id) {
+          s.list.unshift(a.payload)
+        }
       })
       .addCase(saveWalkThunk.rejected, (s, a) => { s.isSaving = false; s.error = a.payload as string })
+
+    builder
+      .addCase(updateWalkThunk.fulfilled, (s, a) => {
+        const idx = s.list.findIndex((w) => w.id === a.payload.id)
+        if (idx >= 0) s.list[idx] = a.payload
+      })
+
+    builder
+      .addCase(deleteWalkThunk.fulfilled, (s, a) => {
+        s.list = s.list.filter((w) => w.id !== a.payload)
+      })
+
+    builder
+      .addCase(fetchWalkStatsThunk.pending, (s) => { s.statsLoading = true })
+      .addCase(fetchWalkStatsThunk.fulfilled, (s, a) => { s.statsLoading = false; s.stats = a.payload })
+      .addCase(fetchWalkStatsThunk.rejected, (s) => { s.statsLoading = false })
   },
 })
 
-export const { startWalk, addRoutePoint, incrementSteps, cancelWalk } = walksSlice.actions
+export const {
+  startWalk, addRoutePoint, updateMaxSpeed,
+  pauseWalk, resumeWalk, cancelWalk,
+} = walksSlice.actions
 export default walksSlice.reducer
 
-export const selectWalksList       = (s: any): Walk[]           => s.walks.list
-export const selectActiveWalk      = (s: any): ActiveWalk | null => s.walks.active
-export const selectIsWalking       = (s: any): boolean          => !!s.walks.active
-export const selectActiveDistance  = (s: any): number           => s.walks.active?.distanceM ?? 0
-export const selectActiveSteps     = (s: any): number           => s.walks.active?.stepsCount ?? 0
+export const selectWalksList = (s: any): Walk[] => s.walks.list
+export const selectActiveWalk = (s: any): ActiveWalk | null => s.walks.active
+export const selectIsWalking = (s: any): boolean => !!s.walks.active
+export const selectWalksLoading = (s: any): boolean => s.walks.isLoading
+export const selectWalkStats = (s: any): WalkStats[] => s.walks.stats
+export const selectWalkStatsLoading = (s: any): boolean => s.walks.statsLoading
