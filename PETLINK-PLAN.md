@@ -746,6 +746,96 @@ Tela principal de passeios, inspirada no Strava:
 
 ---
 
+### Fase 7 — Lugares (OpenStreetMap) 🗺️
+
+**API:** OpenStreetMap via Nominatim (proxy no servidor para rate limiting e cache). Usa a mesma biblioteca `react-native-maps` dos passeios.
+
+#### Visão geral
+
+Nova aba "Locais" na SearchScreen (ao lado de Pessoas, Pets, Grupos). Usuário busca lugares por nome/tipo, vê resultados em lista, clica e expande um mapa com marcador no local. Pode avaliar e comentar lugares (salvo no nosso MongoDB). Integrado à criação/edição de consultas para marcar onde o pet foi atendido.
+
+#### Endpoints do servidor (novo módulo `/places`)
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| `GET` | `/places/search?q=&lat=&lng=&radius=` | Proxy Nominatim search (rate-limited, cache 10 min) |
+| `GET` | `/places/details?osm_id=&osm_type=` | Proxy Nominatim details + fotos (se disponível) |
+| `GET` | `/places/:id` | Detalhes de um lugar com reviews do nosso banco |
+| `POST` | `/places/:id/reviews` | Criar avaliação (nota 1-5 + texto) |
+| `GET` | `/places/:id/reviews` | Listar avaliações do lugar |
+| `DELETE` | `/places/:id/reviews/:reviewId` | Deletar própria avaliação |
+
+#### MongoDB — novo modelo `PlaceReview`
+
+```ts
+{
+  osm_id: number,        // ID do OpenStreetMap
+  osm_type: string,      // 'node' | 'way' | 'relation'
+  userId: string,        // FK → profiles (nosso auth)
+  rating: number,        // 1-5
+  comment: string,
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
+Com índices compostos: `{ osm_id: 1, userId: 1 }` (unique — 1 avaliação por usuário por lugar).
+
+#### Supabase — colunas adicionadas em `consultations`
+
+```sql
+ALTER TABLE consultations ADD COLUMN place_osm_id   bigint;
+ALTER TABLE consultations ADD COLUMN place_osm_type text;     -- 'node' | 'way' | 'relation'
+ALTER TABLE consultations ADD COLUMN place_name     text;
+ALTER TABLE consultations ADD COLUMN place_address  text;
+ALTER TABLE consultations ADD COLUMN place_lat      numeric;
+ALTER TABLE consultations ADD COLUMN place_lng      numeric;
+ALTER TABLE consultations ADD COLUMN place_category text;     -- 'vet' | 'petshop' | 'park' | ...
+```
+
+#### SearchScreen — nova aba "Locais"
+
+- Aba ao lado de Pessoas/Pets/Grupos com ícone `map-outline`
+- Input de busca → `GET /places/search?q=...` → lista de resultados
+- Cada resultado: nome, endereço, categoria, distância (se lat/lng disponível)
+- Ao clicar: expande abaixo da barra de busca (mesma tela) um `MapView` (`react-native-maps`) com marcador no local + nome + endereço
+- Abaixo do mapa: seção de avaliação (input de nota 1-5 + comentário) + botão "Avaliar"
+- Abaixo: lista de avaliações existentes do lugar
+
+#### Componente reutilizável — `PlaceSearchInput`
+
+- Usado na criação/edição de consulta (substitui o campo `clinic` texto livre)
+- Input com debounce → busca lugares → dropdown de resultados
+- Ao selecionar: preenche `place_osm_id`, `place_name`, `place_address`, `place_lat`, `place_lng`
+- Permite também digitar texto livre (mesmo comportamento de hoje)
+- Botão "Limpar local" ao lado se um lugar foi selecionado
+
+#### Modal de detalhes da consulta
+
+- Campo `clínica` existente vira link se `place_osm_id` estiver preenchido
+- Ao clicar no nome do lugar → navega para `Search` com param `{ tab: 'locais', osm_id }` (ou abre direto na SearchScreen na aba Locais com o mapa focado)
+
+#### Navigation — params atualizados
+
+```ts
+Search: { tab?: 'pessoas' | 'pets' | 'grupos' | 'locais'; osm_id?: number } | undefined
+```
+
+#### Tabela de tarefas
+
+| # | Tarefa | Status |
+|---|--------|--------|
+| L1 | Server: módulo `/places` com proxy Nominatim (search + details) | ⏳ |
+| L2 | Server: PlaceReview (MongoDB) — CRUD de avaliações | ⏳ |
+| L3 | Migration SQL: colunas de lugar em `consultations` | ⏳ |
+| L4 | Mobile: aba "Locais" na SearchScreen com busca + mapa + avaliações | ⏳ |
+| L5 | Mobile: `PlaceSearchInput` componente para consulta (create/edit) | ⏳ |
+| L6 | Mobile: campo `clinic` vira link clicável no detail modal | ⏳ |
+| L7 | Mobile: atualizar `Consultation` type + Redux + API (enviar place fields) | ⏳ |
+| L8 | Mobile: navigation params — Search aceita `tab` e `osm_id` | ⏳ |
+
+---
+
 | # | Tarefa | Detalhes |
 |---|--------|----------|
 | O1 | Refatorar `OnboardingScreen` | Ilustrações/imagens reais (não só texto), animações de transição (fade, slide), indicador de página. |
