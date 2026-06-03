@@ -47,7 +47,7 @@ export function WalkCalendar({ year, month, walkDays, onDayPress, onPrevMonth, o
       <View style={styles.weekdayRow}>
         {WEEKDAYS.map((wd) => (
           <View key={wd} style={styles.weekdayCell}>
-            <Text size="2xs" color="mutedForeground" weight="700">{wd}</Text>
+            <Text size="xs" color="mutedForeground" weight="700">{wd}</Text>
           </View>
         ))}
       </View>
@@ -68,7 +68,7 @@ export function WalkCalendar({ year, month, walkDays, onDayPress, onPrevMonth, o
               ]}
             >
               <Text
-                size="2xs"
+                size="xs"
                 weight={isTodayDate ? '800' : '600'}
                 style={{
                   color: isCurrentMonth ? colors.foreground : withAlpha(colors.mutedForeground, 0.3),
