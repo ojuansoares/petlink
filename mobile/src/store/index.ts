@@ -17,6 +17,7 @@ import commentLikesReducer from './slices/commentLikesSlice'
 import feedingReducer from './slices/feedingSlice'
 import groupsReducer from './slices/groupsSlice'
 import gamificationReducer, { fetchGamificationThunk } from './slices/gamificationSlice'
+import placesReducer from './slices/placesSlices'
 import { errorToastMiddleware } from './errorToastMiddleware'
 
 const xpListener = createListenerMiddleware()
@@ -50,6 +51,7 @@ export const store = configureStore({
     feeding:       feedingReducer,
     groups:        groupsReducer,
     gamification:  gamificationReducer,
+    places:        placesReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware().prepend(xpListener.middleware).concat(errorToastMiddleware),

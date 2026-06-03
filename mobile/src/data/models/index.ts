@@ -33,6 +33,13 @@ export type Consultation = {
     exams_requested?: string;
     prescription?: string;
     notes?: string;
+    place_osm_id?: number | null;
+    place_osm_type?: string | null;
+    place_name?: string | null;
+    place_address?: string | null;
+    place_lat?: number | null;
+    place_lng?: number | null;
+    place_category?: string | null;
     created_at: string;
     updated_at: string;
 };

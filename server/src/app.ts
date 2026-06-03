@@ -20,6 +20,7 @@ import remindersRoutes from './modules/reminders/reminders.routes'
 import groupsRoutes from './modules/groups/groups.routes'
 import gamificationRoutes from './modules/gamification/gamification.routes'
 import vaccinationCardRoutes from './modules/vaccinationCard/vaccinationCard.routes'
+import placesRoutes from './modules/places/places.routes'
 import { swaggerSpec } from './config/swagger'
 
 const app = express()
@@ -65,6 +66,7 @@ app.use('/reminders', remindersRoutes)
 app.use('/groups', groupsRoutes)
 app.use('/gamification', gamificationRoutes)
 app.use('/pets', vaccinationCardRoutes)
+app.use('/places', placesRoutes)
 
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   if (err instanceof AppError) {

@@ -10,7 +10,8 @@ import { Button } from '../../components/ui/Button';
 import { AppModal } from '../../components/ui/AppModal';
 import { Input } from '../../components/ui/Input';
 import { Heading, Text } from '../../components/ui/Typography';
-import { useRoute, RouteProp } from '@react-navigation/native';
+import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
 import { AppStackParamList } from '../../navigation/types';
 import { Consultation } from '../../data/models';
 import {
@@ -29,6 +30,7 @@ import { selectUser } from '../../store/slices/authSlice';
 import { selectIsOnline } from '../../store/slices/uiSlice';
 import { ActionOptionsModal } from '../../components/ui/ActionOptionsModal';
 import { CreatePostModal } from '../../components/ui/CreatePostModal';
+import { PlaceSearchInput, PlaceSelection } from '../../components/places/PlaceSearchInput';
 
 const DateTimePickerComponent = (() => {
   try {
@@ -50,6 +52,7 @@ export function ConsultationScreen() {
   const { colors, withAlpha } = useTheme();
   const user = useSelector(selectUser);
   const route = useRoute<ConsultationScreenRouteProp>();
+  const navigation = useNavigation<StackNavigationProp<AppStackParamList>>();
   const { petId, petName, autoOpenModal } = route.params;
   const { width: screenWidth } = useWindowDimensions();
   const gridGap = 12
@@ -72,6 +75,7 @@ export function ConsultationScreen() {
 
   const [vetName, setVetName] = useState('');
   const [clinic, setClinic] = useState('');
+  const [selectedPlace, setSelectedPlace] = useState<PlaceSelection | null>(null);
   const [consultedAt, setConsultedAt] = useState<Date>(new Date());
   const [reason, setReason] = useState('');
   const [diagnosis, setDiagnosis] = useState('');
@@ -114,6 +118,7 @@ export function ConsultationScreen() {
   const resetForm = useCallback(() => {
     setVetName('');
     setClinic('');
+    setSelectedPlace(null);
     setConsultedAt(new Date());
     setReason('');
     setDiagnosis('');
@@ -147,6 +152,19 @@ export function ConsultationScreen() {
     setCurrentConsultation(item);
     setVetName(item.vet_name);
     setClinic(item.clinic || '');
+    if (item.place_osm_id && item.place_osm_type) {
+      setSelectedPlace({
+        osmId: item.place_osm_id,
+        osmType: item.place_osm_type,
+        placeName: item.place_name ?? '',
+        placeAddress: item.place_address ?? '',
+        placeLat: item.place_lat ?? 0,
+        placeLng: item.place_lng ?? 0,
+        placeCategory: item.place_category ?? null,
+      })
+    } else {
+      setSelectedPlace(null)
+    }
     setConsultedAt(item.consulted_at ? parseISO(item.consulted_at) : new Date());
     setReason(item.reason);
     setDiagnosis(item.diagnosis || '');
@@ -200,13 +218,20 @@ export function ConsultationScreen() {
       pet_id: petId,
       owner_id: user.id,
       vet_name: vetName,
-      clinic,
+      clinic: selectedPlace ? selectedPlace.placeName : clinic,
       consulted_at: consultedAt.toISOString(),
       reason,
-      diagnosis,
-      exams_requested: examsRequested,
-      prescription,
-      notes,
+      diagnosis: diagnosis || undefined,
+      exams_requested: examsRequested || undefined,
+      prescription: prescription || undefined,
+      notes: notes || undefined,
+      place_osm_id: selectedPlace ? selectedPlace.osmId : undefined,
+      place_osm_type: selectedPlace ? selectedPlace.osmType : undefined,
+      place_name: selectedPlace ? selectedPlace.placeName : undefined,
+      place_address: selectedPlace ? selectedPlace.placeAddress : undefined,
+      place_lat: selectedPlace ? selectedPlace.placeLat : undefined,
+      place_lng: selectedPlace ? selectedPlace.placeLng : undefined,
+      place_category: selectedPlace ? selectedPlace.placeCategory : undefined,
     }
 
     try {
@@ -333,10 +358,23 @@ export function ConsultationScreen() {
               <Text size="xs" color="mutedForeground" weight="800">DATA DA CONSULTA</Text>
               <Text weight="700">{c.consulted_at ? format(parseISO(c.consulted_at), 'dd/MM/yyyy') : 'N/A'}</Text>
             </View>
-            {c.clinic && (
+            {(c.clinic || c.place_name) && (
               <View style={[styles.detailCard, { flex: 1, backgroundColor: withAlpha(colors.muted, 0.4) }]}>
-                <Text size="xs" color="mutedForeground" weight="800">CLÍNICA</Text>
-                <Text weight="700">{c.clinic}</Text>
+                <Text size="xs" color="mutedForeground" weight="800">CLÍNICA / LOCAL</Text>
+                {(c.place_osm_id && c.place_osm_type) ? (
+                  <Pressable
+                    onPress={() => navigation.navigate('Search', {
+                      tab: 'locais' as const,
+                      osmId: c.place_osm_id!,
+                      osmType: c.place_osm_type!,
+                    })}
+                  >
+                    <Text weight="700" style={{ color: colors.primary, textDecorationLine: 'underline' }}>{c.place_name || c.clinic}</Text>
+                    {c.place_address && <Text size="xs" color="mutedForeground">{c.place_address}</Text>}
+                  </Pressable>
+                ) : (
+                  <Text weight="700">{c.clinic}</Text>
+                )}
               </View>
             )}
           </View>
@@ -545,7 +583,16 @@ export function ConsultationScreen() {
           </View>
 
           <Input label="Nome do Veterinário" value={vetName} onChangeText={setVetName} placeholder="Nome do Dr(a)." leftIcon={<Ionicons name="person-outline" size={18} color={colors.mutedForeground} />} />
-          <Input label="Clínica" value={clinic} onChangeText={setClinic} placeholder="Nome da clínica" leftIcon={<Ionicons name="business-outline" size={18} color={colors.mutedForeground} />} />
+          <View>
+            <Text size="xs" weight="800" color="mutedForeground" style={{ marginBottom: 6 }}>CLÍNICA / LOCAL</Text>
+            <PlaceSearchInput
+              value={clinic}
+              onTextChange={setClinic}
+              onPlaceSelect={setSelectedPlace}
+              onClear={() => { setSelectedPlace(null); setClinic('') }}
+              selectedPlace={selectedPlace}
+            />
+          </View>
           <DateInput label="Data da Consulta" value={consultedAt} onPress={() => setShowDatePicker(true)} leftIconName="calendar-outline" />
           <Input label="Motivo" value={reason} onChangeText={setReason} multiline placeholder="O que o pet está sentindo?" leftIcon={<Ionicons name="help-circle-outline" size={18} color={colors.mutedForeground} />} />
           <Input label="Diagnóstico" value={diagnosis} onChangeText={setDiagnosis} multiline placeholder="O que o Dr(a) disse?" leftIcon={<Ionicons name="clipboard-outline" size={18} color={colors.mutedForeground} />} />

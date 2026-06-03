@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react'
+import React, { useState, useCallback, useRef, useEffect } from 'react'
 import {
   View,
   FlatList,
@@ -7,9 +7,11 @@ import {
   ActivityIndicator,
   StyleSheet,
   Modal,
+  Dimensions,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { useNavigation } from '@react-navigation/native'
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native'
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps'
 import { useTheme } from '../hooks/useTheme'
 import { useNetworkCheck } from '../hooks/useNetworkCheck'
 import { Text } from '../components/ui/Typography'
@@ -21,6 +23,23 @@ import { groupsApi, type Group, type GroupDetails, type GroupInvite } from '../a
 import { useAppDispatch, useAppSelector } from '../store'
 import { selectUser } from '../store/slices/authSlice'
 import { showToast } from '../store/slices/uiSlice'
+import {
+  searchPlacesThunk,
+  fetchPlaceDetailsThunk,
+  fetchPlaceReviewsThunk,
+  addPlaceReviewThunk,
+  selectPlaceSearchResults,
+  selectPlaceReviews,
+  selectSelectedPlace,
+  selectPlacesLoadingSearch,
+  selectPlacesError,
+  clearSelectedPlace,
+  clearSearchResults,
+} from '../store/slices/placesSlices'
+import { OsmPlaceResult } from '../api/places.api'
+import type { AppStackParamList } from '../navigation/types'
+
+type ScreenRoute = RouteProp<AppStackParamList, 'Search'>
 
 interface SearchUser {
   id: string
@@ -40,21 +59,32 @@ interface SearchPet {
   owner: { name: string } | null
 }
 
-type Tab = 'pessoas' | 'pets' | 'grupos'
+type Tab = 'pessoas' | 'pets' | 'grupos' | 'locais'
 
 const SEARCH_OPTIONS: { id: Tab; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { id: 'pessoas', label: 'Pessoas', icon: 'people-outline' },
   { id: 'pets', label: 'Pets', icon: 'paw-outline' },
   { id: 'grupos', label: 'Grupos', icon: 'people-outline' },
+  { id: 'locais', label: 'Locais', icon: 'map-outline' },
 ]
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window')
+const MAP_HEIGHT = 280
 
 export default function SearchScreen() {
   const { colors, withAlpha } = useTheme()
   const navigation = useNavigation<any>()
   const dispatch = useAppDispatch()
+  const route = useRoute<ScreenRoute>()
   const { isOnline } = useNetworkCheck()
   const inputRef = useRef<TextInput>(null)
   const currentUser = useAppSelector(selectUser)
+
+  const placeResults = useAppSelector(selectPlaceSearchResults)
+  const placeReviews = useAppSelector(selectPlaceReviews)
+  const selectedPlace = useAppSelector(selectSelectedPlace)
+  const isSearchingPlaces = useAppSelector(selectPlacesLoadingSearch)
+  const placesError = useAppSelector(selectPlacesError)
 
   const [query, setQuery] = useState('')
   const [activeTab, setActiveTab] = useState<Tab>('pessoas')
@@ -68,6 +98,25 @@ export default function SearchScreen() {
   const [selectedGroup, setSelectedGroup] = useState<GroupDetails | null>(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [loadingDetail, setLoadingDetail] = useState(false)
+  const [expandedPlace, setExpandedPlace] = useState<any>(null)
+  const [placeDetail, setPlaceDetail] = useState<any>(null)
+  const [loadingPlaceDetail, setLoadingPlaceDetail] = useState(false)
+  const [reviewRating, setReviewRating] = useState(0)
+  const [reviewComment, setReviewComment] = useState('')
+  const [submittingReview, setSubmittingReview] = useState(false)
+
+  useEffect(() => {
+    const params = route.params
+    if (params?.tab) {
+      setActiveTab(params.tab)
+      if (params.tab === 'locais') {
+        setSearched(false)
+      }
+    }
+    if (params?.osmId && params?.osmType) {
+      handlePlaceOpen(params.osmType, params.osmId)
+    }
+  }, [route.params])
 
   const doSearch = useCallback(async (text: string, tab: Tab) => {
     if (!isOnline || text.length < 2) return
@@ -79,14 +128,14 @@ export default function SearchScreen() {
       } else if (tab === 'pets') {
         const res = await api.get('/pets/search', { params: { q: text } })
         setPetResults(res.data.pets ?? [])
-      } else {
+      } else if (tab === 'grupos') {
         const res = await groupsApi.search(text)
         setGroupResults(res.groups ?? [])
       }
     } catch {
       if (tab === 'pessoas') setPeopleResults([])
       else if (tab === 'pets') setPetResults([])
-      else setGroupResults([])
+      else if (tab === 'grupos') setGroupResults([])
     } finally {
       setLoading(false)
       setSearched(true)
@@ -95,28 +144,98 @@ export default function SearchScreen() {
 
   const handleSearch = useCallback((text: string) => {
     setQuery(text)
+    if (activeTab === 'locais') {
+      if (text.length >= 3) {
+        dispatch(searchPlacesThunk({ q: text }))
+        setSearched(true)
+      } else {
+        dispatch(clearSearchResults())
+        setSearched(false)
+      }
+      return
+    }
     if (text.length < 2) {
       setPeopleResults([])
       setPetResults([])
       setGroupResults([])
       setSearched(false)
     }
-  }, [])
+  }, [activeTab, dispatch])
 
   const handleSearchSubmit = useCallback(() => {
+    if (activeTab === 'locais') {
+      if (query.length >= 3) {
+        dispatch(searchPlacesThunk({ q: query }))
+        setSearched(true)
+      }
+      return
+    }
     if (query.length >= 2) {
       doSearch(query, activeTab)
       if (activeTab === 'grupos') {
         groupsApi.listPendingInvites().then(setPendingInvites).catch(() => {})
       }
     }
-  }, [query, activeTab, doSearch])
+  }, [query, activeTab, doSearch, dispatch])
 
   const handleTabChange = useCallback((tab: Tab) => {
     setActiveTab(tab)
     setShowDropdown(false)
     setSearched(false)
-  }, [])
+    setExpandedPlace(null)
+    setPlaceDetail(null)
+    dispatch(clearSelectedPlace())
+    dispatch(clearSearchResults())
+  }, [dispatch])
+
+  const handlePlaceOpen = useCallback(async (osmType: string, osmId: number) => {
+    setLoadingPlaceDetail(true)
+    setExpandedPlace({ osmType, osmId })
+    try {
+      const result = await dispatch(fetchPlaceDetailsThunk({ osmType, osmId })).unwrap()
+      setPlaceDetail(result)
+      dispatch(fetchPlaceReviewsThunk({ osmType, osmId }))
+    } catch {
+      setPlaceDetail(null)
+    } finally {
+      setLoadingPlaceDetail(false)
+    }
+  }, [dispatch])
+
+  const handleSelectPlace = useCallback((place: any) => {
+    if (expandedPlace?.osmId === place.osmId && expandedPlace?.osmType === place.osmType) {
+      setExpandedPlace(null)
+      setPlaceDetail(null)
+      return
+    }
+    handlePlaceOpen(place.osmType, place.osmId)
+  }, [expandedPlace, handlePlaceOpen])
+
+  const handleSubmitReview = useCallback(async () => {
+    if (!reviewRating || !placeDetail) return
+    setSubmittingReview(true)
+    try {
+      await dispatch(addPlaceReviewThunk({
+        osmType: placeDetail.osmType,
+        osmId: placeDetail.osmId,
+        rating: reviewRating,
+        comment: reviewComment || undefined,
+        placeName: placeDetail.name,
+        placeAddress: placeDetail.displayName,
+        placeLat: placeDetail.lat,
+        placeLng: placeDetail.lng,
+        placeCategory: placeDetail.category,
+      })).unwrap()
+      setReviewRating(0)
+      setReviewComment('')
+      dispatch(showToast({ type: 'success', title: 'Avaliado!', message: 'Sua avaliação foi salva' }))
+      dispatch(fetchPlaceReviewsThunk({ osmType: placeDetail.osmType, osmId: placeDetail.osmId }))
+    } catch {
+      dispatch(showToast({ type: 'error', title: 'Erro', message: 'Não foi possível avaliar' }))
+    } finally {
+      setSubmittingReview(false)
+    }
+  }, [reviewRating, reviewComment, placeDetail, dispatch])
 
   const handleGroupCardPress = useCallback(async (group: Group) => {
     setLoadingDetail(true)
@@ -171,7 +290,154 @@ export default function SearchScreen() {
     setPetResults([])
     setGroupResults([])
     setSearched(false)
+    setExpandedPlace(null)
+    setPlaceDetail(null)
+    dispatch(clearSearchResults())
+    dispatch(clearSelectedPlace())
     inputRef.current?.focus()
+  }
+
+  const categoryIcons: Record<string, string> = {
+    veterinary: 'medkit-outline',
+    vet: 'medkit-outline',
+    petshop: 'cart-outline',
+    pet_shop: 'cart-outline',
+    park: 'leaf-outline',
+    clinic: 'medkit-outline',
+    hospital: 'medkit-outline',
+    hotel: 'bed-outline',
+    restaurant: 'restaurant-outline',
+    cafe: 'cafe-outline',
+  }
+
+  const getIcon = (cat: string) => categoryIcons[cat] || 'location-outline'
+
+  const renderPlaceItem = ({ item }: { item: any }) => {
+    const isExpanded = expandedPlace?.osmId === item.osmId && expandedPlace?.osmType === item.osmType
+    return (
+      <View>
+        <Pressable
+          style={[styles.resultItem, { borderBottomColor: withAlpha(colors.border, 0.5) }]}
+          onPress={() => handleSelectPlace(item)}
+        >
+          <View style={[styles.placeIconWrap, { backgroundColor: withAlpha(colors.primary, 0.1) }]}>
+            <Ionicons name={getIcon(item.category) as any} size={22} color={colors.primary} />
+          </View>
+          <View style={styles.resultInfo}>
+            <Text weight="700">{item.name}</Text>
+            <Text size="sm" color="mutedForeground" numberOfLines={1}>{item.displayName}</Text>
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 2 }}>
+              <Text size="xs" color="mutedForeground">{item.type}</Text>
+              {item.category && <Text size="xs" color="mutedForeground">· {item.category}</Text>}
+            </View>
+          </View>
+          <Ionicons
+            name={isExpanded ? 'chevron-up' : 'chevron-forward'}
+            size={20}
+            color={colors.mutedForeground}
+          />
+        </Pressable>
+
+        {isExpanded && (
+          <View style={[styles.placeExpanded, { backgroundColor: withAlpha(colors.muted, 0.15) }]}>
+            {loadingPlaceDetail ? (
+              <ActivityIndicator color={colors.primary} style={{ padding: 30 }} />
+            ) : placeDetail ? (
+              <>
+                <MapView
+                  style={{ width: '100%', height: MAP_HEIGHT, borderRadius: 12 }}
+                  provider={PROVIDER_GOOGLE}
+                  initialRegion={{
+                    latitude: placeDetail.lat,
+                    longitude: placeDetail.lng,
+                    latitudeDelta: 0.01,
+                    longitudeDelta: 0.01,
+                  }}
+                  scrollEnabled={false}
+                  zoomEnabled={false}
+                >
+                  <Marker
+                    coordinate={{ latitude: placeDetail.lat, longitude: placeDetail.lng }}
+                    title={placeDetail.name}
+                    description={placeDetail.displayName}
+                  />
+                </MapView>
+
+                <View style={{ padding: 12, gap: 8 }}>
+                  <Text weight="800" size="lg">{placeDetail.name}</Text>
+                  <Text size="sm" color="mutedForeground">{placeDetail.displayName}</Text>
+
+                  {placeDetail.avgRating > 0 && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Ionicons name="star" size={16} color="#FBBF24" />
+                      <Text weight="700" size="sm">{placeDetail.avgRating}</Text>
+                      <Text size="xs" color="mutedForeground">({placeDetail.reviewsCount} {placeDetail.reviewsCount === 1 ? 'avaliação' : 'avaliações'})</Text>
+                    </View>
+                  )}
+
+                  <View style={{ borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: withAlpha(colors.border, 0.5), paddingTop: 12, marginTop: 4 }}>
+                    <Text weight="700" size="sm">Avaliações</Text>
+
+                    <View style={{ flexDirection: 'row', gap: 4, marginTop: 8 }}>
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <Pressable key={star} onPress={() => setReviewRating(star === reviewRating ? 0 : star)}>
+                          <Ionicons
+                            name={star <= reviewRating ? 'star' : 'star-outline'}
+                            size={28}
+                            color={star <= reviewRating ? '#FBBF24' : withAlpha(colors.border, 0.6)}
+                          />
+                        </Pressable>
+                      ))}
+                    </View>
+
+                    <TextInput
+                      value={reviewComment}
+                      onChangeText={setReviewComment}
+                      placeholder="Comentário (opcional)"
+                      placeholderTextColor={colors.mutedForeground}
+                      multiline
+                      style={[styles.reviewInput, { backgroundColor: withAlpha(colors.muted, 0.3), color: colors.foreground, borderColor: withAlpha(colors.border, 0.3) }]}
+                    />
+
+                    <Button
+                      label={submittingReview ? 'Enviando...' : 'Avaliar'}
+                      onPress={handleSubmitReview}
+                      disabled={!reviewRating || submittingReview}
+                      style={{ marginTop: 8 }}
+                    />
+
+                    {placeReviews.length > 0 && (
+                      <View style={{ marginTop: 12, gap: 8 }}>
+                        {placeReviews.map((rv: any) => (
+                          <View key={rv.id} style={[styles.reviewCard, { backgroundColor: withAlpha(colors.muted, 0.2) }]}>
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <Text weight="700" size="sm">{rv.authorName}</Text>
+                              <View style={{ flexDirection: 'row', gap: 2 }}>
+                                {Array.from({ length: 5 }).map((_, i) => (
+                                  <Ionicons
+                                    key={i}
+                                    name={i < rv.rating ? 'star' : 'star-outline'}
+                                    size={12}
+                                    color="#FBBF24"
+                                  />
+                                ))}
+                              </View>
+                            </View>
+                            {rv.comment && <Text size="sm" color="mutedForeground" style={{ marginTop: 4 }}>{rv.comment}</Text>}
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                </View>
+              </>
+            ) : (
+              <Text color="mutedForeground" style={{ padding: 20, textAlign: 'center' }}>Não foi possível carregar detalhes</Text>
+            )}
+          </View>
+        )}
+      </View>
+    )
   }
 
   const renderPeopleItem = ({ item }: { item: SearchUser }) => (
@@ -242,8 +508,14 @@ export default function SearchScreen() {
     </Pressable>
   )
 
-  const results = activeTab === 'pessoas' ? peopleResults : activeTab === 'pets' ? petResults : groupResults
+  const placeResultType = placeResults as OsmPlaceResult[]
+  const results = activeTab === 'pessoas' ? peopleResults : activeTab === 'pets' ? petResults : activeTab === 'grupos' ? groupResults : placeResultType
   const currentOption = SEARCH_OPTIONS.find((o) => o.id === activeTab)!
+
+  const isLoading = activeTab === 'locais' ? isSearchingPlaces : loading
+  const placeholderText = activeTab === 'locais'
+    ? 'Buscar lugares...'
+    : `Buscar ${currentOption.label.toLowerCase()}...`
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -252,7 +524,7 @@ export default function SearchScreen() {
         <TextInput
           ref={inputRef}
           style={[styles.input, { color: colors.foreground }]}
-          placeholder={`Buscar ${currentOption.label.toLowerCase()}...`}
+          placeholder={placeholderText}
           placeholderTextColor={colors.mutedForeground}
           value={query}
           onChangeText={handleSearch}
@@ -260,7 +532,7 @@ export default function SearchScreen() {
           autoFocus
           returnKeyType="search"
         />
-        {query.length >= 2 && (
+        {query.length >= (activeTab === 'locais' ? 3 : 2) && (
           <Pressable
             onPress={handleSearchSubmit}
             style={[styles.searchButton, { backgroundColor: colors.primary }]}
@@ -315,14 +587,28 @@ export default function SearchScreen() {
         </>
       )}
 
-      {loading && (
+      {isLoading && (
         <View style={[styles.loadingBar, { backgroundColor: withAlpha(colors.primary, 0.1) }]}>
           <ActivityIndicator size="small" color={colors.primary} />
           <Text size="sm" color="mutedForeground">Pesquisando...</Text>
         </View>
       )}
 
-      {!loading && searched && results.length === 0 && (
+      {placesError && activeTab === 'locais' && (
+        <View style={styles.center}>
+          <Ionicons name="alert-circle-outline" size={48} color={colors.mutedForeground} />
+          <Text color="mutedForeground" style={{ marginTop: 12 }}>{placesError}</Text>
+        </View>
+      )}
+
+      {!isLoading && searched && results.length === 0 && !placesError && activeTab === 'locais' && (
+        <View style={styles.center}>
+          <Ionicons name="map-outline" size={48} color={colors.mutedForeground} />
+          <Text color="mutedForeground" style={{ marginTop: 12 }}>Nenhum lugar encontrado</Text>
+        </View>
+      )}
+
+      {!isLoading && searched && results.length === 0 && !placesError && activeTab !== 'locais' && (
         <View style={styles.center}>
           <Ionicons name="search-outline" size={48} color={colors.mutedForeground} />
           <Text color="mutedForeground" style={{ marginTop: 12 }}>
@@ -337,19 +623,27 @@ export default function SearchScreen() {
           renderItem={
             activeTab === 'pessoas' ? renderPeopleItem as any :
             activeTab === 'pets' ? renderPetItem as any :
-            renderGroupItem as any
+            activeTab === 'grupos' ? renderGroupItem as any :
+            renderPlaceItem as any
           }
-          keyExtractor={(item: any) => item.id}
+          keyExtractor={(_item: any, index: number) =>
+            activeTab === 'locais' ? `place-${index}` :
+            activeTab === 'grupos' ? (_item as any).id :
+            (_item as any).id
+          }
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 40 }}
         />
       )}
 
-      {!loading && !searched && query.length < 2 && (
+      {!isLoading && !searched && query.length < (activeTab === 'locais' ? 3 : 2) && (
         <View style={styles.center}>
           <Ionicons name={currentOption.icon as any} size={48} color={colors.mutedForeground} />
           <Text color="mutedForeground" style={{ marginTop: 12 }}>
-            Digite o nome {activeTab === 'pessoas' ? 'de uma pessoa' : activeTab === 'pets' ? 'de um pet' : 'de um grupo'} para buscar
+            {activeTab === 'locais'
+              ? 'Digite o nome de um lugar para buscar'
+              : `Digite o nome ${activeTab === 'pessoas' ? 'de uma pessoa' : activeTab === 'pets' ? 'de um pet' : 'de um grupo'} para buscar`
+            }
           </Text>
         </View>
       )}
@@ -550,5 +844,28 @@ const styles = StyleSheet.create({
   detailContent: {
     padding: 32,
     alignItems: 'center',
+  },
+  placeIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  placeExpanded: {
+    padding: 12,
+  },
+  reviewInput: {
+    borderRadius: 10,
+    padding: 10,
+    borderWidth: 1,
+    marginTop: 8,
+    minHeight: 60,
+    textAlignVertical: 'top',
+    fontSize: 14,
+  },
+  reviewCard: {
+    padding: 12,
+    borderRadius: 10,
   },
 })
