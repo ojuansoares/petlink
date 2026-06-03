@@ -1,4 +1,3 @@
-import 'express-async-errors'
 import { initSentry } from './config/sentry'
 import { env } from './config/env'
 import { connectMongo } from './config/mongoose'

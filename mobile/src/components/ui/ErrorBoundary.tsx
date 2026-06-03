@@ -2,7 +2,7 @@ import React, { Component, type ReactNode } from 'react'
 import { View, Pressable, StyleSheet } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { Text } from './Typography'
-import { tokens, withAlpha } from '../../theme'
+import { tokens } from '../../theme'
 
 interface Props {
   children: ReactNode
@@ -29,7 +29,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
     return (
       <View style={styles.container}>
-        <Ionicons name="bug-outline" size={48} color={tokens.colors.mutedForeground} />
+        <Ionicons name="bug-outline" size={48} color={tokens.light.mutedForeground} />
         <Text weight="700" size="lg" style={{ marginTop: 16 }}>
           Algo deu errado
         </Text>
@@ -58,10 +58,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 32,
-    backgroundColor: tokens.colors.background,
+    backgroundColor: tokens.light.background,
   },
   button: {
-    backgroundColor: tokens.colors.primary,
+    backgroundColor: tokens.light.primary,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 12,
