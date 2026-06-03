@@ -16,8 +16,8 @@ interface ProfileGridProps {
   posts: Post[]
   loading?: boolean
   onPostPress?: (post: Post) => void
-  ListHeaderComponent?: React.ReactNode
-  ListEmptyComponent?: React.ReactNode
+  ListHeaderComponent?: React.ReactElement | null
+  ListEmptyComponent?: React.ReactElement | null
   onEndReached?: () => void
   refreshing?: boolean
   onRefresh?: () => void
