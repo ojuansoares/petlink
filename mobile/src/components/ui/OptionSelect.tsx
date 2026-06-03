@@ -120,7 +120,7 @@ export function OptionSelect(props: Readonly<OptionSelectProps>) {
         onPress={openSheet}
       >
         {showPhotos && !isMulti && selectedOption?.photoUrl ? (
-          <Image source={selectedOption.photoUrl ?? undefined} style={styles.fieldPhoto} />
+          <Image source={selectedOption.photoUrl ? { uri: selectedOption.photoUrl } : undefined} style={styles.fieldPhoto} />
         ) : (
           <Ionicons name={leftIconName} size={18} color={colors.mutedForeground} />
         )}
@@ -200,7 +200,7 @@ export function OptionSelect(props: Readonly<OptionSelectProps>) {
                         </View>
                       )}
                       {showPhotos && item.photoUrl ? (
-                        <Image source={item.photoUrl ?? undefined} style={styles.optionPhoto} />
+                        <Image source={item.photoUrl ? { uri: item.photoUrl } : undefined} style={styles.optionPhoto} />
                       ) : null}
                       <Text size="sm" weight={selected ? '700' : '400'}>{item.label}</Text>
                     </View>

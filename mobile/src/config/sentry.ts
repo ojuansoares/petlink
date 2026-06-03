@@ -14,10 +14,7 @@ export function initSentry() {
     environment: __DEV__ ? 'development' : 'production',
     tracesSampleRate: __DEV__ ? 1.0 : 0.1,
     integrations: [
-      new Sentry.ReactNativeTracing({
-        tracingOrigins: ['localhost', /^\//],
-        routingInstrumentation: undefined, // Set up in App.tsx
-      }),
+      Sentry.reactNativeTracingIntegration(),
     ],
     beforeSend(event, hint) {
       // Filter out dev/test errors

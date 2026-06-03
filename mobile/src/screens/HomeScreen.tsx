@@ -351,7 +351,7 @@ export default function HomeScreen() {
           </View>
           <SkeletonBlock style={{ width: 48, height: 48, borderRadius: 24 }} />
         </View>
-        <View style={[styles.petDashboardCard, { borderWidth: borderW, borderColor: withAlpha(colors.border, borderA), padding: 16, gap: 12 }]}>
+        <View style={[styles.dashboardCard, { borderWidth: borderW, borderColor: withAlpha(colors.border, borderA), padding: 16, gap: 12 }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <SkeletonBlock style={{ width: 56, height: 56, borderRadius: 28 }} />
             <View style={{ flex: 1, gap: 4 }}>
@@ -699,7 +699,7 @@ export default function HomeScreen() {
               </View>
             )}
             <WebView
-              source={bannerUrl ? bannerUrl : undefined}
+              source={{ uri: bannerUrl ?? '' }}
               style={{ flex: 1 }}
               onLoadStart={() => setWebViewLoading(true)}
               onLoadEnd={() => setWebViewLoading(false)}

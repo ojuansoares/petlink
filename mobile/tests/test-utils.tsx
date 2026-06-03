@@ -1,24 +1,26 @@
 import React, { type ReactElement } from 'react'
 import { render, type RenderOptions } from '@testing-library/react-native'
 import { Provider } from 'react-redux'
-import { configureStore } from '@reduxjs/toolkit'
+import { configureStore, combineReducers } from '@reduxjs/toolkit'
 import uiReducer from '../src/store/slices/uiSlice'
 import authReducer from '../src/store/slices/authSlice'
 import petsReducer from '../src/store/slices/petsSlice'
 import gamificationReducer from '../src/store/slices/gamificationSlice'
 import feedingReducer from '../src/store/slices/feedingSlice'
 
-type RootState = ReturnType<typeof createStore.getState>
+const rootReducer = combineReducers({
+  ui: uiReducer,
+  auth: authReducer,
+  pets: petsReducer,
+  gamification: gamificationReducer,
+  feeding: feedingReducer,
+})
+
+type RootState = ReturnType<typeof rootReducer>
 
 function createStore(preloaded?: Partial<RootState>) {
   return configureStore({
-    reducer: {
-      ui: uiReducer,
-      auth: authReducer,
-      pets: petsReducer,
-      gamification: gamificationReducer,
-      feeding: feedingReducer,
-    },
+    reducer: rootReducer,
     preloadedState: preloaded as any,
   })
 }
