@@ -22,6 +22,8 @@ import { WalkCard } from '../components/walks/WalkCard'
 import { WalkCalendar } from '../components/walks/WalkCalendar'
 import { format, subMonths, addMonths, startOfMonth, endOfMonth } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import { scheduleWalkReminder, cancelWalkReminders } from '../services/NotificationService'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 
 type ScreenRoute = RouteProp<AppStackParamList, 'Walk'>
 
@@ -39,6 +41,24 @@ export default function WalkScreen() {
 
   const [activeTab, setActiveTab] = useState<'resumo' | 'historico'>('resumo')
   const [calendarDate, setCalendarDate] = useState(new Date())
+  const [reminderOn, setReminderOn] = useState(false)
+
+  useEffect(() => {
+    AsyncStorage.getItem(`petlink.walk.reminder.${petId}`).then(val => {
+      setReminderOn(val === 'true')
+    })
+  }, [petId])
+
+  const toggleReminder = useCallback(async () => {
+    const next = !reminderOn
+    setReminderOn(next)
+    if (next) {
+      await scheduleWalkReminder(petId, petName, 17, 0)
+    } else {
+      await cancelWalkReminders(petId)
+    }
+    await AsyncStorage.setItem(`petlink.walk.reminder.${petId}`, next ? 'true' : 'false')
+  }, [reminderOn, petId, petName])
 
   useEffect(() => {
     dispatch(fetchWalksThunk(petId))
@@ -112,6 +132,21 @@ export default function WalkScreen() {
         <WalkStatsCard icon="speedometer-outline" label="Média/passeio" value={avgKmText} color="#22C55E" />
         <WalkStatsCard icon="calendar-outline" label="Registros" value={`${stats.length} dias`} color="#EC4899" />
       </View>
+
+      <Pressable
+        onPress={toggleReminder}
+        style={[styles.reminderRow, { backgroundColor: withAlpha(colors.primary, 0.06), borderColor: withAlpha(colors.primary, 0.2) }]}
+      >
+        <Ionicons name={reminderOn ? 'notifications' : 'notifications-outline'} size={18} color={reminderOn ? colors.primary : colors.mutedForeground} />
+        <Text size="sm" weight="700" style={{ flex: 1, color: reminderOn ? colors.primary : colors.mutedForeground }}>
+          Lembrete diário às 17:00
+        </Text>
+        <Ionicons
+          name={reminderOn ? 'toggle' : 'toggle-outline'}
+          size={24}
+          color={reminderOn ? colors.primary : colors.mutedForeground}
+        />
+      </Pressable>
 
       <View style={styles.tabRow}>
         <Pressable
@@ -208,6 +243,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 12,
+  },
+  reminderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    gap: 10,
+    marginBottom: 8,
   },
   empty: {
     alignItems: 'center',

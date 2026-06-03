@@ -1,14 +1,18 @@
-import React, { useMemo } from 'react'
-import { View, ScrollView, StyleSheet, Platform } from 'react-native'
+import React, { useMemo, useRef, useState } from 'react'
+import { View, ScrollView, StyleSheet, Platform, ActivityIndicator } from 'react-native'
 import MapView, { Polyline, Marker, PROVIDER_GOOGLE, Region } from 'react-native-maps'
 import { Ionicons } from '@expo/vector-icons'
 import { useTheme } from '../hooks/useTheme'
 import { Text, Heading } from '../components/ui/Typography'
+import { Button } from '../components/ui/Button'
 import { useRoute, RouteProp } from '@react-navigation/native'
 import { AppStackParamList } from '../navigation/types'
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import type { Walk } from '../store/slices/walksSlices'
+import { uploadImageWithRetry } from '../api/uploadWithRetry'
+import { CreatePostModal } from '../components/ui/CreatePostModal'
+import { captureRef } from 'react-native-view-shot'
 
 type ScreenRoute = RouteProp<AppStackParamList, 'WalkDetail'>
 
@@ -16,6 +20,10 @@ export default function WalkDetailScreen() {
   const { colors, withAlpha } = useTheme()
   const route = useRoute<ScreenRoute>()
   const walk = route.params.walk as Walk
+  const shotRef = useRef<any>(null)
+  const [sharing, setSharing] = useState(false)
+  const [showPostModal, setShowPostModal] = useState(false)
+  const [postPhotoUrl, setPostPhotoUrl] = useState('')
 
   const region: Region | null = useMemo(() => {
     if (!walk.route || walk.route.length === 0) return null
@@ -33,6 +41,26 @@ export default function WalkDetailScreen() {
     }
   }, [walk.route])
 
+  const handleShare = async () => {
+    setSharing(true)
+    try {
+      const uri = await captureRef(shotRef, {
+        format: 'png',
+        quality: 0.9,
+      })
+      const formData = new FormData()
+      formData.append('folder', 'petlink/walks')
+      formData.append('file', { uri, name: `walk-${walk.id}.png`, type: 'image/png' } as any)
+      const data = await uploadImageWithRetry({ formData })
+      setPostPhotoUrl(data.url)
+      setShowPostModal(true)
+    } catch (err) {
+      console.error('Share walk error:', err)
+    } finally {
+      setSharing(false)
+    }
+  }
+
   const dateStr = walk.endedAt || walk.startedAt
   const formattedDate = dateStr
     ? format(parseISO(dateStr), "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: ptBR })
@@ -48,7 +76,7 @@ export default function WalkDetailScreen() {
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={styles.mapContainer}>
+      <View ref={shotRef} style={styles.mapContainer} collapsable={false}>
         {region ? (
           <MapView
             style={StyleSheet.absoluteFill}
@@ -116,6 +144,14 @@ export default function WalkDetailScreen() {
           </View>
         </View>
 
+        <Button
+          onPress={handleShare}
+          label={sharing ? 'Compartilhando...' : 'Compartilhar no Feed'}
+          leftIcon={<Ionicons name="share-outline" size={16} color="#fff" />}
+          loading={sharing}
+          style={{ borderRadius: 12 }}
+        />
+
         {walk.notes && (
           <View style={[styles.notesCard, { backgroundColor: withAlpha(colors.muted, 0.4) }]}>
             <Text size="xs" color="mutedForeground" weight="700">ANOTAÇÕES</Text>
@@ -139,6 +175,18 @@ export default function WalkDetailScreen() {
           </View>
         </View>
       </View>
+
+      {showPostModal && (
+        <CreatePostModal
+          visible={showPostModal}
+          onClose={() => {
+            setShowPostModal(false)
+            setPostPhotoUrl('')
+          }}
+          initialPhotoUrl={postPhotoUrl}
+          initialPetIds={[walk.petId]}
+        />
+      )}
     </ScrollView>
   )
 }

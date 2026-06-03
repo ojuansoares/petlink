@@ -612,6 +612,7 @@ export default function PetsScreen() {
               color={withAlpha('#8B5CF6', 0.12)}
               borderColor="#8B5CF6"
               iconColor="#8B5CF6"
+              badge="Passeios"
               onPress={() => navigation.navigate('Walk', { petId: activePet.id, petName: activePet.name })}
             />
             <ControlCard

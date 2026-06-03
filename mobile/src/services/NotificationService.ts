@@ -521,6 +521,8 @@ export async function scheduleAllFromApi() {
         await scheduleBirthdayNotifications(pet.id, pet.name, pet.birth_date)
       }
     }
+
+    await restoreWalkReminders()
   } catch (err) {
     console.error('[Notif] Erro ao sincronizar notificações da API:', err)
   }
@@ -631,5 +633,102 @@ export async function handleFeedingNotificationAction(
 
   if (notificationId) {
     await Notifications.dismissNotificationAsync(notificationId)
+  }
+}
+
+// ─── Passeio: lembrete diário ────────────────────────────────
+const WALK_REMINDER_IDS_KEY = 'petlink.walk.reminder.ids'
+const WALK_REMINDER_BACKUP_KEY = 'petlink.walk.reminder.backup'
+
+type WalkReminderBackupEntry = {
+  petId: string
+  petName: string
+  hour: number
+  minute: number
+}
+
+export async function scheduleWalkReminder(
+  petId: string,
+  petName: string,
+  hour: number = 17,
+  minute: number = 0
+) {
+  const notifEnabled = await AsyncStorage.getItem('petlink.notifications.enabled')
+  if (notifEnabled === 'false') return
+
+  await cancelWalkReminders(petId)
+
+  const id = await Notifications.scheduleNotificationAsync({
+    content: {
+      title: 'Hora de passear! 🐾',
+      body: `${petName} está esperando o passeio de hoje. Vamos lá!`,
+      data: { petId, type: 'walk_reminder' },
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.DAILY,
+      hour,
+      minute,
+    },
+  })
+
+  const stored: { petId: string; ids: string[] }[] = JSON.parse(
+    (await AsyncStorage.getItem(WALK_REMINDER_IDS_KEY)) || '[]'
+  )
+  const existing = stored.find((e) => e.petId === petId)
+  if (existing) {
+    existing.ids.push(id)
+  } else {
+    stored.push({ petId, ids: [id] })
+  }
+  await AsyncStorage.setItem(WALK_REMINDER_IDS_KEY, JSON.stringify(stored))
+
+  const backup: WalkReminderBackupEntry[] = JSON.parse(
+    (await AsyncStorage.getItem(WALK_REMINDER_BACKUP_KEY)) || '[]'
+  )
+  const existingBackup = backup.find((e) => e.petId === petId)
+  if (existingBackup) {
+    existingBackup.hour = hour
+    existingBackup.minute = minute
+  } else {
+    backup.push({ petId, petName, hour, minute })
+  }
+  await AsyncStorage.setItem(WALK_REMINDER_BACKUP_KEY, JSON.stringify(backup))
+}
+
+export async function cancelWalkReminders(petId: string) {
+  const stored: { petId: string; ids: string[] }[] = JSON.parse(
+    (await AsyncStorage.getItem(WALK_REMINDER_IDS_KEY)) || '[]'
+  )
+  const entry = stored.find((e) => e.petId === petId)
+  if (entry) {
+    for (const id of entry.ids) {
+      await Notifications.cancelScheduledNotificationAsync(id)
+    }
+  }
+  await AsyncStorage.setItem(
+    WALK_REMINDER_IDS_KEY,
+    JSON.stringify(stored.filter((e) => e.petId !== petId))
+  )
+}
+
+export async function cancelAllWalkReminders() {
+  const stored: { petId: string; ids: string[] }[] = JSON.parse(
+    (await AsyncStorage.getItem(WALK_REMINDER_IDS_KEY)) || '[]'
+  )
+  for (const entry of stored) {
+    for (const id of entry.ids) {
+      await Notifications.cancelScheduledNotificationAsync(id)
+    }
+  }
+  await AsyncStorage.removeItem(WALK_REMINDER_IDS_KEY)
+  await AsyncStorage.removeItem(WALK_REMINDER_BACKUP_KEY)
+}
+
+export async function restoreWalkReminders() {
+  const backup: WalkReminderBackupEntry[] = JSON.parse(
+    (await AsyncStorage.getItem(WALK_REMINDER_BACKUP_KEY)) || '[]'
+  )
+  for (const entry of backup) {
+    await scheduleWalkReminder(entry.petId, entry.petName, entry.hour, entry.minute)
   }
 }
