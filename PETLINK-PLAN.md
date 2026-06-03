@@ -586,7 +586,7 @@ O header do perfil (foto, nome, stats) permanece igual. Abaixo dele, um `Segment
 | 48 | ✅ Error tracking (Sentry) |
 | 49 | ✅ CI/CD (GitHub Actions) |
 | 50 | Analytics |
-| 51 | Tratamento de erros consistente |
+| 51 | ✅ Tratamento de erros consistente |
 | 52 | Performance (virtualização, lazy loading) |
 
 ---

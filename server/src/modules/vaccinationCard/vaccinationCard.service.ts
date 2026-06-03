@@ -1,6 +1,7 @@
 import PDFDocument from 'pdfkit'
 import https from 'https'
 import http from 'http'
+import { AppError } from '../../shared/AppError'
 import { vaccinationCardRepository, type VaccineData } from './vaccinationCard.repository'
 
 // ─── Brand palette (matches app theme) ───────────────────────────────────────
@@ -92,7 +93,7 @@ function rule(doc: PDFKit.PDFDocument, x: number, y: number, w: number, color = 
 export const vaccinationCardService = {
   async generatePdf(petId: string, vaccineIds: string[]): Promise<Buffer> {
     const pet = await vaccinationCardRepository.getPet(petId)
-    if (!pet) throw new Error('Pet não encontrado')
+    if (!pet) throw new AppError('Pet não encontrado', 404)
 
     const owner = await vaccinationCardRepository.getOwner(pet.owner_id)
     const vaccines = vaccineIds.length > 0

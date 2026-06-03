@@ -17,6 +17,7 @@ import commentLikesReducer from './slices/commentLikesSlice'
 import feedingReducer from './slices/feedingSlice'
 import groupsReducer from './slices/groupsSlice'
 import gamificationReducer, { fetchGamificationThunk } from './slices/gamificationSlice'
+import { errorToastMiddleware } from './errorToastMiddleware'
 
 const xpListener = createListenerMiddleware()
 
@@ -51,7 +52,7 @@ export const store = configureStore({
     gamification:  gamificationReducer,
   },
   middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware().prepend(xpListener.middleware),
+    getDefaultMiddleware().prepend(xpListener.middleware).concat(errorToastMiddleware),
 })
 
 setApiAuthHandlers({

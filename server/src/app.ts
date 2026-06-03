@@ -1,6 +1,7 @@
 import express from 'express'
 import swaggerUi from 'swagger-ui-express'
 import * as Sentry from '@sentry/node'
+import { AppError } from './shared/AppError'
 import authRoutes from './modules/auth/auth.routes'
 import profileRoutes from './modules/profile/profile.routes'
 import petsRoutes from './modules/pets/pets.routes'
@@ -66,11 +67,15 @@ app.use('/gamification', gamificationRoutes)
 app.use('/pets', vaccinationCardRoutes)
 
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  console.error('[ERRO GLOBAL SEVIDOR]:', err)
-  res.status(err.statusCode ?? 500).json({ 
-    error: err.message || 'Erro interno inesperado', 
-    code: err.code 
-  })
+  Sentry.captureException(err)
+
+  if (err instanceof AppError) {
+    res.status(err.statusCode).json({ error: err.message, code: err.code })
+    return
+  }
+
+  console.error('[ERRO INESPERADO]:', err)
+  res.status(500).json({ error: 'Erro interno inesperado' })
 })
 
 export default app

@@ -35,6 +35,7 @@ import { tokens, withAlpha } from './src/theme'
 import OnboardingScreen, { OnboardingStep } from './src/screens/OnboardingScreen'
 import { AppLoadingOverlay } from './src/components/ui/AppLoadingOverlay'
 import { AppToast } from './src/components/ui/AppToast'
+import { ErrorBoundary } from './src/components/ui/ErrorBoundary'
 import LevelUpProvider from './src/components/LevelUpProvider'
 import {
   configureNotifications,
@@ -515,7 +516,9 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <Provider store={store}>
-        <AppContent />
+        <ErrorBoundary>
+          <AppContent />
+        </ErrorBoundary>
       </Provider>
     </SafeAreaProvider>
   )
