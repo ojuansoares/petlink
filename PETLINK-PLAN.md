@@ -738,8 +738,11 @@ Tela principal de passeios, inspirada no Strava:
 | W6 | WalkStatsCard para métricas | ✅ |
 | W7 | Offline queue (WalkQueueRepository) + processQueue | ✅ |
 | W8 | Server: GET /stats, GET/PUT/DELETE /:id, novos campos (photo_url, calories, pace) | ✅ |
-| W9 | Postar passeio (vínculo com feed) | ⏳ |
-| W10 | Notificações de lembrete de passeio | ⏳ |
+| W9 | Postar passeio no feed (view-shot map → upload → CreatePostModal) | ✅ |
+| W10 | Tutorial de primeira vez com seletor de frequência (WalkScreen) | ✅ |
+| W11 | Lembrete de passeio com notificação local por frequência | ✅ |
+| W12 | Toggle passeio em SettingsNotificationsScreen | ✅ |
+| W13 | Restauração de lembretes (restoreScheduledNotifications + per-pet loop) | ✅ |
 
 ---
 
