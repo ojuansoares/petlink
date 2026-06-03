@@ -19,17 +19,19 @@ const ASYNC_KEYS = {
   enabled:      ASYNC_PREFIX + 'enabled',
   alimentacao:  ASYNC_PREFIX + 'alimentacao',
   vacinas:      ASYNC_PREFIX + 'vacinas',
+  passeio:      ASYNC_PREFIX + 'passeio',
   social_likes: ASYNC_PREFIX + 'social_likes',
   social_follows: ASYNC_PREFIX + 'social_follows',
   aniversario:  ASYNC_PREFIX + 'aniversario',
 } as const
 
 const CATEGORIES: { key: keyof typeof ASYNC_KEYS; icon: string; label: string; desc: string }[] = [
-  { key: 'alimentacao',   icon: 'restaurant-outline',     label: 'Alimentação',    desc: 'Lembretes de refeições do pet' },
-  { key: 'vacinas',       icon: 'shield-checkmark-outline', label: 'Vacinas / Vermífugos', desc: 'Alertas de doses e prazos' },
-  { key: 'aniversario',   icon: 'gift-outline',            label: 'Aniversário',    desc: 'Lembretes de aniversário do pet' },
-  { key: 'social_likes',  icon: 'heart-outline',           label: 'Curtidas e comentários', desc: 'Interações em suas publicações' },
-  { key: 'social_follows', icon: 'people-outline',          label: 'Novos seguidores', desc: 'Quando alguém seguir você' },
+  { key: 'alimentacao',   icon: 'restaurant-outline',        label: 'Alimentação',    desc: 'Lembretes de refeições do pet' },
+  { key: 'vacinas',       icon: 'shield-checkmark-outline',  label: 'Vacinas / Vermífugos', desc: 'Alertas de doses e prazos' },
+  { key: 'passeio',       icon: 'walk-outline',              label: 'Passeios',       desc: 'Lembrete diário de passeio' },
+  { key: 'aniversario',   icon: 'gift-outline',              label: 'Aniversário',    desc: 'Lembretes de aniversário do pet' },
+  { key: 'social_likes',  icon: 'heart-outline',             label: 'Curtidas e comentários', desc: 'Interações em suas publicações' },
+  { key: 'social_follows', icon: 'people-outline',            label: 'Novos seguidores', desc: 'Quando alguém seguir você' },
 ]
 
 export default function SettingsNotificationsScreen() {

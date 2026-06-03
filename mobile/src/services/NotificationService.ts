@@ -213,6 +213,9 @@ export async function restoreScheduledNotifications() {
     }
   }
 
+  // recupera passeios
+  await restoreWalkReminders()
+
   await AsyncStorage.setItem(NOTIF_VERSION_KEY, CURRENT_NOTIF_VERSION)
 }
 
@@ -520,9 +523,15 @@ export async function scheduleAllFromApi() {
       if (pet.birth_date) {
         await scheduleBirthdayNotifications(pet.id, pet.name, pet.birth_date)
       }
-    }
 
-    await restoreWalkReminders()
+      const walkNotif = await AsyncStorage.getItem('petlink.notifications.passeio')
+      if (walkNotif !== 'false') {
+        const frequency = await AsyncStorage.getItem(`petlink.walk.frequency.${pet.id}`)
+        if (frequency) {
+          await scheduleWalkReminder(pet.id, pet.name, 17, 0)
+        }
+      }
+    }
   } catch (err) {
     console.error('[Notif] Erro ao sincronizar notificações da API:', err)
   }
@@ -656,29 +665,101 @@ export async function scheduleWalkReminder(
   const notifEnabled = await AsyncStorage.getItem('petlink.notifications.enabled')
   if (notifEnabled === 'false') return
 
+  const walkNotif = await AsyncStorage.getItem('petlink.notifications.passeio')
+  if (walkNotif === 'false') return
+
   await cancelWalkReminders(petId)
 
-  const id = await Notifications.scheduleNotificationAsync({
-    content: {
-      title: 'Hora de passear! 🐾',
-      body: `${petName} está esperando o passeio de hoje. Vamos lá!`,
-      data: { petId, type: 'walk_reminder' },
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DAILY,
-      hour,
-      minute,
-    },
-  })
+  const frequency = await AsyncStorage.getItem(`petlink.walk.frequency.${petId}`)
+  const ids: string[] = []
+
+  if (frequency === 'daily' || !frequency) {
+    const id = await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'Hora de passear! 🐾',
+        body: `${petName} está esperando o passeio de hoje. Vamos lá!`,
+        data: { petId, type: 'walk_reminder' },
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DAILY,
+        hour,
+        minute,
+      },
+    })
+    ids.push(id)
+  } else if (frequency === 'every2days') {
+    for (let i = 0; i < 45; i++) {
+      const d = new Date()
+      d.setDate(d.getDate() + i * 2)
+      d.setHours(hour, minute, 0, 0)
+      if (d <= new Date()) continue
+      const id = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: 'Hora de passear! 🐾',
+          body: `${petName} está esperando o passeio de hoje. Vamos lá!`,
+          data: { petId, type: 'walk_reminder' },
+        },
+        trigger: { type: 'date', date: d.getTime(), channelId: 'default' } as DateTriggerInput,
+      })
+      ids.push(id)
+    }
+  } else if (frequency === '2-3xweek') {
+    const weekdays = [2, 4, 6] // seg, qua, sex
+    for (const wd of weekdays) {
+      const id = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: 'Hora de passear! 🐾',
+          body: `${petName} está esperando o passeio de hoje. Vamos lá!`,
+          data: { petId, type: 'walk_reminder' },
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
+          weekday: wd,
+          hour,
+          minute,
+        },
+      })
+      ids.push(id)
+    }
+  } else if (frequency === 'weekly') {
+    const id = await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'Hora de passear! 🐾',
+        body: `${petName} está esperando o passeio de hoje. Vamos lá!`,
+        data: { petId, type: 'walk_reminder' },
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
+        weekday: 2, // segunda-feira
+        hour,
+        minute,
+      },
+    })
+    ids.push(id)
+  } else {
+    const id = await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'Hora de passear! 🐾',
+        body: `${petName} está esperando o passeio de hoje. Vamos lá!`,
+        data: { petId, type: 'walk_reminder' },
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DAILY,
+        hour,
+        minute,
+      },
+    })
+    ids.push(id)
+  }
 
   const stored: { petId: string; ids: string[] }[] = JSON.parse(
     (await AsyncStorage.getItem(WALK_REMINDER_IDS_KEY)) || '[]'
   )
   const existing = stored.find((e) => e.petId === petId)
   if (existing) {
-    existing.ids.push(id)
+    existing.ids.push(...ids)
   } else {
-    stored.push({ petId, ids: [id] })
+    stored.push({ petId, ids })
   }
   await AsyncStorage.setItem(WALK_REMINDER_IDS_KEY, JSON.stringify(stored))
 
