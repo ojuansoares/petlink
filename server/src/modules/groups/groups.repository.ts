@@ -172,7 +172,7 @@ export const groupsRepository = {
       .range(from, to)
 
     if (excludeIds.length > 0) {
-      query = query.not('id', 'in', excludeIds)
+      query = query.not('id', 'in', `(${excludeIds.join(',')})`)
     }
 
     const { data, error, count } = await query
