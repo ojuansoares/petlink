@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react'
+import * as ExpoLocation from 'expo-location'
 import {
   View,
   FlatList,
@@ -59,6 +60,10 @@ interface SearchPet {
   owner: { name: string } | null
 }
 
+function isValidLatLng(lat: any, lng: any): boolean {
+  return typeof lat === 'number' && typeof lng === 'number' && isFinite(lat) && isFinite(lng)
+}
+
 type Tab = 'pessoas' | 'pets' | 'grupos' | 'locais'
 
 const SEARCH_OPTIONS: { id: Tab; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
@@ -104,6 +109,7 @@ export default function SearchScreen() {
   const [reviewRating, setReviewRating] = useState(0)
   const [reviewComment, setReviewComment] = useState('')
   const [submittingReview, setSubmittingReview] = useState(false)
+  const userCoords = useRef<{ lat: number; lng: number } | null>(null)
 
   useEffect(() => {
     const params = route.params
@@ -117,6 +123,20 @@ export default function SearchScreen() {
       handlePlaceOpen(params.osmType, params.osmId)
     }
   }, [route.params])
+
+  // Get user location for place search proximity
+  useEffect(() => {
+    if (activeTab !== 'locais') return
+    if (userCoords.current) return
+    ;(async () => {
+      const perm = await ExpoLocation.requestForegroundPermissionsAsync()
+      if (perm.status !== 'granted') return
+      try {
+        const loc = await ExpoLocation.getCurrentPositionAsync({ accuracy: ExpoLocation.Accuracy.Balanced })
+        userCoords.current = { lat: loc.coords.latitude, lng: loc.coords.longitude }
+      } catch {}
+    })()
+  }, [activeTab])
 
   const doSearch = useCallback(async (text: string, tab: Tab) => {
     if (!isOnline || text.length < 2) return
@@ -146,7 +166,8 @@ export default function SearchScreen() {
     setQuery(text)
     if (activeTab === 'locais') {
       if (text.length >= 3) {
-        dispatch(searchPlacesThunk({ q: text }))
+        const { lat, lng } = userCoords.current ?? {}
+        dispatch(searchPlacesThunk({ q: text, lat, lng }))
         setSearched(true)
       } else {
         dispatch(clearSearchResults())
@@ -165,7 +186,8 @@ export default function SearchScreen() {
   const handleSearchSubmit = useCallback(() => {
     if (activeTab === 'locais') {
       if (query.length >= 3) {
-        dispatch(searchPlacesThunk({ q: query }))
+        const { lat, lng } = userCoords.current ?? {}
+        dispatch(searchPlacesThunk({ q: query, lat, lng }))
         setSearched(true)
       }
       return
@@ -184,6 +206,7 @@ export default function SearchScreen() {
     setSearched(false)
     setExpandedPlace(null)
     setPlaceDetail(null)
+    if (tab !== 'locais') userCoords.current = null
     dispatch(clearSelectedPlace())
     dispatch(clearSearchResults())
   }, [dispatch])
@@ -340,100 +363,107 @@ export default function SearchScreen() {
 
         {isExpanded && (
           <View style={[styles.placeExpanded, { backgroundColor: withAlpha(colors.muted, 0.15) }]}>
-            {loadingPlaceDetail ? (
-              <ActivityIndicator color={colors.primary} style={{ padding: 30 }} />
-            ) : placeDetail ? (
-              <>
-                <MapView
-                  style={{ width: '100%', height: MAP_HEIGHT, borderRadius: 12 }}
-                  provider={PROVIDER_GOOGLE}
-                  initialRegion={{
-                    latitude: placeDetail.lat,
-                    longitude: placeDetail.lng,
-                    latitudeDelta: 0.01,
-                    longitudeDelta: 0.01,
-                  }}
-                  scrollEnabled={false}
-                  zoomEnabled={false}
-                >
-                  <Marker
-                    coordinate={{ latitude: placeDetail.lat, longitude: placeDetail.lng }}
-                    title={placeDetail.name}
-                    description={placeDetail.displayName}
-                  />
-                </MapView>
-
-                <View style={{ padding: 12, gap: 8 }}>
-                  <Text weight="800" size="lg">{placeDetail.name}</Text>
-                  <Text size="sm" color="mutedForeground">{placeDetail.displayName}</Text>
-
-                  {placeDetail.avgRating > 0 && (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <Ionicons name="star" size={16} color="#FBBF24" />
-                      <Text weight="700" size="sm">{placeDetail.avgRating}</Text>
-                      <Text size="xs" color="mutedForeground">({placeDetail.reviewsCount} {placeDetail.reviewsCount === 1 ? 'avaliação' : 'avaliações'})</Text>
+              {loadingPlaceDetail ? (
+            <ActivityIndicator color={colors.primary} style={{ padding: 30 }} />
+              ) : placeDetail ? (
+                <>
+                  {isValidLatLng(placeDetail.lat, placeDetail.lng) ? (
+                    <MapView
+                      style={{ width: '100%', height: MAP_HEIGHT, borderRadius: 12 }}
+                      provider={PROVIDER_GOOGLE}
+                      initialRegion={{
+                        latitude: placeDetail.lat,
+                        longitude: placeDetail.lng,
+                        latitudeDelta: 0.01,
+                        longitudeDelta: 0.01,
+                      }}
+                      scrollEnabled={false}
+                      zoomEnabled={false}
+                    >
+                      <Marker
+                        coordinate={{ latitude: placeDetail.lat, longitude: placeDetail.lng }}
+                        title={placeDetail.name}
+                        description={placeDetail.displayName}
+                      />
+                    </MapView>
+                  ) : (
+                    <View style={{ height: MAP_HEIGHT, alignItems: 'center', justifyContent: 'center' }}>
+                      <Ionicons name="map-outline" size={40} color={colors.mutedForeground} />
+                      <Text color="mutedForeground" style={{ marginTop: 8 }}>Localização não disponível no mapa</Text>
                     </View>
                   )}
 
-                  <View style={{ borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: withAlpha(colors.border, 0.5), paddingTop: 12, marginTop: 4 }}>
-                    <Text weight="700" size="sm">Avaliações</Text>
+                  <View style={{ padding: 12, gap: 8 }}>
+                    <Text weight="800" size="lg">{placeDetail.name}</Text>
+                    <Text size="sm" color="mutedForeground">{placeDetail.displayName}</Text>
 
-                    <View style={{ flexDirection: 'row', gap: 4, marginTop: 8 }}>
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <Pressable key={star} onPress={() => setReviewRating(star === reviewRating ? 0 : star)}>
-                          <Ionicons
-                            name={star <= reviewRating ? 'star' : 'star-outline'}
-                            size={28}
-                            color={star <= reviewRating ? '#FBBF24' : withAlpha(colors.border, 0.6)}
-                          />
-                        </Pressable>
-                      ))}
-                    </View>
-
-                    <TextInput
-                      value={reviewComment}
-                      onChangeText={setReviewComment}
-                      placeholder="Comentário (opcional)"
-                      placeholderTextColor={colors.mutedForeground}
-                      multiline
-                      style={[styles.reviewInput, { backgroundColor: withAlpha(colors.muted, 0.3), color: colors.foreground, borderColor: withAlpha(colors.border, 0.3) }]}
-                    />
-
-                    <Button
-                      label={submittingReview ? 'Enviando...' : 'Avaliar'}
-                      onPress={handleSubmitReview}
-                      disabled={!reviewRating || submittingReview}
-                      style={{ marginTop: 8 }}
-                    />
-
-                    {placeReviews.length > 0 && (
-                      <View style={{ marginTop: 12, gap: 8 }}>
-                        {placeReviews.map((rv: any) => (
-                          <View key={rv.id} style={[styles.reviewCard, { backgroundColor: withAlpha(colors.muted, 0.2) }]}>
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <Text weight="700" size="sm">{rv.authorName}</Text>
-                              <View style={{ flexDirection: 'row', gap: 2 }}>
-                                {Array.from({ length: 5 }).map((_, i) => (
-                                  <Ionicons
-                                    key={i}
-                                    name={i < rv.rating ? 'star' : 'star-outline'}
-                                    size={12}
-                                    color="#FBBF24"
-                                  />
-                                ))}
-                              </View>
-                            </View>
-                            {rv.comment && <Text size="sm" color="mutedForeground" style={{ marginTop: 4 }}>{rv.comment}</Text>}
-                          </View>
-                        ))}
+                    {placeDetail.avgRating > 0 && (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Ionicons name="star" size={16} color="#FBBF24" />
+                        <Text weight="700" size="sm">{placeDetail.avgRating}</Text>
+                        <Text size="xs" color="mutedForeground">({placeDetail.reviewsCount} {placeDetail.reviewsCount === 1 ? 'avaliação' : 'avaliações'})</Text>
                       </View>
                     )}
+
+                    <View style={{ borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: withAlpha(colors.border, 0.5), paddingTop: 12, marginTop: 4 }}>
+                      <Text weight="700" size="sm">Avaliações</Text>
+
+                      <View style={{ flexDirection: 'row', gap: 4, marginTop: 8 }}>
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <Pressable key={star} onPress={() => setReviewRating(star === reviewRating ? 0 : star)}>
+                            <Ionicons
+                              name={star <= reviewRating ? 'star' : 'star-outline'}
+                              size={28}
+                              color={star <= reviewRating ? '#FBBF24' : withAlpha(colors.border, 0.6)}
+                            />
+                          </Pressable>
+                        ))}
+                      </View>
+
+                      <TextInput
+                        value={reviewComment}
+                        onChangeText={setReviewComment}
+                        placeholder="Comentário (opcional)"
+                        placeholderTextColor={colors.mutedForeground}
+                        multiline
+                        style={[styles.reviewInput, { backgroundColor: withAlpha(colors.muted, 0.3), color: colors.foreground, borderColor: withAlpha(colors.border, 0.3) }]}
+                      />
+
+                      <Button
+                        label={submittingReview ? 'Enviando...' : 'Avaliar'}
+                        onPress={handleSubmitReview}
+                        disabled={!reviewRating || submittingReview}
+                        style={{ marginTop: 8 }}
+                      />
+
+                      {placeReviews.length > 0 && (
+                        <View style={{ marginTop: 12, gap: 8 }}>
+                          {placeReviews.map((rv: any) => (
+                            <View key={rv.id} style={[styles.reviewCard, { backgroundColor: withAlpha(colors.muted, 0.2) }]}>
+                              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <Text weight="700" size="sm">{rv.authorName}</Text>
+                                <View style={{ flexDirection: 'row', gap: 2 }}>
+                                  {Array.from({ length: 5 }).map((_, i) => (
+                                    <Ionicons
+                                      key={i}
+                                      name={i < rv.rating ? 'star' : 'star-outline'}
+                                      size={12}
+                                      color="#FBBF24"
+                                    />
+                                  ))}
+                                </View>
+                              </View>
+                              {rv.comment && <Text size="sm" color="mutedForeground" style={{ marginTop: 4 }}>{rv.comment}</Text>}
+                            </View>
+                          ))}
+                        </View>
+                      )}
+                    </View>
                   </View>
-                </View>
-              </>
-            ) : (
-              <Text color="mutedForeground" style={{ padding: 20, textAlign: 'center' }}>Não foi possível carregar detalhes</Text>
-            )}
+                </>
+              ) : (
+                <Text color="mutedForeground" style={{ padding: 20, textAlign: 'center' }}>Não foi possível carregar detalhes</Text>
+              )}
           </View>
         )}
       </View>

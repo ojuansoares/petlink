@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react'
 import {
   View, Pressable, StyleSheet, Platform, Alert, ActivityIndicator,
 } from 'react-native'
-import MapView, { Polyline, PROVIDER_GOOGLE, Region } from 'react-native-maps'
+import MapView, { Polyline, Region } from 'react-native-maps'
 import { Ionicons } from '@expo/vector-icons'
 import { useTheme } from '../hooks/useTheme'
 import { Text } from '../components/ui/Typography'
@@ -39,6 +39,31 @@ export default function WalkRecordingScreen() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const lastPointRef = useRef<{ lat: number; lng: number } | null>(null)
 
+  const startGpsWatch = useCallback(async () => {
+    watchRef.current?.remove()
+    const sub = await watchPosition(
+      (lat, lng) => {
+        const ts = new Date().toISOString()
+        const last = lastPointRef.current
+        let distanceDelta = 0
+        if (last) {
+          distanceDelta = haversineDistance(last.lat, last.lng, lat, lng)
+        }
+        lastPointRef.current = { lat, lng }
+        dispatch(addRoutePoint({ lat, lng, timestamp: ts, distanceDelta }))
+
+        if (distanceDelta > 0) {
+          const speedMs = distanceDelta / 5
+          const speedKmh = speedMs * 3.6
+          dispatch(updateMaxSpeed(speedKmh))
+        }
+      },
+      (err) => console.warn('GPS error:', err),
+      { timeInterval: 5000, distanceInterval: 5 },
+    )
+    watchRef.current = sub
+  }, [dispatch])
+
   // On mount: request permission and get initial location for map preview
   useEffect(() => {
     (async () => {
@@ -60,7 +85,7 @@ export default function WalkRecordingScreen() {
           })
         }
       } catch {
-        // GPS timeout, mapa ficará em placeholder
+        // GPS timeout, usa fallback
       } finally {
         setLoadingLocation(false)
       }
@@ -72,39 +97,14 @@ export default function WalkRecordingScreen() {
     }
   }, [])
 
-  // When walk becomes active, start GPS tracking
+  // Start/restart GPS watch when walking (including after resume)
   useEffect(() => {
-    if (!activeWalk || phase !== 'walking') return
-
-    ;(async () => {
-      const sub = await watchPosition(
-        (lat, lng) => {
-          const ts = new Date().toISOString()
-          const last = lastPointRef.current
-          let distanceDelta = 0
-          if (last) {
-            distanceDelta = haversineDistance(last.lat, last.lng, lat, lng)
-          }
-          lastPointRef.current = { lat, lng }
-          dispatch(addRoutePoint({ lat, lng, timestamp: ts, distanceDelta }))
-
-          if (distanceDelta > 0) {
-            const speedMs = distanceDelta / 5
-            const speedKmh = speedMs * 3.6
-            dispatch(updateMaxSpeed(speedKmh))
-          }
-
-          setRegion(prev => prev
-            ? { ...prev, latitude: lat, longitude: lng }
-            : { latitude: lat, longitude: lng, latitudeDelta: 0.01, longitudeDelta: 0.01 }
-          )
-        },
-        (err) => console.warn('GPS error:', err),
-        { timeInterval: 5000, distanceInterval: 5 },
-      )
-      watchRef.current = sub
-    })()
-  }, [!!activeWalk, phase])
+    if (!activeWalk || phase !== 'walking' || isPaused) return
+    startGpsWatch()
+    return () => {
+      watchRef.current?.remove()
+    }
+  }, [!!activeWalk, phase, isPaused])
 
   // Timer counter during walking
   useEffect(() => {
@@ -212,27 +212,30 @@ export default function WalkRecordingScreen() {
     <View style={styles.container}>
       {/* Map (always visible) */}
       <View style={styles.mapContainer}>
-        {region ? (
-          <MapView
-            style={StyleSheet.absoluteFill}
-            provider={PROVIDER_GOOGLE}
-            initialRegion={region}
-            showsUserLocation
-            followsUserLocation={phase === 'walking'}
-          >
-            {activeWalk && activeWalk.route.length > 1 && (
-              <Polyline
-                coordinates={activeWalk.route.map(p => ({ latitude: p.lat, longitude: p.lng }))}
-                strokeColor={colors.primary}
-                strokeWidth={4}
-                lineDashPattern={[0]}
-              />
-            )}
-          </MapView>
-        ) : (
-          <View style={[styles.mapPlaceholder, { backgroundColor: colors.muted }]}>
+        <MapView
+          style={StyleSheet.absoluteFill}
+          initialRegion={region ?? {
+            latitude: -15.7934,
+            longitude: -47.8822,
+            latitudeDelta: 0.1,
+            longitudeDelta: 0.1,
+          }}
+          showsUserLocation
+          followsUserLocation={phase === 'walking'}
+        >
+          {activeWalk && activeWalk.route.length > 1 && (
+            <Polyline
+              coordinates={activeWalk.route.map(p => ({ latitude: p.lat, longitude: p.lng }))}
+              strokeColor={colors.primary}
+              strokeWidth={4}
+              lineDashPattern={[0]}
+            />
+          )}
+        </MapView>
+        {!region && (
+          <View style={[styles.mapPlaceholder, { backgroundColor: withAlpha('#000', 0.4) }]}>
             <ActivityIndicator size="large" color={colors.primary} />
-            <Text color="mutedForeground" style={{ marginTop: 12 }}>
+            <Text style={{ color: '#fff', marginTop: 12 }}>
               {loadingLocation ? 'Obtendo localização...' : 'Aguardando GPS...'}
             </Text>
           </View>

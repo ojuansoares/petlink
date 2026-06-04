@@ -29,7 +29,7 @@
       "googleServicesFile": "./google-services.json",
       "config": {
         "googleMaps": {
-          "apiKey": "AIzaSyC6rd-tw7BhdM4KuCWRdlVzH7mxTON08cQ"
+          "apiKey": "AIzaSyDCd8h2shAzU3ejsXO7fB1dunwEWgZsrxs"
         }
       },
       "permissions": [

@@ -79,7 +79,7 @@ export function watchPosition(
   onError?: (err: any) => void,
   options?: { timeInterval?: number; distanceInterval?: number }
 ) {
-  return Location.watchPositionAsync(
+  const sub = Location.watchPositionAsync(
     {
       accuracy: Location.Accuracy.High,
       timeInterval: options?.timeInterval ?? 5000,
@@ -88,9 +88,11 @@ export function watchPosition(
     (loc) => {
       onPosition(loc.coords.latitude, loc.coords.longitude)
     }
-  ).catch((err) => {
+  )
+  sub.catch((err) => {
     onError?.(err)
   })
+  return sub
 }
 
 // ─── Geolocalização reversa (endereço a partir de coordenadas) ─

@@ -77,14 +77,19 @@ async function nominatimFetch(url: string): Promise<any> {
   return res.json()
 }
 
+function safeParseFloat(v: any): number {
+  const n = parseFloat(v)
+  return isFinite(n) ? n : 0
+}
+
 function mapNominatimResult(r: NominatimResult) {
   return {
     osmId: r.osm_id,
     osmType: r.osm_type,
     name: r.display_name.split(',')[0] || r.display_name,
     displayName: r.display_name,
-    lat: parseFloat(r.lat),
-    lng: parseFloat(r.lon),
+    lat: safeParseFloat(r.lat),
+    lng: safeParseFloat(r.lon),
     category: r.category,
     type: r.type,
     icon: r.icon || null,
@@ -99,7 +104,7 @@ export const placesRepository = {
     const cached = getCached(cacheKey)
     if (cached) return cached
 
-    let url = `${NOMINATIM_BASE}/search?q=${encodeURIComponent(query)}&format=json&addressdetails=1&limit=${limit}`
+    let url = `${NOMINATIM_BASE}/search?q=${encodeURIComponent(query)}&format=json&addressdetails=1&limit=${limit}&countrycodes=br`
     if (lat !== undefined && lng !== undefined) {
       url += `&lat=${lat}&lon=${lng}`
     }
@@ -133,8 +138,8 @@ export const placesRepository = {
         osmType: data.osm_type,
         name: data.display_name?.split(',')[0] || data.display_name,
         displayName: data.display_name,
-        lat: parseFloat(data.lat),
-        lng: parseFloat(data.lon),
+        lat: safeParseFloat(data.lat),
+        lng: safeParseFloat(data.lon),
         category: data.category,
         type: data.type,
         address: data.address || null,

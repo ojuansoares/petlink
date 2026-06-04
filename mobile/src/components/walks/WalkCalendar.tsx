@@ -37,7 +37,7 @@ export function WalkCalendar({ year, month, walkDays, onDayPress, onPrevMonth, o
         <Pressable onPress={onPrevMonth} hitSlop={8}>
           <Ionicons name="chevron-back" size={18} color={colors.primary} />
         </Pressable>
-        <Text weight="700" size="sm">
+        <Text weight="700" size="sm" style={{ flex: 1, textAlign: 'center' }}>
           {format(date, "MMMM 'de' yyyy", { locale: ptBR })}
         </Text>
         <Pressable onPress={onNextMonth} hitSlop={8}>

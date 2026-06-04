@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react'
 import { View, ScrollView, StyleSheet, Platform, ActivityIndicator } from 'react-native'
-import MapView, { Polyline, Marker, PROVIDER_GOOGLE, Region } from 'react-native-maps'
+import MapView, { Polyline, Marker, Region } from 'react-native-maps'
 import { Ionicons } from '@expo/vector-icons'
 import { useTheme } from '../hooks/useTheme'
 import { Text, Heading } from '../components/ui/Typography'
@@ -80,7 +80,6 @@ export default function WalkDetailScreen() {
         {region ? (
           <MapView
             style={StyleSheet.absoluteFill}
-            provider={PROVIDER_GOOGLE}
             initialRegion={region}
             scrollEnabled
             zoomEnabled

@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import {
   View, FlatList, Pressable, StyleSheet, ActivityIndicator,
-  Platform, Modal, ScrollView,
+  Platform, Modal, ScrollView, RefreshControl,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useTheme } from '../hooks/useTheme'
@@ -53,6 +53,8 @@ export default function WalkScreen() {
   const [showTutorial, setShowTutorial] = useState(false)
   const [frequency, setFrequency] = useState<WalkFrequency>('daily')
   const [frequencySet, setFrequencySet] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
+  const lastStatsKey = useRef('')
 
   useEffect(() => {
     (async () => {
@@ -75,6 +77,9 @@ export default function WalkScreen() {
   useEffect(() => {
     const start = startOfMonth(calendarDate).toISOString()
     const end = endOfMonth(calendarDate).toISOString()
+    const key = `${petId}-${start}-${end}`
+    if (key === lastStatsKey.current) return
+    lastStatsKey.current = key
     dispatch(fetchWalkStatsThunk({ petId, start, end }))
   }, [dispatch, petId, calendarDate])
 
@@ -113,6 +118,15 @@ export default function WalkScreen() {
   const handleWalkPress = useCallback((walk: any) => {
     navigation.navigate('WalkDetail', { walk })
   }, [navigation])
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true)
+    await dispatch(fetchWalksThunk(petId))
+    const start = startOfMonth(calendarDate).toISOString()
+    const end = endOfMonth(calendarDate).toISOString()
+    await dispatch(fetchWalkStatsThunk({ petId, start, end }))
+    setRefreshing(false)
+  }, [dispatch, petId, calendarDate])
 
   const renderWalkItem = ({ item }: { item: any }) => (
     <WalkCard walk={item} onPress={() => handleWalkPress(item)} />
@@ -212,7 +226,12 @@ export default function WalkScreen() {
       </View>
 
       {activeTab === 'resumo' ? (
-        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
+        <ScrollView
+          style={{ flex: 1 }}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 32 }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+        >
           <WalkCalendar
             year={calendarDate.getFullYear()}
             month={calendarDate.getMonth()}
@@ -264,6 +283,8 @@ export default function WalkScreen() {
           renderItem={renderWalkItem}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ paddingTop: 8, paddingBottom: 40 }}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
           ListEmptyComponent={
             isLoading ? (
               <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />

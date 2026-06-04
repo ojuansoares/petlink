@@ -24,6 +24,8 @@ interface Props {
   onClear: () => void
   selectedPlace: PlaceSelection | null
   label?: string
+  proximityLat?: number
+  proximityLng?: number
 }
 
 export function PlaceSearchInput({
@@ -33,6 +35,8 @@ export function PlaceSearchInput({
   onClear,
   selectedPlace,
   label,
+  proximityLat,
+  proximityLng,
 }: Props) {
   const { colors, withAlpha } = useTheme()
   const [results, setResults] = useState<OsmPlaceResult[]>([])
@@ -53,7 +57,7 @@ export function PlaceSearchInput({
     debounceRef.current = setTimeout(async () => {
       setIsSearching(true)
       try {
-        const data = await searchPlaces(text.trim(), undefined, undefined, 8)
+        const data = await searchPlaces(text.trim(), proximityLat, proximityLng, 8)
         setResults(data)
         setShowDropdown(data.length > 0)
       } catch {
