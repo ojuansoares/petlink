@@ -24,6 +24,7 @@ import {
   selectIsLoadingMoreFollowedFeed,
   selectHasMoreFollowedFeed,
   selectFollowedFeedPage,
+  selectFeedError,
   Post
 } from '../store/slices/postsSlice'
 import { AppStackParamList } from '../navigation/types'
@@ -32,6 +33,7 @@ import { CommentSheet } from '../components/ui/CommentSheet'
 import { useFeedStyles } from './Feed/useFeedStyles'
 import { AppToast } from '../components/ui/AppToast'
 import { CreatePostFAB } from '../components/ui/CreatePostFAB'
+import { selectPetsList } from '../store/slices/petsSlice'
 
 type NavigationProp = StackNavigationProp<AppStackParamList>
 
@@ -107,6 +109,7 @@ export default function FeedScreen() {
   }
 
    const currentUser = useAppSelector((state: any) => state.auth.user)
+   const pets = useAppSelector(selectPetsList)
    const posts = useAppSelector(selectFeed)
    const isLoading = useAppSelector(selectIsLoadingFeed)
    const isLoadingMore = useAppSelector(selectIsLoadingMoreFeed)
@@ -119,6 +122,8 @@ export default function FeedScreen() {
    const isLoadingMoreFollowedFeed = useAppSelector(selectIsLoadingMoreFollowedFeed)
    const hasMoreFollowedFeed = useAppSelector(selectHasMoreFollowedFeed)
    const followedFeedPage = useAppSelector(selectFollowedFeedPage)
+
+   const feedError = useAppSelector(selectFeedError)
 
    const [optionsModalOpen, setOptionsModalOpen] = useState(false)
    const [selectedPost, setSelectedPost] = useState<Post | null>(null)
@@ -273,7 +278,7 @@ export default function FeedScreen() {
       )}
       
       <AppToast />
-      <CreatePostFAB />
+      <CreatePostFAB onWalkPress={pets.length > 0 ? () => navigation.navigate('Walk', { petId: pets[0].id, petName: pets[0].name }) : undefined} />
     </View>
   )
 }

@@ -28,7 +28,6 @@ export const remindersService = {
       .from('vaccines')
       .select('id, name, pet_id, next_dose_at, is_completed, doses, type')
       .in('pet_id', petIds)
-      .eq('notified', false)
 
     const { data: consultations } = await supabaseAdmin
       .from('consultations')

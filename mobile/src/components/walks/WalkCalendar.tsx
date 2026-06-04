@@ -64,21 +64,22 @@ export function WalkCalendar({ year, month, walkDays, onDayPress, onPrevMonth, o
               onPress={() => onDayPress?.(day)}
               style={[
                 styles.dayCell,
-                isTodayDate && { backgroundColor: withAlpha(colors.primary, 0.1), borderRadius: 6 },
+                hasWalk && { backgroundColor: withAlpha('#F97316', 0.2), borderRadius: 8, paddingVertical: 6 },
+                isTodayDate && { borderColor: '#F97316', borderWidth: 1.5, borderRadius: 8, paddingVertical: 6 },
               ]}
             >
               <Text
                 size="xs"
                 weight={isTodayDate ? '800' : '600'}
                 style={{
-                  color: isCurrentMonth ? colors.foreground : withAlpha(colors.mutedForeground, 0.3),
-                  opacity: isCurrentMonth ? 1 : 0.3,
+                  color: isCurrentMonth ? colors.foreground : withAlpha(colors.mutedForeground, 0.55),
+                  opacity: isCurrentMonth ? 1 : 1,
                 }}
               >
                 {format(day, 'd')}
               </Text>
               {hasWalk && (
-                <View style={[styles.dot, { backgroundColor: colors.primary }]} />
+                <Ionicons name="flame" size={12} color="#F97316" />
               )}
             </Pressable>
           )
@@ -119,9 +120,5 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     gap: 1,
   },
-  dot: {
-    width: 3,
-    height: 3,
-    borderRadius: 1.5,
-  },
+
 })

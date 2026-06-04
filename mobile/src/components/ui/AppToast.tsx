@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native'
+import { View, Text, StyleSheet, ActivityIndicator, Pressable } from 'react-native'
 import { useAppDispatch, useAppSelector } from '../../store'
 import { selectToasts, dismissToast, selectIsDark } from '../../store/slices/uiSlice'
 import { tokens, withAlpha } from '../../theme'
@@ -59,7 +59,7 @@ export function AppToast() {
   if (toasts.length === 0) return null
 
   return (
-    <View style={styles.toastContainer} pointerEvents="none">
+    <View style={styles.toastContainer} pointerEvents="box-none">
       {toasts.map((toast, index) => {
         if (index > 0) return null
         const isError = toast.type === 'error'
@@ -84,6 +84,13 @@ export function AppToast() {
               {title && <Text style={[styles.toastTitle, { color: fgColor }]}>{title}</Text>}
               <Text style={[styles.toastMessage, { color: fgColor }]} numberOfLines={3} ellipsizeMode="tail">{toast.message}</Text>
             </View>
+            <Pressable
+              hitSlop={8}
+              onPress={() => dispatch(dismissToast(toast.id))}
+              style={styles.toastClose}
+            >
+              <Text style={[styles.toastCloseIcon, { color: fgColor }]}>✕</Text>
+            </Pressable>
           </View>
         )
       })}
@@ -124,5 +131,14 @@ const styles = StyleSheet.create({
   toastMessage: {
     fontSize: 13,
     lineHeight: 18,
+  },
+  toastClose: {
+    marginLeft: 10,
+    padding: 4,
+  },
+  toastCloseIcon: {
+    fontSize: 16,
+    fontWeight: '700',
+    opacity: 0.8,
   },
 })

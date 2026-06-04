@@ -44,6 +44,7 @@ export default function SettingsNotificationsScreen() {
     enabled: true,
     alimentacao: true,
     vacinas: true,
+    passeio: true,
     aniversario: true,
     social_likes: true,
     social_follows: true,

@@ -36,6 +36,9 @@ export const walksService = {
     photoUrl?: string
     route: unknown
     notes?: string
+    title?: string
+    color?: string
+    location?: string
   }) {
     const avgSpeed = payload.avgSpeedKmh ?? 0
     const calories = payload.calories ?? estimateCalories(payload.durationS, payload.distanceM, avgSpeed)
@@ -56,12 +59,18 @@ export const walksService = {
       photo_url: payload.photoUrl ?? null,
       route: payload.route,
       notes: payload.notes ?? null,
+      title: payload.title ?? null,
+      color: payload.color ?? null,
+      location: payload.location ?? null,
     })
   },
 
   async update(id: string, payload: {
     photoUrl?: string
     notes?: string
+    title?: string
+    color?: string
+    location?: string
   }) {
     if (!id) throw new AppError('id é obrigatório', 400)
     const walk = await walksRepository.findById(id)
@@ -70,6 +79,9 @@ export const walksService = {
     return walksRepository.update(id, {
       photo_url: payload.photoUrl,
       notes: payload.notes,
+      title: payload.title,
+      color: payload.color,
+      location: payload.location,
     })
   },
 

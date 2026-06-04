@@ -554,87 +554,87 @@ export function ConsultationScreen() {
         title={isEditMode ? 'Editar Consulta' : 'Adicionar Consulta'}
       >
         <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 500 }}>
-          <View style={styles.formSection}>
-            <Text size="xs" weight="800" color="mutedForeground" style={{ marginBottom: 8 }}>IDENTIFICAÇÃO VISUAL</Text>
-            <View style={styles.mediaToggle}>
-              <Pressable
-                onPress={handlePickPhoto}
-                style={[styles.mediaOption, mediaType === 'photo' && { backgroundColor: withAlpha(colors.primary, 0.12), borderColor: colors.primary }]}
-              >
-                <Ionicons name="camera-outline" size={20} color={mediaType === 'photo' ? colors.primary : colors.mutedForeground} />
-                <Text size="sm" weight="600" style={{ color: mediaType === 'photo' ? colors.primary : colors.mutedForeground }}>Foto</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => { setMediaType('color'); setMediaValue('') }}
-                style={[styles.mediaOption, mediaType === 'color' && { backgroundColor: withAlpha(colors.primary, 0.12), borderColor: colors.primary }]}
-              >
-                <Ionicons name="color-palette-outline" size={20} color={mediaType === 'color' ? colors.primary : colors.mutedForeground} />
-                <Text size="sm" weight="600" style={{ color: mediaType === 'color' ? colors.primary : colors.mutedForeground }}>Cor</Text>
-              </Pressable>
-            </View>
-
-            {mediaType === 'photo' && mediaValue ? (
-              <View style={styles.photoPreviewWrap}>
-                <Image source={mediaValue ?? undefined} style={styles.photoPreview} contentFit="cover" />
-                <Pressable onPress={() => { setMediaType(null); setMediaValue('') }} style={styles.removeMediaBtn}>
-                  <Ionicons name="close-circle" size={22} color={colors.destructive} />
+          <View style={{ gap: 12 }}>
+            <View style={styles.formSection}>
+              <Text size="xs" weight="800" color="mutedForeground" style={{ marginBottom: 8 }}>IDENTIFICAÇÃO VISUAL</Text>
+              <View style={styles.mediaToggle}>
+                <Pressable
+                  onPress={handlePickPhoto}
+                  style={[styles.mediaOption, mediaType === 'photo' && { backgroundColor: withAlpha(colors.primary, 0.12), borderColor: colors.primary }]}
+                >
+                  <Ionicons name="camera-outline" size={20} color={mediaType === 'photo' ? colors.primary : colors.mutedForeground} />
+                  <Text size="sm" weight="600" style={{ color: mediaType === 'photo' ? colors.primary : colors.mutedForeground }}>Foto</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => { setMediaType('color'); setMediaValue('') }}
+                  style={[styles.mediaOption, mediaType === 'color' && { backgroundColor: withAlpha(colors.primary, 0.12), borderColor: colors.primary }]}
+                >
+                  <Ionicons name="color-palette-outline" size={20} color={mediaType === 'color' ? colors.primary : colors.mutedForeground} />
+                  <Text size="sm" weight="600" style={{ color: mediaType === 'color' ? colors.primary : colors.mutedForeground }}>Cor</Text>
                 </Pressable>
               </View>
-            ) : null}
-            {isUploadingPhoto && <ActivityIndicator color={colors.primary} style={{ marginVertical: 8 }} />}
 
-            {mediaType === 'color' && (
-              <View style={styles.colorGrid}>
-                {PRESET_COLORS.map((c) => (
-                  <Pressable
-                    key={c}
-                    onPress={() => setMediaValue(c)}
-                    style={[
-                      styles.colorSwatch,
-                      { backgroundColor: c },
-                      mediaValue === c && { borderWidth: 3, borderColor: colors.foreground },
-                    ]}
-                  />
-                ))}
-              </View>
-            )}
-          </View>
+              {mediaType === 'photo' && mediaValue ? (
+                <View style={styles.photoPreviewWrap}>
+                  <Image source={mediaValue ?? undefined} style={styles.photoPreview} contentFit="cover" />
+                  <Pressable onPress={() => { setMediaType(null); setMediaValue('') }} style={styles.removeMediaBtn}>
+                    <Ionicons name="close-circle" size={22} color={colors.destructive} />
+                  </Pressable>
+                </View>
+              ) : null}
+              {isUploadingPhoto && <ActivityIndicator color={colors.primary} style={{ marginVertical: 8 }} />}
 
-          <Input label="Nome do Veterinário" value={vetName} onChangeText={setVetName} placeholder="Nome do Dr(a)." leftIcon={<Ionicons name="person-outline" size={18} color={colors.mutedForeground} />} />
-          <View>
-            <Text size="xs" weight="800" color="mutedForeground" style={{ marginBottom: 6 }}>CLÍNICA / LOCAL</Text>
+              {mediaType === 'color' && (
+                <View style={styles.colorGrid}>
+                  {PRESET_COLORS.map((c) => (
+                    <Pressable
+                      key={c}
+                      onPress={() => setMediaValue(c)}
+                      style={[
+                        styles.colorSwatch,
+                        { backgroundColor: c },
+                        mediaValue === c && { borderWidth: 3, borderColor: colors.foreground },
+                      ]}
+                    />
+                  ))}
+                </View>
+              )}
+            </View>
+
+            <Input label="Nome do Veterinário" value={vetName} onChangeText={setVetName} placeholder="Nome do Dr(a)." leftIcon={<Ionicons name="person-outline" size={18} color={colors.mutedForeground} />} />
             <PlaceSearchInput
+              label="CLÍNICA / LOCAL"
               value={clinic}
               onTextChange={setClinic}
               onPlaceSelect={setSelectedPlace}
               onClear={() => { setSelectedPlace(null); setClinic('') }}
               selectedPlace={selectedPlace}
             />
+            <DateInput label="Data da Consulta" value={consultedAt} onPress={() => setShowDatePicker(true)} leftIconName="calendar-outline" />
+            <Input label="Motivo" value={reason} onChangeText={setReason} multiline placeholder="O que o pet está sentindo?" leftIcon={<Ionicons name="help-circle-outline" size={18} color={colors.mutedForeground} />} />
+            <Input label="Diagnóstico" value={diagnosis} onChangeText={setDiagnosis} multiline placeholder="O que o Dr(a) disse?" leftIcon={<Ionicons name="clipboard-outline" size={18} color={colors.mutedForeground} />} />
+            <Input label="Exames Solicitados" value={examsRequested} onChangeText={setExamsRequested} placeholder="Lista de exames (opcional)" multiline leftIcon={<Ionicons name="list-outline" size={18} color={colors.mutedForeground} />} />
+            <Input label="Prescrição" value={prescription} onChangeText={setPrescription} multiline placeholder="Remédios e dosagens" leftIcon={<Ionicons name="medkit-outline" size={18} color={colors.mutedForeground} />} />
+            <Input label="Notas" value={notes} onChangeText={setNotes} multiline placeholder="Observações extras" leftIcon={<Ionicons name="document-text-outline" size={18} color={colors.mutedForeground} />} />
+
+            {mediaType === 'photo' && mediaValue && (
+              <Pressable
+                onPress={() => setShouldPostAfterSave(prev => !prev)}
+                style={[styles.checkboxRow, { backgroundColor: withAlpha(colors.primary, 0.06), borderRadius: 12, padding: 12 }]}
+              >
+                <Ionicons
+                  name={shouldPostAfterSave ? 'checkbox' : 'square-outline'}
+                  size={22}
+                  color={shouldPostAfterSave ? colors.primary : colors.mutedForeground}
+                />
+                <Text size="sm" weight="600" style={{ marginLeft: 8, flex: 1 }}>
+                  Postar consulta após salvar
+                </Text>
+              </Pressable>
+            )}
+
+            <Button onPress={handleSave} style={{ marginTop: 8, marginBottom: 20 }} loading={isUploadingPhoto} label="Salvar" />
           </View>
-          <DateInput label="Data da Consulta" value={consultedAt} onPress={() => setShowDatePicker(true)} leftIconName="calendar-outline" />
-          <Input label="Motivo" value={reason} onChangeText={setReason} multiline placeholder="O que o pet está sentindo?" leftIcon={<Ionicons name="help-circle-outline" size={18} color={colors.mutedForeground} />} />
-          <Input label="Diagnóstico" value={diagnosis} onChangeText={setDiagnosis} multiline placeholder="O que o Dr(a) disse?" leftIcon={<Ionicons name="clipboard-outline" size={18} color={colors.mutedForeground} />} />
-          <Input label="Exames Solicitados" value={examsRequested} onChangeText={setExamsRequested} placeholder="Lista de exames (opcional)" multiline leftIcon={<Ionicons name="list-outline" size={18} color={colors.mutedForeground} />} />
-          <Input label="Prescrição" value={prescription} onChangeText={setPrescription} multiline placeholder="Remédios e dosagens" leftIcon={<Ionicons name="medkit-outline" size={18} color={colors.mutedForeground} />} />
-          <Input label="Notas" value={notes} onChangeText={setNotes} multiline placeholder="Observações extras" leftIcon={<Ionicons name="document-text-outline" size={18} color={colors.mutedForeground} />} />
-
-          {mediaType === 'photo' && mediaValue && (
-            <Pressable
-              onPress={() => setShouldPostAfterSave(prev => !prev)}
-              style={[styles.checkboxRow, { backgroundColor: withAlpha(colors.primary, 0.06), borderRadius: 12, padding: 12, marginTop: 8 }]}
-            >
-              <Ionicons
-                name={shouldPostAfterSave ? 'checkbox' : 'square-outline'}
-                size={22}
-                color={shouldPostAfterSave ? colors.primary : colors.mutedForeground}
-              />
-              <Text size="sm" weight="600" style={{ marginLeft: 8, flex: 1 }}>
-                Postar consulta após salvar
-              </Text>
-            </Pressable>
-          )}
-
-          <Button onPress={handleSave} style={{ marginTop: 16, marginBottom: 20 }} loading={isUploadingPhoto} label="Salvar" />
         </ScrollView>
 
         {showDatePicker && DateTimePickerComponent && (

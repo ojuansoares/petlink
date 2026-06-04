@@ -16,4 +16,6 @@ export class FeedPhotoModel extends Model {
   @text('author_name') authorName!: string | null
   @text('author_avatar_url') authorAvatarUrl!: string | null
   @text('pet_name') petName!: string | null
+  @field('likes_count') likesCount!: number
+  @field('comments_count') commentsCount!: number
 }

@@ -9,6 +9,11 @@ export class ProfilePhotoModel extends Model {
   @text('image_url') imageUrl!: string
   @text('pet_name') petName!: string | null
   @text('caption') caption!: string | null
+  @text('location') location!: string | null
+  @text('author_name') authorName!: string | null
+  @text('author_avatar_url') authorAvatarUrl!: string | null
   @field('created_at') createdAt!: number
   @field('is_pinned') isPinned!: boolean | null
+  @field('likes_count') likesCount!: number
+  @field('comments_count') commentsCount!: number
 }

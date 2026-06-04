@@ -37,6 +37,8 @@ export const offlinePostsRepository = {
     caption: string | null
     location: string | null
     is_pinned: boolean
+    likes_count?: number
+    comments_count?: number
     created_at: string
     updated_at: string
     profiles?: { name: string; avatar_url: string | null; level: number }
@@ -63,6 +65,8 @@ export const offlinePostsRepository = {
             record.caption = post.caption
             record.location = post.location
             record.isPinned = post.is_pinned
+            record.likesCount = post.likes_count ?? 0
+            record.commentsCount = post.comments_count ?? 0
             record.createdAt = Date.parse(post.created_at)
             record.updatedAt = Date.parse(post.updated_at)
             record.authorName = post.profiles?.name ?? null
@@ -102,6 +106,8 @@ export const offlinePostsRepository = {
           caption: r.caption,
           location: r.location,
           is_pinned: r.isPinned,
+          likes_count: r.likesCount ?? 0,
+          comments_count: r.commentsCount ?? 0,
           created_at: new Date(r.createdAt).toISOString(),
           updated_at: r.updatedAt ? new Date(r.updatedAt).toISOString() : new Date().toISOString(),
           profiles: r.authorName ? { name: r.authorName, avatar_url: r.authorAvatarUrl, level: 1 } : undefined,
@@ -119,9 +125,13 @@ export const offlinePostsRepository = {
     image_url: string
     pet_id: string | null
     caption: string | null
+    location: string | null
+    likes_count?: number
+    comments_count?: number
     created_at: string
     is_pinned: boolean
     pets?: { name: string }[] | { name: string }
+    profiles?: { name: string; avatar_url: string | null; level: number }
   }>) {
     if (!isOfflineDbAvailable || !offlineDatabase) return
 
@@ -144,6 +154,11 @@ export const offlinePostsRepository = {
             record.imageUrl = post.image_url
             record.petName = serializePetIds(normalizePets(post.pets))
             record.caption = post.caption
+            record.location = post.location
+            record.authorName = post.profiles?.name ?? null
+            record.authorAvatarUrl = post.profiles?.avatar_url ?? null
+            record.likesCount = post.likes_count ?? 0
+            record.commentsCount = post.comments_count ?? 0
             record.createdAt = Date.parse(post.created_at)
             record.isPinned = post.is_pinned
           })
@@ -167,9 +182,13 @@ export const offlinePostsRepository = {
         image_url: r.imageUrl,
         pet_id: null,
         caption: r.caption,
+        location: r.location,
+        likes_count: r.likesCount ?? 0,
+        comments_count: r.commentsCount ?? 0,
         created_at: new Date(r.createdAt).toISOString(),
         is_pinned: r.isPinned,
         pets: deserializePets(r.petName),
+        profiles: r.authorName ? { name: r.authorName, avatar_url: r.authorAvatarUrl, level: 1 } : undefined,
       }))
     } catch (error) {
       console.log('[OFFLINE][ProfilePhotos][GET_ERROR]', error)

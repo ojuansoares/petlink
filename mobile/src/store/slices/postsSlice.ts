@@ -634,3 +634,4 @@ export const selectIsLoadingMoreUserPosts = (s: any): boolean => s.posts.isLoadi
 export const selectUserPostsUserId = (s: any): string | null => s.posts.userPostsUserId
 
 export const selectIsPosting = (s: any): boolean => s.posts.isPosting
+export const selectFeedError = (s: any): string | null => s.posts.error

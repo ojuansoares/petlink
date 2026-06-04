@@ -28,6 +28,7 @@ import {
   selectIsJoiningGroup,
   selectPendingInvites,
   selectIsLoadingInvites,
+  selectGroupsError,
 } from '../store/slices/groupsSlice'
 import type { Group, GroupInvite } from '../api/groups.api'
 import { groupsApi, type GroupDetails } from '../api/groups.api'
@@ -50,6 +51,7 @@ export default function GroupsScreen() {
   const isLoadingDiscover = useAppSelector(selectIsLoadingDiscover)
   const pendingInvites = useAppSelector(selectPendingInvites)
   const isLoadingInvites = useAppSelector(selectIsLoadingInvites)
+  const groupsError = useAppSelector(selectGroupsError)
 
   const [activeTab, setActiveTab] = useState<Tab>('mine')
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -278,6 +280,33 @@ export default function GroupsScreen() {
           onRefresh={() => dispatch(fetchDiscoverGroupsThunk(1))}
         />
         )
+      )}
+
+      {groupsError && !isLoadingMy && !isLoadingDiscover && (
+        <View style={{
+          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.6)',
+          justifyContent: 'center', alignItems: 'center', zIndex: 50,
+        }}>
+          <Ionicons name="alert-circle-outline" size={48} color="#fff" style={{ opacity: 0.7 }} />
+          <Text weight="700" size="lg" style={{ color: '#fff', marginTop: 16, textAlign: 'center', paddingHorizontal: 32 }}>
+            Não foi possível carregar os grupos
+          </Text>
+          <Pressable
+            onPress={() => {
+              dispatch(fetchMyGroupsThunk())
+              dispatch(fetchDiscoverGroupsThunk(1))
+            }}
+            style={{
+              marginTop: 20,
+              paddingHorizontal: 28, paddingVertical: 14,
+              borderRadius: 14,
+              backgroundColor: colors.primary,
+            }}
+          >
+            <Text weight="800" size="sm" style={{ color: '#fff' }}>Tente novamente</Text>
+          </Pressable>
+        </View>
       )}
 
       {/* FAB — Criar grupo */}

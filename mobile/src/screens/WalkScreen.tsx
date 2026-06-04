@@ -15,7 +15,7 @@ import { useAppDispatch, useAppSelector } from '../store'
 import { selectPetsList } from '../store/slices/petsSlice'
 import {
   fetchWalksThunk, fetchWalkStatsThunk,
-  selectWalksList, selectWalksLoading, selectWalkStats,
+  selectWalksList, selectWalksLoading, selectWalkStats, selectWalkStatsError, selectWalkStatsLoading,
 } from '../store/slices/walksSlices'
 import { WalkStatsCard } from '../components/walks/WalkStatsCard'
 import { WalkCard } from '../components/walks/WalkCard'
@@ -26,14 +26,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 
 type ScreenRoute = RouteProp<AppStackParamList, 'Walk'>
 
-type WalkFrequency = 'daily' | 'every2days' | '2-3xweek' | 'weekly' | 'custom'
+type WalkFrequency = 'daily' | 'every2days' | '2-3xweek' | 'weekly' | 'skip'
 
 const FREQUENCY_OPTIONS: { value: WalkFrequency; label: string; desc: string }[] = [
   { value: 'daily',     label: 'Diariamente',     desc: 'Todos os dias' },
   { value: 'every2days', label: 'A cada 2 dias',  desc: 'Dia sim, dia não' },
   { value: '2-3xweek',  label: '2–3x por semana', desc: 'Alguns dias da semana' },
   { value: 'weekly',    label: 'Semanalmente',    desc: 'Uma vez por semana' },
-  { value: 'custom',    label: 'Personalizado',   desc: 'Escolher dias específicos' },
+  { value: 'skip',      label: 'Vou pensar depois', desc: 'Configurar a frequência depois' },
 ]
 
 export default function WalkScreen() {
@@ -47,6 +47,8 @@ export default function WalkScreen() {
   const walks = useAppSelector(selectWalksList)
   const isLoading = useAppSelector(selectWalksLoading)
   const stats = useAppSelector(selectWalkStats)
+  const statsError = useAppSelector(selectWalkStatsError)
+  const statsLoading = useAppSelector(selectWalkStatsLoading)
 
   const [activeTab, setActiveTab] = useState<'resumo' | 'historico'>('resumo')
   const [calendarDate, setCalendarDate] = useState(new Date())
@@ -85,13 +87,17 @@ export default function WalkScreen() {
 
   const handleFinishTutorial = async () => {
     await AsyncStorage.setItem(`petlink.walk.tutorial.${petId}`, 'true')
+    if (frequency === 'skip') {
+      setShowTutorial(false)
+      return
+    }
     await AsyncStorage.setItem(`petlink.walk.frequency.${petId}`, frequency)
+    await AsyncStorage.setItem('petlink.notifications.passeio', 'true')
     setShowTutorial(false)
     setFrequencySet(true)
 
     const notifEnabled = await AsyncStorage.getItem('petlink.notifications.enabled')
-    const walkNotif = await AsyncStorage.getItem('petlink.notifications.passeio')
-    if (notifEnabled !== 'false' && walkNotif !== 'false') {
+    if (notifEnabled !== 'false') {
       await scheduleWalkReminder(petId, petName, 17, 0)
     }
   }
@@ -193,7 +199,16 @@ export default function WalkScreen() {
       </Modal>
 
       <View style={styles.header}>
-        <Heading size="xl" weight="800">Passeios</Heading>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Heading size="xl" weight="800">Passeios</Heading>
+          <Pressable
+            onPress={() => setShowTutorial(true)}
+            hitSlop={8}
+            style={{ padding: 4 }}
+          >
+            <Ionicons name="ellipsis-vertical" size={20} color={colors.mutedForeground} />
+          </Pressable>
+        </View>
         <Text color="mutedForeground">{petName}</Text>
       </View>
 
@@ -242,40 +257,54 @@ export default function WalkScreen() {
 
           <View style={styles.sectionGap} />
 
-          <View style={styles.topicSection}>
-            <Text size="xs" weight="800" color="mutedForeground" style={styles.topicLabel}>DISTÂNCIA</Text>
-            <View style={styles.statsRow}>
-              <WalkStatsCard icon="map-outline" label="Total" value={totalKmText} color={colors.primary} />
-              <WalkStatsCard icon="speedometer-outline" label="Média/passeio" value={avgKmText} color="#22C55E" />
+          {statsError && !statsLoading ? (
+            <View style={{ alignItems: 'center', paddingVertical: 24 }}>
+              <Text size="sm" color="mutedForeground" style={{ textAlign: 'center', marginBottom: 12 }}>
+                Não foi possível carregar os passeios deste mês
+              </Text>
+              <Pressable
+                onPress={() => {
+                  const start = startOfMonth(calendarDate).toISOString()
+                  const end = endOfMonth(calendarDate).toISOString()
+                  dispatch(fetchWalkStatsThunk({ petId, start, end }))
+                }}
+                style={({ pressed }) => ({
+                  paddingHorizontal: 24, paddingVertical: 12,
+                  borderRadius: 12,
+                  backgroundColor: pressed ? withAlpha(colors.primary, 0.8) : colors.primary,
+                  opacity: pressed ? 0.8 : 1,
+                })}>
+                <Text weight="800" size="sm" style={{ color: '#fff' }}>Tente novamente</Text>
+              </Pressable>
             </View>
-          </View>
+          ) : (
+            <>
+              <View style={styles.topicSection}>
+                <Text size="xs" weight="800" color="mutedForeground" style={styles.topicLabel}>DISTÂNCIA</Text>
+                <View style={styles.statsRow}>
+                  <WalkStatsCard icon="map-outline" label="Total" value={totalKmText} color={colors.primary} />
+                  <WalkStatsCard icon="speedometer-outline" label="Média/passeio" value={avgKmText} color="#22C55E" />
+                </View>
+              </View>
 
-          <View style={styles.topicSection}>
-            <Text size="xs" weight="800" color="mutedForeground" style={styles.topicLabel}>ATIVIDADE</Text>
-            <View style={styles.statsRow}>
-              <WalkStatsCard icon="footsteps-outline" label="Passeios" value={totalWalksText} color="#8B5CF6" />
-              <WalkStatsCard icon="time-outline" label="Tempo total" value={formatHours(totalDuration)} color="#3B82F6" />
-            </View>
-          </View>
+              <View style={styles.topicSection}>
+                <Text size="xs" weight="800" color="mutedForeground" style={styles.topicLabel}>ATIVIDADE</Text>
+                <View style={styles.statsRow}>
+                  <WalkStatsCard icon="footsteps-outline" label="Passeios" value={totalWalksText} color="#8B5CF6" />
+                  <WalkStatsCard icon="time-outline" label="Tempo total" value={formatHours(totalDuration)} color="#3B82F6" />
+                </View>
+              </View>
 
-          <View style={styles.topicSection}>
-            <Text size="xs" weight="800" color="mutedForeground" style={styles.topicLabel}>DESEMPENHO</Text>
-            <View style={styles.statsRow}>
-              <WalkStatsCard icon="flame-outline" label="Calorias" value={`${totalCalories}`} color="#F97316" />
-              <WalkStatsCard icon="calendar-outline" label="Registros" value={`${stats.length} dias`} color="#EC4899" />
-            </View>
-          </View>
+              <View style={styles.topicSection}>
+                <Text size="xs" weight="800" color="mutedForeground" style={styles.topicLabel}>DESEMPENHO</Text>
+                <View style={styles.statsRow}>
+                  <WalkStatsCard icon="flame-outline" label="Calorias" value={`${totalCalories}`} color="#F97316" />
+                  <WalkStatsCard icon="calendar-outline" label="Registros" value={`${stats.length} dias`} color="#EC4899" />
+                </View>
+              </View>
+            </>
+          )}
 
-          <Pressable
-            onPress={() => navigation.navigate('SettingsNotifications' as any)}
-            style={[styles.notifHint, { backgroundColor: withAlpha(colors.primary, 0.06), borderColor: withAlpha(colors.primary, 0.2) }]}
-          >
-            <Ionicons name="notifications-outline" size={18} color={colors.mutedForeground} />
-            <Text size="sm" color="mutedForeground" style={{ flex: 1 }}>
-              {frequencySet ? `Lembrete: ${FREQUENCY_OPTIONS.find(o => o.value === frequency)?.label}` : 'Configurar lembretes'}
-            </Text>
-            <Ionicons name="chevron-forward" size={16} color={colors.mutedForeground} style={{ opacity: 0.4 }} />
-          </Pressable>
         </ScrollView>
       ) : (
         <FlatList
@@ -325,15 +354,7 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 8,
   },
-  notifHint: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-    gap: 10,
-    marginBottom: 8,
-  },
+
   tabRow: {
     flexDirection: 'row',
     borderBottomWidth: 1,

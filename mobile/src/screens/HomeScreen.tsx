@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   useWindowDimensions,
   Animated,
+  RefreshControl,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useNavigation } from '@react-navigation/native'
@@ -383,11 +384,25 @@ export default function HomeScreen() {
     )
   }
 
+  const [refreshing, setRefreshing] = useState(false)
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true)
+    try {
+      const data = await fetchReminders()
+      setReminders(data)
+    } catch {
+      setReminders([])
+    }
+    setRefreshing(false)
+  }, [])
+
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
     >
       {/* HEADER */}
       <View style={styles.header}>
@@ -553,7 +568,7 @@ export default function HomeScreen() {
           </Pressable>
 
           <Pressable
-            onPress={() => {}}
+            onPress={() => navigation.navigate('Walk', { petId: activePet.id, petName: activePet.name })}
             style={[styles.quickActionBtn, { backgroundColor: withAlpha('#8B5CF6', 0.12), borderColor: withAlpha('#8B5CF6', borderA), borderWidth: borderW }, screenWidth < 400 ? { width: (screenWidth - 32 - 10) / 2 } : { width: (screenWidth - 32 - 30) / 4 }]}
           >
             <View style={[styles.quickActionIcon, { backgroundColor: '#8B5CF6' }]}>

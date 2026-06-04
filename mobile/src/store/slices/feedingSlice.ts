@@ -41,6 +41,7 @@ type FeedingState = {
   isLoadingLogs: boolean
   isLoadingScore: boolean
   isSaving: boolean
+  fetchError: boolean
 }
 
 const initialState: FeedingState = {
@@ -51,6 +52,7 @@ const initialState: FeedingState = {
   isLoadingLogs: false,
   isLoadingScore: false,
   isSaving: false,
+  fetchError: false,
 }
 
 export const fetchFeedingPlanThunk = createAsyncThunk(
@@ -155,9 +157,9 @@ const feedingSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      .addCase(fetchFeedingPlanThunk.pending, (s) => { s.isLoadingPlan = true })
-      .addCase(fetchFeedingPlanThunk.fulfilled, (s, a) => { s.isLoadingPlan = false; s.plan = a.payload })
-      .addCase(fetchFeedingPlanThunk.rejected, (s) => { s.isLoadingPlan = false })
+      .addCase(fetchFeedingPlanThunk.pending, (s) => { s.isLoadingPlan = true; s.fetchError = false })
+      .addCase(fetchFeedingPlanThunk.fulfilled, (s, a) => { s.isLoadingPlan = false; s.plan = a.payload; s.fetchError = false })
+      .addCase(fetchFeedingPlanThunk.rejected, (s) => { s.isLoadingPlan = false; s.fetchError = true })
 
       .addCase(saveFeedingPlanThunk.pending, (s) => { s.isSaving = true })
       .addCase(saveFeedingPlanThunk.fulfilled, (s, a) => { s.isSaving = false; s.plan = a.payload })
@@ -194,3 +196,4 @@ export const selectFeedingLoading = (s: any): boolean => s.feeding.isLoadingLogs
 export const selectFeedingSaving = (s: any): boolean => s.feeding.isSaving
 export const selectFeedingScore = (s: any): DayScore[] => s.feeding.score
 export const selectFeedingScoreLoading = (s: any): boolean => s.feeding.isLoadingScore
+export const selectFeedingError = (s: any): boolean => s.feeding.fetchError

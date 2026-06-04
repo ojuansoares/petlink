@@ -27,6 +27,8 @@ interface CreatePostModalProps {
   initialPhotoUrl?: string
   initialPetIds?: string[]
   groupId?: string
+  initialCaption?: string
+  initialLocation?: string
 }
 
 const BRAZIL_STATES = [
@@ -59,7 +61,7 @@ const BRAZIL_STATES = [
   { label: 'Tocantins', value: 'TO' },
 ]
 
-export function CreatePostModal({ visible, onClose, initialPhotoUrl, initialPetIds, groupId }: Readonly<CreatePostModalProps>) {
+export function CreatePostModal({ visible, onClose, initialPhotoUrl, initialPetIds, groupId, initialCaption, initialLocation }: Readonly<CreatePostModalProps>) {
   const { colors, withAlpha } = useTheme()
   const dispatch = useAppDispatch()
   const { isOnline } = useNetworkCheck()
@@ -124,10 +126,24 @@ export function CreatePostModal({ visible, onClose, initialPhotoUrl, initialPetI
   }, [visible, groupId])
 
   useEffect(() => {
-    if (visible && !location && !suggestedLocation) {
+    if (visible && initialCaption !== undefined) {
+      setCaption(initialCaption)
+    }
+  }, [visible, initialCaption])
+
+  useEffect(() => {
+    if (visible && initialLocation !== undefined && initialLocation.length > 0) {
+      setLocation(initialLocation)
+      setSuggestedLocation(initialLocation)
+      setLocationMode('suggestion')
+    }
+  }, [visible, initialLocation])
+
+  useEffect(() => {
+    if (visible && !location && !suggestedLocation && !initialLocation) {
       handleGetLocation()
     }
-  }, [visible, location, suggestedLocation, handleGetLocation])
+  }, [visible, location, suggestedLocation, handleGetLocation, initialLocation])
 
   const requireOnline = (action: () => void) => {
     if (!isOnline) {

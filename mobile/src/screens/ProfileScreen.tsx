@@ -524,7 +524,7 @@ export default function ProfileScreen() {
         title="Seguindo"
       />
       <AppToast />
-      <CreatePostFAB />
+      <CreatePostFAB onWalkPress={pets.length > 0 ? () => navigation.navigate('Walk', { petId: pets[0].id, petName: pets[0].name }) : undefined} />
 
       <ImagePickerSheet
         visible={showImagePicker}

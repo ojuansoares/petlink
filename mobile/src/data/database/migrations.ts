@@ -80,5 +80,27 @@ export const offlineMigrations = schemaMigrations({
         }),
       ],
     },
+    {
+      toVersion: 8,
+      steps: [
+        addColumns({
+          table: 'feed_photos',
+          columns: [
+            { name: 'likes_count', type: 'number' },
+            { name: 'comments_count', type: 'number' },
+          ],
+        }),
+        addColumns({
+          table: 'profile_photos',
+          columns: [
+            { name: 'location', type: 'string', isOptional: true },
+            { name: 'author_name', type: 'string', isOptional: true },
+            { name: 'author_avatar_url', type: 'string', isOptional: true },
+            { name: 'likes_count', type: 'number' },
+            { name: 'comments_count', type: 'number' },
+          ],
+        }),
+      ],
+    },
   ],
 })

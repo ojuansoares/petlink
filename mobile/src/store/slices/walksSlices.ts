@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit'
 import {
   fetchWalks,
@@ -11,6 +12,8 @@ import {
   type WalkStats,
 } from '../../api/walks.api'
 import { walkQueueRepository } from '../../data/repositories/WalkQueueRepository'
+
+const CACHE_PREFIX = 'petlink.walk.cache'
 
 export type { Walk, WalkPoint, WalkStats }
 
@@ -33,6 +36,7 @@ interface WalksState {
   error: string | null
   stats: WalkStats[]
   statsLoading: boolean
+  statsError: boolean
 }
 
 const initialState: WalksState = {
@@ -43,14 +47,20 @@ const initialState: WalksState = {
   error: null,
   stats: [],
   statsLoading: false,
+  statsError: false,
 }
 
 export const fetchWalksThunk = createAsyncThunk(
   'walks/fetchAll',
   async (petId: string, { rejectWithValue }) => {
     try {
-      return await fetchWalks(petId)
+      const data = await fetchWalks(petId)
+      const last3 = data.slice(0, 3)
+      await AsyncStorage.setItem(`${CACHE_PREFIX}.list.${petId}`, JSON.stringify(last3))
+      return data as Walk[]
     } catch (err: any) {
+      const cached = await AsyncStorage.getItem(`${CACHE_PREFIX}.list.${petId}`)
+      if (cached) return JSON.parse(cached) as Walk[]
       return rejectWithValue(err.response?.data?.error ?? 'Erro ao buscar passeios')
     }
   }
@@ -84,7 +94,7 @@ export const saveWalkThunk = createAsyncThunk(
 
 export const updateWalkThunk = createAsyncThunk(
   'walks/update',
-  async ({ id, data }: { id: string; data: { photoUrl?: string; notes?: string } }, { rejectWithValue }) => {
+  async ({ id, data }: { id: string; data: { photoUrl?: string; notes?: string; title?: string; color?: string; location?: string } }, { rejectWithValue }) => {
     try {
       return await updateWalk(id, data)
     } catch (err: any) {
@@ -211,9 +221,9 @@ const walksSlice = createSlice({
       })
 
     builder
-      .addCase(fetchWalkStatsThunk.pending, (s) => { s.statsLoading = true })
-      .addCase(fetchWalkStatsThunk.fulfilled, (s, a) => { s.statsLoading = false; s.stats = a.payload })
-      .addCase(fetchWalkStatsThunk.rejected, (s) => { s.statsLoading = false })
+      .addCase(fetchWalkStatsThunk.pending, (s) => { s.statsLoading = true; s.statsError = false })
+      .addCase(fetchWalkStatsThunk.fulfilled, (s, a) => { s.statsLoading = false; s.stats = a.payload; s.statsError = false })
+      .addCase(fetchWalkStatsThunk.rejected, (s) => { s.statsLoading = false; s.statsError = true })
   },
 })
 
@@ -229,3 +239,4 @@ export const selectIsWalking = (s: any): boolean => !!s.walks.active
 export const selectWalksLoading = (s: any): boolean => s.walks.isLoading
 export const selectWalkStats = (s: any): WalkStats[] => s.walks.stats
 export const selectWalkStatsLoading = (s: any): boolean => s.walks.statsLoading
+export const selectWalkStatsError = (s: any): boolean => s.walks.statsError

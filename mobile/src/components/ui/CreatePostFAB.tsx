@@ -17,7 +17,11 @@ import { fetchPetsThunk } from '../../store/slices/petsSlice'
 const BUTTON_SIZE = 56
 const GAP = 16
 
-export function CreatePostFAB() {
+interface CreatePostFABProps {
+  onWalkPress?: () => void
+}
+
+export function CreatePostFAB({ onWalkPress }: CreatePostFABProps) {
   const dispatch = useAppDispatch()
   const { colors, withAlpha } = useTheme()
   const insets = useSafeAreaInsets()
@@ -83,7 +87,8 @@ export function CreatePostFAB() {
 
   const handleWalk = useCallback(() => {
     toggle()
-  }, [toggle])
+    onWalkPress?.()
+  }, [toggle, onWalkPress])
 
   const mainAnim = useAnimatedStyle(() => ({
     transform: [{ rotate: `${rotate.value}deg` }],

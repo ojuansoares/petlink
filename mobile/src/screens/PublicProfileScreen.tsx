@@ -296,33 +296,39 @@ export default function PublicProfileScreen() {
           </Pressable>
         </View>
 
-       <SegmentedTabs
-          options={[
-            { id: 'posts', label: 'Posts' },
-            { id: 'pets', label: 'Pets' }
-          ]}
-          activeId={activeTab}
-          onChange={(id: any) => setActiveTab(id)}
-          style={{ width: '100%' }}
-        />
-
-      {activeTab === 'posts' && pets.length > 1 && posts.length > 0 && (
-        <View style={styles.filterContainer}>
-          <OptionSelect
-            placeholder="Filtrar por Pet"
-            value={selectedPetFilter}
-            onChange={setSelectedPetFilter}
-            options={[
-              { label: 'Todos os posts', value: '' },
-              ...pets.map(p => ({ label: p.name, value: p.id, photoUrl: p.photo_url }))
-            ]}
-            leftIconName="paw-outline"
-            showPhotos
-          />
-        </View>
-      )}
     </View>
   )
+
+  const tabsComponent = (
+    <SegmentedTabs
+      options={[
+        { id: 'posts', label: 'Posts' },
+        { id: 'pets', label: 'Pets' }
+      ]}
+      activeId={activeTab}
+      onChange={(id: any) => setActiveTab(id)}
+      style={{ width: '100%' }}
+    />
+  )
+
+  const renderPetFilter = () => {
+    if (pets.length <= 1 || posts.length === 0) return null
+    return (
+      <View style={styles.filterContainer}>
+        <OptionSelect
+          placeholder="Filtrar por Pet"
+          value={selectedPetFilter}
+          onChange={setSelectedPetFilter}
+          options={[
+            { label: 'Todos os posts', value: '' },
+            ...pets.map(p => ({ label: p.name, value: p.id, photoUrl: p.photo_url }))
+          ]}
+          leftIconName="paw-outline"
+          showPhotos
+        />
+      </View>
+    )
+  }
 
   const renderPetsList = () => {
     if (isPetsLoading) return <ActivityIndicator color={colors.primary} style={{ marginTop: 20 }} />
@@ -402,7 +408,10 @@ export default function PublicProfileScreen() {
 
   return (
     <View style={styles.container}>
-      {activeTab === 'posts' ? (
+      <View
+        style={[StyleSheet.absoluteFill, { opacity: activeTab === 'posts' ? 1 : 0 }]}
+        pointerEvents={activeTab === 'posts' ? 'auto' : 'none'}
+      >
         <ProfileGrid
           posts={filteredPosts}
           loading={isPostsLoading}
@@ -414,7 +423,13 @@ export default function PublicProfileScreen() {
               title: `Publicações de ${profile?.name || 'usuário'}`
             })
           }}
-          ListHeaderComponent={renderHeader()}
+          ListHeaderComponent={
+            <View>
+              {renderHeader()}
+              {tabsComponent}
+              {renderPetFilter()}
+            </View>
+          }
           ListEmptyComponent={
             <View style={{ padding: 40, alignItems: 'center' }}>
               <Ionicons name="images-outline" size={48} color={colors.mutedForeground} />
@@ -424,16 +439,22 @@ export default function PublicProfileScreen() {
           refreshing={refreshing}
           onRefresh={onRefresh}
         />
-      ) : (
+      </View>
+
+      <View
+        style={[StyleSheet.absoluteFill, { opacity: activeTab === 'pets' ? 1 : 0 }]}
+        pointerEvents={activeTab === 'pets' ? 'auto' : 'none'}
+      >
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 100 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         >
           {renderHeader()}
+          {tabsComponent}
           {renderPetsList()}
         </ScrollView>
-      )}
+      </View>
 
       {selectedPet && (
         <AppModal

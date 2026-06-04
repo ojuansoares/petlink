@@ -22,6 +22,9 @@ export interface Walk {
   photoUrl: string | null
   route: WalkPoint[]
   notes: string | null
+  title: string | null
+  color: string | null
+  location: string | null
   createdAt: string
 }
 
@@ -49,6 +52,9 @@ function mapWalk(raw: any): Walk {
     photoUrl: raw.photo_url ?? raw.photoUrl ?? null,
     route: raw.route ?? [],
     notes: raw.notes ?? null,
+    title: raw.title ?? null,
+    color: raw.color ?? null,
+    location: raw.location ?? null,
     createdAt: raw.created_at ?? raw.createdAt,
   }
 }
@@ -68,7 +74,7 @@ export async function createWalk(payload: Omit<Walk, 'id' | 'createdAt'>): Promi
   return mapWalk(data)
 }
 
-export async function updateWalk(id: string, payload: { photoUrl?: string; notes?: string }): Promise<Walk> {
+export async function updateWalk(id: string, payload: { photoUrl?: string; notes?: string; title?: string; color?: string; location?: string }): Promise<Walk> {
   const { data } = await api.put(`/walks/${id}`, payload)
   return mapWalk(data)
 }

@@ -431,3 +431,4 @@ export const selectIsChangingRole = (userId: string) => (s: any) => s.groups.isC
 
 export const selectPendingInvites = (s: any) => s.groups.pendingInvites as GroupInvite[]
 export const selectIsLoadingInvites = (s: any) => s.groups.isLoadingInvites as boolean
+export const selectGroupsError = (s: any) => s.groups.error as string | null

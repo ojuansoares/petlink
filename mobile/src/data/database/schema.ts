@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export const offlineSchema = appSchema({
-  version: 7,
+  version: 8,
   tables: [
     tableSchema({
       name: 'pets',
@@ -72,6 +72,8 @@ export const offlineSchema = appSchema({
         { name: 'author_name', type: 'string', isOptional: true },
         { name: 'author_avatar_url', type: 'string', isOptional: true },
         { name: 'pet_name', type: 'string', isOptional: true },
+        { name: 'likes_count', type: 'number' },
+        { name: 'comments_count', type: 'number' },
       ],
     }),
     tableSchema({
@@ -82,8 +84,13 @@ export const offlineSchema = appSchema({
         { name: 'image_url', type: 'string' },
         { name: 'pet_name', type: 'string', isOptional: true },
         { name: 'caption', type: 'string', isOptional: true },
+        { name: 'location', type: 'string', isOptional: true },
+        { name: 'author_name', type: 'string', isOptional: true },
+        { name: 'author_avatar_url', type: 'string', isOptional: true },
         { name: 'created_at', type: 'number' },
         { name: 'is_pinned', type: 'boolean', isOptional: true },
+        { name: 'likes_count', type: 'number' },
+        { name: 'comments_count', type: 'number' },
       ],
     }),
   ],

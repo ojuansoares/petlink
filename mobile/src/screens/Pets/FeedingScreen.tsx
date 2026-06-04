@@ -11,7 +11,7 @@ import {
   fetchFeedingLogsThunk, checkMealThunk,
   fetchFeedingScoreThunk, deactivateFeedingPlanThunk,
   selectFeedingPlan, selectFeedingLogs, selectFeedingSaving, selectFeedingLoading,
-  selectFeedingScore, selectFeedingScoreLoading,
+  selectFeedingScore, selectFeedingScoreLoading, selectFeedingError,
   type FeedingPlan, type FeedingLog,
 } from '../../store/slices/feedingSlice'
 import { useTheme } from '../../hooks/useTheme'
@@ -38,6 +38,7 @@ export default function FeedingScreen({ route }: any) {
   const isLoadingScore = useAppSelector(selectFeedingScoreLoading)
   const isSaving = useAppSelector(selectFeedingSaving)
   const isLoadingLogs = useAppSelector(selectFeedingLoading)
+  const fetchError = useAppSelector(selectFeedingError)
   const { colors, withAlpha } = useTheme()
 
   const [meals, setMeals] = useState<MealForm[]>([])
@@ -241,6 +242,38 @@ export default function FeedingScreen({ route }: any) {
           style,
         ]}
       />
+    )
+  }
+
+  // ── Error (no cached data) ──
+  if (fetchError && plan.length === 0 && logs.length === 0 && !loadingPlan) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }]}>
+        <Ionicons name="alert-circle-outline" size={48} color={colors.mutedForeground} style={{ opacity: 0.5 }} />
+        <Text weight="700" size="lg" style={{ color: colors.foreground, marginTop: 16, textAlign: 'center', paddingHorizontal: 32 }}>
+          Não foi possível carregar a alimentação
+        </Text>
+        <Pressable
+          onPress={() => {
+            setLoadingPlan(true)
+            setMode('loading')
+            setMeals([])
+            fetchedMonthsRef.current = new Set()
+            Promise.all([
+              dispatch(fetchFeedingPlanThunk(petId)),
+              dispatch(fetchFeedingLogsThunk({ petId, date: today })),
+            ]).finally(() => setLoadingPlan(false))
+          }}
+          style={{
+            marginTop: 20,
+            paddingHorizontal: 28, paddingVertical: 14,
+            borderRadius: 14,
+            backgroundColor: colors.primary,
+          }}
+        >
+          <Text weight="800" size="sm" style={{ color: '#fff' }}>Tente novamente</Text>
+        </Pressable>
+      </View>
     )
   }
 

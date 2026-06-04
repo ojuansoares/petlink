@@ -1,5 +1,7 @@
 import React from 'react'
-import { View, Pressable, StyleSheet, Platform } from 'react-native'
+import { View, Pressable, StyleSheet } from 'react-native'
+import { LinearGradient } from 'expo-linear-gradient'
+import { Image } from 'expo-image'
 import { Ionicons } from '@expo/vector-icons'
 import { Text } from '../ui/Typography'
 import { useTheme } from '../../hooks/useTheme'
@@ -48,7 +50,7 @@ export function WalkCard({ walk, onPress }: WalkCardProps) {
   const bgColor = walk.photoUrl ? undefined : getColor(walk.id)
 
   const date = walk.endedAt || walk.startedAt
-  const formattedDate = date ? format(parseISO(date), "dd 'de' MMM", { locale: ptBR }) : ''
+  const formattedDate = date ? format(parseISO(date), "d 'de' MMM", { locale: ptBR }) : ''
   const distanceKm = (walk.distanceM / 1000).toFixed(2)
   const duration = formatDuration(walk.durationS)
   const pace = formatPace(walk.avgPaceMinKm)
@@ -60,23 +62,33 @@ export function WalkCard({ walk, onPress }: WalkCardProps) {
         styles.card,
         {
           backgroundColor: walk.photoUrl ? colors.card : withAlpha(bgColor!, 0.15),
-          borderColor: withAlpha(colors.border, 0.5),
+          borderColor: walk.color ? withAlpha(walk.color, 0.35) : withAlpha(colors.border, 0.5),
+          borderWidth: walk.color ? 2 : 1,
           opacity: pressed ? 0.92 : 1,
         },
+        walk.color && !walk.photoUrl && { backgroundColor: withAlpha(walk.color, 0.06) },
       ])}
     >
-      <View style={styles.leftSide}>
-        {walk.photoUrl ? (
-          <View style={[styles.photoPlaceholder, { backgroundColor: withAlpha(colors.primary, 0.1) }]}>
-            <Ionicons name="image-outline" size={20} color={colors.primary} />
-          </View>
-        ) : (
-          <View style={[styles.colorBadge, { backgroundColor: bgColor }]} />
-        )}
-      </View>
+      {walk.photoUrl ? (
+        <View style={styles.photoWrap}>
+          <Image source={walk.photoUrl} style={styles.photoImage} contentFit="cover" />
+          <LinearGradient
+            colors={['transparent', colors.card]}
+            start={{ x: 0.2, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
+            style={styles.photoFade}
+          />
+        </View>
+      ) : (
+        <View style={[styles.colorBadge, { backgroundColor: bgColor }]} />
+      )}
 
-      <View style={styles.info}>
-        <Text weight="800" size="sm">{formattedDate}</Text>
+      <View style={[styles.info, walk.photoUrl ? { marginLeft: 130 } : undefined]}>
+        <View style={styles.titleRow}>
+          <Text weight="800" size="sm">{formattedDate}</Text>
+          {walk.color && <View style={[styles.titleDot, { backgroundColor: walk.color }]} />}
+          {walk.title && <Text size="sm" weight="600" numberOfLines={1} style={{ flex: 1 }}>{walk.title}</Text>}
+        </View>
         <View style={styles.statsRow}>
           <View style={styles.stat}>
             <Ionicons name="map-outline" size={12} color={colors.mutedForeground} />
@@ -112,29 +124,45 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginBottom: 10,
     gap: 12,
-  },
-  leftSide: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
     overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
-  photoPlaceholder: {
+  photoWrap: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 130,
+    overflow: 'hidden',
+  },
+  photoImage: {
     width: '100%',
     height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
+  },
+  photoFade: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 80,
   },
   colorBadge: {
-    width: '100%',
-    height: '100%',
+    width: 48,
+    height: 48,
     borderRadius: 12,
   },
   info: {
     flex: 1,
     gap: 4,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  titleDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
   statsRow: {
     flexDirection: 'row',

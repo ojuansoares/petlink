@@ -1,11 +1,13 @@
-import React, { useMemo, useRef, useState } from 'react'
-import { View, ScrollView, StyleSheet, Platform, ActivityIndicator } from 'react-native'
-import MapView, { Polyline, Marker, Region } from 'react-native-maps'
+import React, { useMemo, useRef, useState, useLayoutEffect } from 'react'
+import { View, ScrollView, StyleSheet, Platform, ActivityIndicator, Pressable, Alert } from 'react-native'
+import MapView, { Polyline, Marker, Region, PROVIDER_GOOGLE } from 'react-native-maps'
+import { Image } from 'expo-image'
 import { Ionicons } from '@expo/vector-icons'
 import { useTheme } from '../hooks/useTheme'
 import { Text, Heading } from '../components/ui/Typography'
 import { Button } from '../components/ui/Button'
-import { useRoute, RouteProp } from '@react-navigation/native'
+import { useRoute, RouteProp, useNavigation } from '@react-navigation/native'
+import { StackNavigationProp } from '@react-navigation/stack'
 import { AppStackParamList } from '../navigation/types'
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -13,14 +15,44 @@ import type { Walk } from '../store/slices/walksSlices'
 import { uploadImageWithRetry } from '../api/uploadWithRetry'
 import { CreatePostModal } from '../components/ui/CreatePostModal'
 import { captureRef } from 'react-native-view-shot'
+import { useAppDispatch } from '../store'
+import { deleteWalkThunk } from '../store/slices/walksSlices'
 
 type ScreenRoute = RouteProp<AppStackParamList, 'WalkDetail'>
 
 export default function WalkDetailScreen() {
   const { colors, withAlpha } = useTheme()
   const route = useRoute<ScreenRoute>()
+  const navigation = useNavigation<StackNavigationProp<AppStackParamList>>()
   const walk = route.params.walk as Walk
+  const dispatch = useAppDispatch()
   const shotRef = useRef<any>(null)
+
+  const handleDelete = async () => {
+    await dispatch(deleteWalkThunk(walk.id))
+    navigation.goBack()
+  }
+
+  const handleDeletePress = () => {
+    Alert.alert(
+      'Excluir passeio',
+      'Tem certeza? Esta ação não pode ser desfeita.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Excluir', style: 'destructive', onPress: handleDelete },
+      ]
+    )
+  }
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <Pressable onPress={handleDeletePress} style={{ marginRight: Platform.OS === 'ios' ? 16 : 20 }}>
+          <Ionicons name="ellipsis-vertical" size={22} color={colors.foreground} />
+        </Pressable>
+      ),
+    })
+  }, [navigation, colors])
   const [sharing, setSharing] = useState(false)
   const [showPostModal, setShowPostModal] = useState(false)
   const [postPhotoUrl, setPostPhotoUrl] = useState('')
@@ -41,18 +73,36 @@ export default function WalkDetailScreen() {
     }
   }, [walk.route])
 
+  const compositeRef = useRef<any>(null)
+
   const handleShare = async () => {
     setSharing(true)
     try {
-      const uri = await captureRef(shotRef, {
-        format: 'png',
-        quality: 0.9,
-      })
-      const formData = new FormData()
-      formData.append('folder', 'petlink/walks')
-      formData.append('file', { uri, name: `walk-${walk.id}.png`, type: 'image/png' } as any)
-      const data = await uploadImageWithRetry({ formData })
-      setPostPhotoUrl(data.url)
+      let finalUrl = ''
+
+      if (walk.photoUrl && walk.route?.length > 1) {
+        const compositeUri = await captureRef(compositeRef, {
+          format: 'png',
+          quality: 0.9,
+        })
+        const formData = new FormData()
+        formData.append('folder', 'petlink/walks')
+        formData.append('file', { uri: compositeUri, name: `walk-${walk.id}-composite.png`, type: 'image/png' } as any)
+        const data = await uploadImageWithRetry({ formData })
+        finalUrl = data?.url ?? ''
+      } else {
+        const uri = await captureRef(shotRef, {
+          format: 'png',
+          quality: 0.9,
+        })
+        const formData = new FormData()
+        formData.append('folder', 'petlink/walks')
+        formData.append('file', { uri, name: `walk-${walk.id}.png`, type: 'image/png' } as any)
+        const data = await uploadImageWithRetry({ formData })
+        finalUrl = data?.url ?? ''
+      }
+
+      setPostPhotoUrl(finalUrl)
       setShowPostModal(true)
     } catch (err) {
       console.error('Share walk error:', err)
@@ -79,6 +129,7 @@ export default function WalkDetailScreen() {
       <View ref={shotRef} style={styles.mapContainer} collapsable={false}>
         {region ? (
           <MapView
+            provider={PROVIDER_GOOGLE}
             style={StyleSheet.absoluteFill}
             initialRegion={region}
             scrollEnabled
@@ -115,9 +166,19 @@ export default function WalkDetailScreen() {
         )}
       </View>
 
+      {walk.photoUrl && (
+        <Image source={walk.photoUrl} style={styles.walkPhoto} contentFit="cover" />
+      )}
+
       <View style={{ padding: 16, gap: 16 }}>
         <View style={{ alignItems: 'center', gap: 4 }}>
-          <Heading size="xl" weight="800">{formattedDate}</Heading>
+          {walk.title && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              {walk.color && <View style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: walk.color }} />}
+              <Heading size="xl" weight="800">{walk.title}</Heading>
+            </View>
+          )}
+          <Text size="sm" color="mutedForeground">{formattedDate}</Text>
         </View>
 
         <View style={styles.statsGrid}>
@@ -184,7 +245,47 @@ export default function WalkDetailScreen() {
           }}
           initialPhotoUrl={postPhotoUrl}
           initialPetIds={[walk.petId]}
+          initialCaption={walk.title || undefined}
+          initialLocation={walk.location || undefined}
         />
+      )}
+
+      {/* Hidden composite view for photo + route overlay capture */}
+      {walk.photoUrl && walk.route?.length > 1 && (
+        <View
+          ref={compositeRef}
+          collapsable={false}
+          style={{ position: 'absolute', top: -9999, left: 0, width: 400, height: 400 }}
+        >
+          <Image source={walk.photoUrl} style={StyleSheet.absoluteFill} contentFit="cover" />
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.08)' }]}>
+            <MapView
+              provider={PROVIDER_GOOGLE}
+              style={StyleSheet.absoluteFill}
+              initialRegion={region ?? {
+                latitude: walk.route[0].lat,
+                longitude: walk.route[0].lng,
+                latitudeDelta: 0.02,
+                longitudeDelta: 0.02,
+              }}
+              scrollEnabled={false}
+              zoomEnabled={false}
+              rotateEnabled={false}
+              pitchEnabled={false}
+            >
+              <Polyline
+                coordinates={walk.route.map(p => ({ latitude: p.lat, longitude: p.lng }))}
+                strokeColor="rgba(0,0,0,0.45)"
+                strokeWidth={10}
+              />
+              <Polyline
+                coordinates={walk.route.map(p => ({ latitude: p.lat, longitude: p.lng }))}
+                strokeColor={colors.primary}
+                strokeWidth={5}
+              />
+            </MapView>
+          </View>
+        </View>
       )}
     </ScrollView>
   )
@@ -229,5 +330,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  walkPhoto: {
+    width: '100%',
+    height: 220,
   },
 })

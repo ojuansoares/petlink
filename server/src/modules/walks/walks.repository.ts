@@ -1,22 +1,25 @@
 import { supabaseAdmin } from '../../config/supabase'
 
 export type Walk = {
-  id:              string
-  pet_id:          string
-  owner_id:        string
-  started_at:      string
-  ended_at:        string | null
-  distance_m:      number
-  duration_s:      number
-  steps_count:     number | null
-  avg_speed_kmh:   number | null
+  id: string
+  pet_id: string
+  owner_id: string
+  started_at: string
+  ended_at: string | null
+  distance_m: number
+  duration_s: number
+  steps_count: number | null
+  avg_speed_kmh: number | null
   avg_pace_min_km: number | null
-  max_speed_kmh:   number | null
-  calories:        number | null
-  photo_url:       string | null
-  route:           unknown
-  notes:           string | null
-  created_at:      string
+  max_speed_kmh: number | null
+  calories: number | null
+  photo_url: string | null
+  route: unknown
+  notes: string | null
+  title: string | null
+  color: string | null
+  location: string | null
+  created_at: string
 }
 
 export const walksRepository = {
@@ -57,6 +60,9 @@ export const walksRepository = {
     photo_url?: string | null
     route: unknown
     notes?: string | null
+    title?: string | null
+    color?: string | null
+    location?: string | null
   }) {
     const { data, error } = await supabaseAdmin
       .from('walks')
@@ -75,6 +81,9 @@ export const walksRepository = {
         photo_url: input.photo_url ?? null,
         route: input.route,
         notes: input.notes ?? null,
+        title: input.title ?? null,
+        color: input.color ?? null,
+        location: input.location ?? null,
       })
       .select()
       .single()
@@ -86,13 +95,20 @@ export const walksRepository = {
   async update(id: string, input: {
     photo_url?: string | null
     notes?: string | null
+    title?: string | null
+    color?: string | null
+    location?: string | null
   }) {
+    const updateData: Record<string, any> = {}
+    if (input.photo_url !== undefined) updateData.photo_url = input.photo_url
+    if (input.notes !== undefined) updateData.notes = input.notes
+    if (input.title !== undefined) updateData.title = input.title
+    if (input.color !== undefined) updateData.color = input.color
+    if (input.location !== undefined) updateData.location = input.location
+
     const { data, error } = await supabaseAdmin
       .from('walks')
-      .update({
-        photo_url: input.photo_url,
-        notes: input.notes,
-      })
+      .update(updateData)
       .eq('id', id)
       .select()
       .single()

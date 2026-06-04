@@ -56,6 +56,7 @@ export function Calendar({ petId, petName, birthDate }: CalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [mediaMap, setMediaMap] = useState<Record<string, ConsultationMedia>>({})
   
@@ -137,8 +138,10 @@ export function Calendar({ petId, petName, birthDate }: CalendarProps) {
       }
 
       setEvents(mappedEvents)
+      setError(false)
     } catch (err) {
       console.error('Failed to load events for calendar:', err)
+      setError(true)
     } finally {
       setLoading(false)
     }
@@ -448,6 +451,30 @@ export function Calendar({ petId, petName, birthDate }: CalendarProps) {
 
   return (
     <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      {error && !loading && (
+        <View style={[StyleSheet.absoluteFill, {
+          backgroundColor: 'rgba(0,0,0,0.65)',
+          borderRadius: 24,
+          justifyContent: 'center', alignItems: 'center', zIndex: 20,
+        }]}>
+          <Ionicons name="alert-circle-outline" size={40} color="#fff" style={{ opacity: 0.7 }} />
+          <Text weight="700" size="sm" style={{ color: '#fff', marginTop: 12, textAlign: 'center', paddingHorizontal: 24 }}>
+            Não foi possível carregar os eventos
+          </Text>
+          <Pressable
+            onPress={() => { setLoading(true); setError(false); fetchEvents() }}
+            style={{
+              marginTop: 16,
+              paddingHorizontal: 24, paddingVertical: 12,
+              borderRadius: 12,
+              backgroundColor: colors.primary,
+            }}
+          >
+            <Text weight="800" size="sm" style={{ color: '#fff' }}>Tente novamente</Text>
+          </Pressable>
+        </View>
+      )}
+
       {/* Calendar Header */}
       <View style={styles.header}>
         <Heading size="base" weight="800" style={{ textTransform: 'capitalize' }}>

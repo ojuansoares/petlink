@@ -165,11 +165,7 @@ export default function SearchScreen() {
   const handleSearch = useCallback((text: string) => {
     setQuery(text)
     if (activeTab === 'locais') {
-      if (text.length >= 3) {
-        const { lat, lng } = userCoords.current ?? {}
-        dispatch(searchPlacesThunk({ q: text, lat, lng }))
-        setSearched(true)
-      } else {
+      if (text.length < 2) {
         dispatch(clearSearchResults())
         setSearched(false)
       }
@@ -185,7 +181,7 @@ export default function SearchScreen() {
 
   const handleSearchSubmit = useCallback(() => {
     if (activeTab === 'locais') {
-      if (query.length >= 3) {
+      if (query.length >= 2) {
         const { lat, lng } = userCoords.current ?? {}
         dispatch(searchPlacesThunk({ q: query, lat, lng }))
         setSearched(true)
@@ -349,10 +345,7 @@ export default function SearchScreen() {
           <View style={styles.resultInfo}>
             <Text weight="700">{item.name}</Text>
             <Text size="sm" color="mutedForeground" numberOfLines={1}>{item.displayName}</Text>
-            <View style={{ flexDirection: 'row', gap: 8, marginTop: 2 }}>
-              <Text size="xs" color="mutedForeground">{item.type}</Text>
-              {item.category && <Text size="xs" color="mutedForeground">· {item.category}</Text>}
-            </View>
+
           </View>
           <Ionicons
             name={isExpanded ? 'chevron-up' : 'chevron-forward'}
@@ -562,7 +555,7 @@ export default function SearchScreen() {
           autoFocus
           returnKeyType="search"
         />
-        {query.length >= (activeTab === 'locais' ? 3 : 2) && (
+        {query.length >= (activeTab === 'locais' ? 2 : 2) && (
           <Pressable
             onPress={handleSearchSubmit}
             style={[styles.searchButton, { backgroundColor: colors.primary }]}

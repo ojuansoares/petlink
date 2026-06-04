@@ -1,12 +1,16 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import {
   View, Pressable, StyleSheet, Platform, Alert, ActivityIndicator,
+  Modal as RNModal, TextInput, ScrollView, KeyboardAvoidingView,
 } from 'react-native'
-import MapView, { Polyline, Region } from 'react-native-maps'
+import MapView, { Polyline, Region, PROVIDER_GOOGLE } from 'react-native-maps'
+import { Image } from 'expo-image'
 import { Ionicons } from '@expo/vector-icons'
+import * as ImagePicker from 'expo-image-picker'
 import { useTheme } from '../hooks/useTheme'
-import { Text } from '../components/ui/Typography'
+import { Text, Heading } from '../components/ui/Typography'
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { AppStackParamList } from '../navigation/types'
 import { useAppDispatch, useAppSelector } from '../store'
 import {
@@ -15,6 +19,10 @@ import {
   selectActiveWalk, selectIsWalking,
 } from '../store/slices/walksSlices'
 import { watchPosition, haversineDistance, requestLocationPermission, getCurrentPosition } from '../services/LocationService'
+import { useLocation } from '../hooks/useLocation'
+import { uploadImageWithRetry } from '../api/uploadWithRetry'
+import { AppToast } from '../components/ui/AppToast'
+import { ImagePickerSheet } from '../components/ui/ImagePickerSheet'
 
 type ScreenRoute = RouteProp<AppStackParamList, 'WalkRecording'>
 
@@ -38,6 +46,21 @@ export default function WalkRecordingScreen() {
   const watchRef = useRef<any>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const lastPointRef = useRef<{ lat: number; lng: number } | null>(null)
+  const insets = useSafeAreaInsets()
+  const { getCurrentLocation, isLoadingLocation } = useLocation()
+
+  const [showFinishModal, setShowFinishModal] = useState(false)
+  const [showImagePicker, setShowImagePicker] = useState(false)
+  const [walkTitle, setWalkTitle] = useState('')
+  const [walkPhotoUrl, setWalkPhotoUrl] = useState('')
+  const [walkColor, setWalkColor] = useState('')
+  const [walkLocation, setWalkLocation] = useState('')
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false)
+
+  const WALK_COLORS = [
+    '#3B82F6', '#22C55E', '#F97316', '#EF4444',
+    '#8B5CF6', '#EC4899', '#14B8A6', '#F59E0B',
+  ]
 
   const startGpsWatch = useCallback(async () => {
     watchRef.current?.remove()
@@ -137,45 +160,94 @@ export default function WalkRecordingScreen() {
   }
 
   const handleStop = () => {
-    Alert.alert(
-      'Finalizar passeio?',
-      'O passeio será salvo no histórico.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Finalizar',
-          onPress: async () => {
-            watchRef.current?.remove()
-            if (timerRef.current) clearInterval(timerRef.current)
+    watchRef.current?.remove()
+    if (timerRef.current) clearInterval(timerRef.current)
+    setWalkTitle('')
+    setWalkPhotoUrl('')
+    setWalkColor('')
+    setWalkLocation('')
+    getCurrentLocation().then(loc => {
+      if (loc) setWalkLocation(loc.cityAndState)
+    }).catch(() => {})
+    setShowFinishModal(true)
+  }
 
-            if (!activeWalk) return
-            const now = new Date().toISOString()
-            const durationS = Math.floor((Date.now() - new Date(activeWalk.startedAt).getTime()) / 1000) - Math.round(activeWalk.totalPausedS)
-            const avgSpeed = durationS > 0 ? (activeWalk.distanceM / 1000) / (durationS / 3600) : 0
-            const avgPace = avgSpeed > 0 ? 60 / avgSpeed : null
+  const handleFinishWalk = async () => {
+    if (!activeWalk) return
+    const now = new Date().toISOString()
+    const durationS = Math.floor((Date.now() - new Date(activeWalk.startedAt).getTime()) / 1000) - Math.round(activeWalk.totalPausedS)
+    const avgSpeed = durationS > 0 ? (activeWalk.distanceM / 1000) / (durationS / 3600) : 0
+    const avgPace = avgSpeed > 0 ? 60 / avgSpeed : null
 
-            await dispatch(saveWalkThunk({
-              petId: activeWalk.petId,
-              ownerId: '',
-              startedAt: activeWalk.startedAt,
-              endedAt: now,
-              distanceM: Math.round(activeWalk.distanceM),
-              durationS: Math.round(durationS),
-              stepsCount: null,
-              avgSpeedKmh: Math.round(avgSpeed * 10) / 10,
-              avgPaceMinKm: avgPace ? Math.round(avgPace * 100) / 100 : null,
-              maxSpeedKmh: Math.round(activeWalk.maxSpeedKmh * 10) / 10,
-              calories: null,
-              photoUrl: null,
-              route: activeWalk.route,
-              notes: null,
-            }))
+    await dispatch(saveWalkThunk({
+      petId: activeWalk.petId,
+      ownerId: '',
+      startedAt: activeWalk.startedAt,
+      endedAt: now,
+      distanceM: Math.round(activeWalk.distanceM),
+      durationS: Math.round(durationS),
+      stepsCount: null,
+      avgSpeedKmh: Math.round(avgSpeed * 10) / 10,
+      avgPaceMinKm: avgPace ? Math.round(avgPace * 100) / 100 : null,
+      maxSpeedKmh: Math.round(activeWalk.maxSpeedKmh * 10) / 10,
+      calories: null,
+      photoUrl: walkPhotoUrl || null,
+      route: activeWalk.route,
+      notes: null,
+      title: walkTitle || null,
+      color: walkColor || null,
+      location: walkLocation || null,
+    }))
 
-            navigation.goBack()
-          },
-        },
-      ]
-    )
+    setShowFinishModal(false)
+    navigation.goBack()
+  }
+
+  const handlePickWalkPhoto = async (source: 'camera' | 'gallery') => {
+    try {
+      setIsUploadingPhoto(true)
+
+      let result
+      if (source === 'camera') {
+        const permission = await ImagePicker.requestCameraPermissionsAsync()
+        if (permission.status !== 'granted') {
+          Alert.alert('Permissão necessária', 'Permissão de câmera necessária para tirar foto.')
+          return
+        }
+        result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ['images'],
+          allowsEditing: true,
+          aspect: [4, 3],
+          quality: 0.8,
+        })
+      } else {
+        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync()
+        if (permission.status !== 'granted') {
+          Alert.alert('Permissão necessária', 'Permissão de galeria necessária.')
+          return
+        }
+        result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ['images'],
+          allowsEditing: true,
+          aspect: [4, 3],
+          quality: 0.8,
+        })
+      }
+
+      if (result.canceled || !result.assets?.length) return
+
+      const asset = result.assets[0]
+      const formData = new FormData()
+      formData.append('folder', 'petlink/walks')
+      formData.append('file', { uri: asset.uri, name: asset.fileName ?? `walk-${Date.now()}.jpg`, type: asset.mimeType ?? 'image/jpeg' } as any)
+
+      const data = await uploadImageWithRetry({ formData })
+      if (data?.url) setWalkPhotoUrl(data.url)
+    } catch {
+      Alert.alert('Erro', 'Não foi possível enviar a foto.')
+    } finally {
+      setIsUploadingPhoto(false)
+    }
   }
 
   const handleDiscard = () => {
@@ -213,6 +285,7 @@ export default function WalkRecordingScreen() {
       {/* Map (always visible) */}
       <View style={styles.mapContainer}>
         <MapView
+          provider={PROVIDER_GOOGLE}
           style={StyleSheet.absoluteFill}
           initialRegion={region ?? {
             latitude: -15.7934,
@@ -322,6 +395,132 @@ export default function WalkRecordingScreen() {
           </View>
         </>
       )}
+
+      {/* Walk completion modal */}
+      <RNModal visible={showFinishModal} animationType="slide" transparent statusBarTranslucent>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.finishOverlay}
+        >
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowFinishModal(false)} />
+          <View style={[styles.finishSheet, { backgroundColor: colors.background, paddingBottom: Math.max(insets.bottom, 20) }]}>
+            <View style={styles.finishHandle}>
+              <View style={[styles.finishHandleBar, { backgroundColor: withAlpha(colors.border, 0.6) }]} />
+            </View>
+
+              <ScrollView contentContainerStyle={styles.finishContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                <Heading size="lg" weight="800" style={{ textAlign: 'center', marginBottom: 20 }}>
+                  Finalizar Passeio
+                </Heading>
+
+                <Text size="xs" weight="700" color="mutedForeground" style={{ marginBottom: 6, marginLeft: 2 }}>
+                  Título
+                </Text>
+                <TextInput
+                  style={[styles.finishInput, { backgroundColor: colors.muted, color: colors.foreground, borderColor: colors.border }]}
+                  placeholder="Ex: Passeio matinal no parque"
+                  placeholderTextColor={colors.mutedForeground}
+                  value={walkTitle}
+                  onChangeText={setWalkTitle}
+                />
+
+                <Text size="xs" weight="700" color="mutedForeground" style={{ marginBottom: 6, marginLeft: 2, marginTop: 16 }}>
+                  Foto (opcional)
+                </Text>
+                {walkPhotoUrl ? (
+                  <View style={styles.finishPhotoWrapper}>
+                    <Image source={walkPhotoUrl} style={styles.finishPhotoPreview} contentFit="cover" />
+                    <Pressable
+                      style={[styles.finishRemovePhoto, { backgroundColor: withAlpha(colors.card, 0.8) }]}
+                      onPress={() => setWalkPhotoUrl('')}
+                    >
+                      <Ionicons name="trash" size={18} color={colors.destructive} />
+                    </Pressable>
+                  </View>
+                ) : (
+                  <Pressable
+                    onPress={() => setShowImagePicker(true)}
+                    disabled={isUploadingPhoto}
+                    style={[styles.finishPhotoPicker, { borderColor: colors.border, backgroundColor: withAlpha(colors.card, 0.5) }]}
+                  >
+                    {isUploadingPhoto ? (
+                      <ActivityIndicator color={colors.primary} />
+                    ) : (
+                      <>
+                        <Ionicons name="camera-outline" size={28} color={colors.mutedForeground} />
+                        <Text size="sm" color="mutedForeground" style={{ marginTop: 6 }}>Adicionar foto</Text>
+                      </>
+                    )}
+                  </Pressable>
+                )}
+
+                <Text size="xs" weight="700" color="mutedForeground" style={{ marginBottom: 6, marginLeft: 2, marginTop: 16 }}>
+                  Cor (opcional)
+                </Text>
+                <View style={styles.finishColorRow}>
+                  {WALK_COLORS.map(color => (
+                    <Pressable
+                      key={color}
+                      onPress={() => setWalkColor(walkColor === color ? '' : color)}
+                      style={[
+                        styles.finishColorDot,
+                        { backgroundColor: color },
+                        walkColor === color && styles.finishColorDotActive,
+                      ]}
+                    />
+                  ))}
+                </View>
+
+                <Text size="xs" weight="700" color="mutedForeground" style={{ marginBottom: 6, marginLeft: 2, marginTop: 16 }}>
+                  Localização
+                </Text>
+                <View style={[styles.finishLocationRow, { borderColor: colors.border, backgroundColor: colors.muted }]}>
+                  <Ionicons name="location-outline" size={18} color={colors.mutedForeground} />
+                  {isLoadingLocation ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  ) : (
+                    <TextInput
+                      style={[styles.finishLocationInput, { color: colors.foreground }]}
+                      value={walkLocation}
+                      onChangeText={setWalkLocation}
+                      placeholder="São Paulo, SP"
+                      placeholderTextColor={colors.mutedForeground}
+                    />
+                  )}
+                </View>
+              </ScrollView>
+
+              <View style={[styles.finishFooter, { borderTopColor: withAlpha(colors.border, 0.4) }]}>
+                <Pressable
+                  onPress={() => {
+                    setShowFinishModal(false)
+                    dispatch(cancelWalk())
+                    navigation.goBack()
+                  }}
+                  style={styles.finishDiscardBtn}
+                >
+                  <Text color="mutedForeground" weight="600">Descartar</Text>
+                </Pressable>
+                <Pressable
+                  onPress={handleFinishWalk}
+                  style={[styles.finishSaveBtn, { backgroundColor: colors.primary }]}
+                >
+                  <Ionicons name="checkmark" size={20} color="#fff" />
+                  <Text weight="800" size="sm" style={{ color: '#fff', marginLeft: 6 }}>Salvar</Text>
+                </Pressable>
+              </View>
+            </View>
+        </KeyboardAvoidingView>
+      </RNModal>
+
+      <ImagePickerSheet
+        visible={showImagePicker}
+        onClose={() => setShowImagePicker(false)}
+        onCamera={() => { setShowImagePicker(false); handlePickWalkPhoto('camera') }}
+        onGallery={() => { setShowImagePicker(false); handlePickWalkPhoto('gallery') }}
+      />
+
+      <AppToast />
     </View>
   )
 }
@@ -418,5 +617,119 @@ const styles = StyleSheet.create({
     borderRadius: 36,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  finishOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  finishSheet: {
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    maxHeight: '85%',
+  },
+  finishHandle: {
+    alignItems: 'center',
+    paddingTop: 12,
+    paddingBottom: 4,
+  },
+  finishHandleBar: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+  },
+  finishContent: {
+    padding: 24,
+    paddingTop: 8,
+    gap: 4,
+  },
+  finishInput: {
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    fontSize: 16,
+    borderWidth: 1,
+  },
+  finishPhotoPicker: {
+    height: 120,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  finishPhotoWrapper: {
+    width: '100%',
+    height: 200,
+    borderRadius: 12,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  finishPhotoPreview: {
+    width: '100%',
+    height: '100%',
+  },
+  finishRemovePhoto: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  finishColorRow: {
+    flexDirection: 'row',
+    gap: 12,
+    flexWrap: 'wrap',
+  },
+  finishColorDot: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+  },
+  finishColorDotActive: {
+    borderWidth: 3,
+    borderColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  finishLocationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    gap: 10,
+    borderWidth: 1,
+  },
+  finishLocationInput: {
+    flex: 1,
+    fontSize: 16,
+    padding: 0,
+  },
+  finishFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    gap: 12,
+  },
+  finishDiscardBtn: {
+    padding: 12,
+  },
+  finishSaveBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: 14,
   },
 })
