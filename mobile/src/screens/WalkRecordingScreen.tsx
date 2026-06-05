@@ -298,14 +298,10 @@ export default function WalkRecordingScreen() {
     <View style={styles.container}>
       {/* Map (always visible) */}
       <View style={styles.mapContainer}>
+        {region && (
         <MapView
           style={StyleSheet.absoluteFill}
-          initialRegion={region ?? {
-            latitude: -15.7934,
-            longitude: -47.8822,
-            latitudeDelta: 0.1,
-            longitudeDelta: 0.1,
-          }}
+          initialRegion={region}
           showsUserLocation
           followsUserLocation
         >
@@ -328,6 +324,7 @@ export default function WalkRecordingScreen() {
             </>
           )}
         </MapView>
+        )}
         {!region && (
           <View style={[styles.mapPlaceholder, { backgroundColor: withAlpha('#000', 0.4) }]}>
             <ActivityIndicator size="large" color={colors.primary} />
