@@ -13,6 +13,7 @@ import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import type { Walk } from '../store/slices/walksSlices'
 import { uploadImageWithRetry } from '../api/uploadWithRetry'
+import { formatWalkDistance } from '../utils/formatNumber'
 import { CreatePostModal } from '../components/ui/CreatePostModal'
 import { captureRef } from 'react-native-view-shot'
 import { useAppDispatch } from '../store'
@@ -116,7 +117,7 @@ export default function WalkDetailScreen() {
     ? format(parseISO(dateStr), "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: ptBR })
     : ''
 
-  const distanceKm = (walk.distanceM / 1000).toFixed(2)
+  const distanceText = formatWalkDistance(walk.distanceM)
   const durationMin = Math.floor(walk.durationS / 60)
   const durationSec = walk.durationS % 60
   const formattedDuration = durationMin > 0 ? `${durationMin}min ${durationSec}s` : `${durationSec}s`
@@ -184,7 +185,7 @@ export default function WalkDetailScreen() {
           <View style={[styles.statCard, { backgroundColor: withAlpha(colors.primary, 0.08) }]}>
             <Ionicons name="map-outline" size={20} color={colors.primary} />
             <Text size="xs" color="mutedForeground">Distância</Text>
-            <Text weight="800" size="lg" style={{ color: colors.primary }}>{distanceKm} km</Text>
+            <Text weight="800" size="lg" style={{ color: colors.primary }}>{distanceText}</Text>
           </View>
           <View style={[styles.statCard, { backgroundColor: withAlpha('#3B82F6', 0.08) }]}>
             <Ionicons name="time-outline" size={20} color="#3B82F6" />

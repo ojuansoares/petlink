@@ -14,3 +14,9 @@ export function formatCount(n: number): string {
   }
   return String(n)
 }
+
+export function formatWalkDistance(meters: number | null | undefined): string {
+  if (!meters || meters <= 0) return '0 m'
+  if (meters < 1000) return `${Math.round(meters)} m`
+  return `${(meters / 1000).toFixed(2)} km`
+}

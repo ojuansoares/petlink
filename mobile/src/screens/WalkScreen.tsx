@@ -23,6 +23,7 @@ import { WalkCalendar } from '../components/walks/WalkCalendar'
 import { format, subMonths, addMonths, startOfMonth, endOfMonth } from 'date-fns'
 import { scheduleWalkReminder, cancelWalkReminders } from '../services/NotificationService'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { formatWalkDistance } from '../utils/formatNumber'
 
 type ScreenRoute = RouteProp<AppStackParamList, 'Walk'>
 
@@ -111,7 +112,7 @@ export default function WalkScreen() {
   const totalCalories = walks.reduce((acc, w) => acc + (w.calories ?? 0), 0)
   const avgDistance = walks.length > 0 ? (totalDistance / walks.length) : 0
 
-  const formatKm = (m: number) => (m / 1000).toFixed(1)
+  
   const formatHours = (s: number) => {
     const h = Math.floor(s / 3600)
     return h > 0 ? `${h}h` : `${Math.floor(s / 60)}min`
@@ -139,8 +140,8 @@ export default function WalkScreen() {
   )
 
   const totalWalksText = `${walks.length} ${walks.length === 1 ? 'passeio' : 'passeios'}`
-  const totalKmText = `${formatKm(totalDistance)} km`
-  const avgKmText = walks.length > 0 ? `${formatKm(avgDistance)} km` : '—'
+  const totalKmText = formatWalkDistance(totalDistance)
+  const avgKmText = walks.length > 0 ? formatWalkDistance(avgDistance) : '—'
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>

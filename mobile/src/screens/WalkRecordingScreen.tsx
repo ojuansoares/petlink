@@ -23,6 +23,7 @@ import { useLocation } from '../hooks/useLocation'
 import { uploadImageWithRetry } from '../api/uploadWithRetry'
 import { AppToast } from '../components/ui/AppToast'
 import { ImagePickerSheet } from '../components/ui/ImagePickerSheet'
+import { formatWalkDistance } from '../utils/formatNumber'
 
 type ScreenRoute = RouteProp<AppStackParamList, 'WalkRecording'>
 
@@ -297,7 +298,7 @@ export default function WalkRecordingScreen() {
     return `${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`
   }
 
-  const distanceKm = activeWalk ? (activeWalk.distanceM / 1000).toFixed(2) : '0.00'
+  const distanceText = activeWalk ? formatWalkDistance(activeWalk.distanceM) : '0 m'
 
   return (
     <View style={styles.container}>
@@ -379,13 +380,13 @@ export default function WalkRecordingScreen() {
             <View style={styles.infoRow}>
               <View style={styles.infoItem}>
                 <Text size="xs" style={{ color: 'rgba(255,255,255,0.7)' }}>Distância</Text>
-                <Text weight="700" size="lg" style={{ color: '#fff' }}>{distanceKm} km</Text>
+                <Text weight="700" size="lg" style={{ color: '#fff' }}>{distanceText}</Text>
               </View>
               <View style={styles.infoItem}>
                 <Text size="xs" style={{ color: 'rgba(255,255,255,0.7)' }}>Ritmo</Text>
                 <Text weight="700" size="lg" style={{ color: '#fff' }}>
                   {activeWalk && activeWalk.distanceM > 0
-                    ? formatTime(Math.round(elapsedS / (activeWalk.distanceM / 1000)))
+                    ? `${formatTime(Math.round(elapsedS / (activeWalk.distanceM / 1000)))}/km`
                     : '—'}
                 </Text>
               </View>

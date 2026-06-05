@@ -8,6 +8,7 @@ import { useTheme } from '../../hooks/useTheme'
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import type { Walk } from '../../store/slices/walksSlices'
+import { formatWalkDistance } from '../../utils/formatNumber'
 
 const PRESET_COLORS = [
   '#8B5CF6', '#3B82F6', '#22C55E', '#F97316',
@@ -51,7 +52,7 @@ export function WalkCard({ walk, onPress }: WalkCardProps) {
 
   const date = walk.endedAt || walk.startedAt
   const formattedDate = date ? format(parseISO(date), "d 'de' MMM", { locale: ptBR }) : ''
-  const distanceKm = (walk.distanceM / 1000).toFixed(2)
+  const distanceText = formatWalkDistance(walk.distanceM)
   const duration = formatDuration(walk.durationS)
   const pace = formatPace(walk.avgPaceMinKm)
 
@@ -92,7 +93,7 @@ export function WalkCard({ walk, onPress }: WalkCardProps) {
         <View style={styles.statsRow}>
           <View style={styles.stat}>
             <Ionicons name="map-outline" size={12} color={colors.mutedForeground} />
-            <Text size="xs" color="mutedForeground">{distanceKm} km</Text>
+            <Text size="xs" color="mutedForeground">{distanceText}</Text>
           </View>
           <View style={styles.stat}>
             <Ionicons name="time-outline" size={12} color={colors.mutedForeground} />
