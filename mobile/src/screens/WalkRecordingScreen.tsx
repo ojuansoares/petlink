@@ -267,7 +267,7 @@ export default function WalkRecordingScreen() {
       const data = await uploadImageWithRetry({ formData })
       if (data?.url) setWalkPhotoUrl(data.url)
     } catch {
-      Alert.alert('Erro', 'Não foi possível enviar a foto.')
+      // Offline or upload failed — walk will save without photo; can add later via edit
     } finally {
       setIsUploadingPhoto(false)
     }

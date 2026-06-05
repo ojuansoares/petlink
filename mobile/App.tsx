@@ -343,6 +343,7 @@ function AppContent() {
           feedingQueueRepository.processQueue()
           const { vaccineCacheRepository } = require('./src/data/repositories/VaccineCacheRepository')
           vaccineCacheRepository.processQueue()
+          dispatch(require('./src/store/slices/walksSlices').processWalkQueueThunk())
         }
       }
     }

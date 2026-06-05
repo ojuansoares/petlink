@@ -1,7 +1,8 @@
 import React, { useMemo, useRef, useState, useLayoutEffect } from 'react'
-import { View, ScrollView, StyleSheet, Platform, ActivityIndicator, Pressable, Modal as RNModal } from 'react-native'
+import { View, ScrollView, StyleSheet, Platform, ActivityIndicator, Pressable, Modal as RNModal, TextInput, KeyboardAvoidingView } from 'react-native'
 import MapView, { Polyline, Marker, Region } from 'react-native-maps'
 import { Image } from 'expo-image'
+import * as ImagePicker from 'expo-image-picker'
 import { Ionicons } from '@expo/vector-icons'
 import { useTheme } from '../hooks/useTheme'
 import { Text, Heading } from '../components/ui/Typography'
@@ -17,8 +18,13 @@ import { formatWalkDistance } from '../utils/formatNumber'
 import { CreatePostModal } from '../components/ui/CreatePostModal'
 import { captureRef } from 'react-native-view-shot'
 import { useAppDispatch } from '../store'
-import { deleteWalkThunk } from '../store/slices/walksSlices'
+import { deleteWalkThunk, updateWalkThunk } from '../store/slices/walksSlices'
 import type { WalkPoint } from '../api/walks.api'
+
+const WALK_COLORS = [
+  '#3B82F6', '#22C55E', '#F97316', '#EF4444',
+  '#8B5CF6', '#EC4899', '#14B8A6', '#F59E0B',
+]
 
 const COMPOSITE_SIZE = 400
 
@@ -148,15 +154,119 @@ export default function WalkDetailScreen() {
     setShowDeleteModal(true)
   }
 
+  const [showMenu, setShowMenu] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editTitle, setEditTitle] = useState(walk.title ?? '')
+  const [editColor, setEditColor] = useState(walk.color ?? '')
+  const [editLocation, setEditLocation] = useState(walk.location ?? '')
+  const [editNotes, setEditNotes] = useState(walk.notes ?? '')
+  const [editPhotoUrl, setEditPhotoUrl] = useState(walk.photoUrl ?? '')
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false)
+  const [savingEdit, setSavingEdit] = useState(false)
+
   useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <Pressable onPress={handleDeletePress} style={{ marginRight: Platform.OS === 'ios' ? 16 : 20 }}>
-          <Ionicons name="ellipsis-vertical" size={22} color={colors.foreground} />
-        </Pressable>
+        <View>
+          <Pressable onPress={() => setShowMenu(true)} style={{ marginRight: Platform.OS === 'ios' ? 16 : 20 }}>
+            <Ionicons name="ellipsis-vertical" size={22} color={colors.foreground} />
+          </Pressable>
+          {showMenu && (
+            <>
+              <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowMenu(false)} />
+              <View style={[styles.menuDropdown, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Pressable
+                  style={[styles.menuItem, { borderBottomColor: withAlpha(colors.border, 0.3) }]}
+                  onPress={() => { setShowMenu(false); handleEdit() }}
+                >
+                  <Ionicons name="pencil-outline" size={18} color={colors.foreground} />
+                  <Text weight="700" size="sm">Editar</Text>
+                </Pressable>
+                <Pressable
+                  style={styles.menuItem}
+                  onPress={() => { setShowMenu(false); handleDeletePress() }}
+                >
+                  <Ionicons name="trash-outline" size={18} color={colors.destructive} />
+                  <Text weight="700" size="sm" style={{ color: colors.destructive }}>Excluir</Text>
+                </Pressable>
+              </View>
+            </>
+          )}
+        </View>
       ),
     })
-  }, [navigation, colors])
+  }, [navigation, colors, showMenu])
+
+  const handleEdit = () => {
+    setEditTitle(walk.title ?? '')
+    setEditColor(walk.color ?? '')
+    setEditLocation(walk.location ?? '')
+    setEditNotes(walk.notes ?? '')
+    setEditPhotoUrl(walk.photoUrl ?? '')
+    setShowEditModal(true)
+  }
+
+  const handlePickPhoto = async (source: 'camera' | 'gallery') => {
+    try {
+      let result: ImagePicker.ImagePickerResult | null = null
+      if (source === 'camera') {
+        const perm = await ImagePicker.requestCameraPermissionsAsync()
+        if (!perm.granted) return
+        result = await ImagePicker.launchCameraAsync({
+          quality: 0.7,
+          allowsEditing: true,
+        })
+      } else {
+        const perm = await ImagePicker.requestMediaLibraryPermissionsAsync()
+        if (!perm.granted) return
+        result = await ImagePicker.launchImageLibraryAsync({
+          quality: 0.7,
+          allowsEditing: true,
+        })
+      }
+      if (!result || result.canceled || !result.assets?.[0]?.uri) return
+
+      setIsUploadingPhoto(true)
+      const formData = new FormData()
+      formData.append('folder', 'petlink/walks')
+      formData.append('file', { uri: result.assets[0].uri, name: `walk-edit-${walk.id}.jpg`, type: 'image/jpeg' } as any)
+      const data = await uploadImageWithRetry({ formData })
+      if (data?.url) setEditPhotoUrl(data.url)
+    } catch {
+      // silently fail
+    } finally {
+      setIsUploadingPhoto(false)
+    }
+  }
+
+  const handleSaveEdit = async () => {
+    if (savingEdit) return
+    setSavingEdit(true)
+    try {
+      await dispatch(updateWalkThunk({
+        id: walk.id,
+        data: {
+          title: editTitle || undefined,
+          color: editColor || undefined,
+          location: editLocation || undefined,
+          notes: editNotes || undefined,
+          photoUrl: editPhotoUrl || undefined,
+        },
+      })).unwrap()
+      // Update local walk reference
+      walk.title = editTitle || null
+      walk.color = editColor || null
+      walk.location = editLocation || null
+      walk.notes = editNotes || null
+      walk.photoUrl = editPhotoUrl || null
+      setShowEditModal(false)
+    } catch {
+      // error
+    } finally {
+      setSavingEdit(false)
+    }
+  }
+
   const [sharing, setSharing] = useState(false)
   const [showPostModal, setShowPostModal] = useState(false)
   const [postPhotoUrl, setPostPhotoUrl] = useState('')
@@ -374,6 +484,115 @@ export default function WalkDetailScreen() {
           <RouteLine route={walk.route} width={COMPOSITE_SIZE} height={COMPOSITE_SIZE} />
         </View>
       )}
+      {/* Edit modal */}
+      <RNModal visible={showEditModal} animationType="slide" transparent statusBarTranslucent onRequestClose={() => setShowEditModal(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.editOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowEditModal(false)} />
+          <View style={[styles.editSheet, { backgroundColor: colors.background }]}>
+            <View style={styles.editHandle}>
+              <View style={[styles.editHandleBar, { backgroundColor: withAlpha(colors.border, 0.6) }]} />
+            </View>
+            <ScrollView contentContainerStyle={styles.editContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              <Heading size="lg" weight="800" style={{ textAlign: 'center', marginBottom: 20 }}>
+                Editar Passeio
+              </Heading>
+
+              <Text size="xs" weight="700" color="mutedForeground" style={{ marginBottom: 6, marginLeft: 2 }}>Título</Text>
+              <TextInput
+                style={[styles.editInput, { backgroundColor: colors.muted, color: colors.foreground, borderColor: colors.border }]}
+                placeholder="Ex: Passeio matinal no parque"
+                placeholderTextColor={colors.mutedForeground}
+                value={editTitle}
+                onChangeText={setEditTitle}
+              />
+
+              <Text size="xs" weight="700" color="mutedForeground" style={{ marginBottom: 6, marginLeft: 2, marginTop: 16 }}>Foto</Text>
+              {editPhotoUrl ? (
+                <View style={styles.editPhotoWrapper}>
+                  <Image source={editPhotoUrl} style={styles.editPhotoPreview} contentFit="cover" />
+                  <Pressable style={[styles.editRemovePhoto, { backgroundColor: withAlpha(colors.card, 0.8) }]} onPress={() => setEditPhotoUrl('')}>
+                    <Ionicons name="trash" size={18} color={colors.destructive} />
+                  </Pressable>
+                </View>
+              ) : (
+                <View style={{ flexDirection: 'row', gap: 12 }}>
+                  <Pressable
+                    onPress={() => handlePickPhoto('camera')}
+                    disabled={isUploadingPhoto}
+                    style={[styles.editPhotoPicker, { borderColor: colors.border, backgroundColor: withAlpha(colors.card, 0.5) }]}
+                  >
+                    {isUploadingPhoto ? (
+                      <ActivityIndicator color={colors.primary} />
+                    ) : (
+                      <>
+                        <Ionicons name="camera-outline" size={28} color={colors.mutedForeground} />
+                        <Text size="sm" color="mutedForeground" style={{ marginTop: 6 }}>Câmera</Text>
+                      </>
+                    )}
+                  </Pressable>
+                  <Pressable
+                    onPress={() => handlePickPhoto('gallery')}
+                    disabled={isUploadingPhoto}
+                    style={[styles.editPhotoPicker, { borderColor: colors.border, backgroundColor: withAlpha(colors.card, 0.5) }]}
+                  >
+                    <Ionicons name="images-outline" size={28} color={colors.mutedForeground} />
+                    <Text size="sm" color="mutedForeground" style={{ marginTop: 6 }}>Galeria</Text>
+                  </Pressable>
+                </View>
+              )}
+
+              <Text size="xs" weight="700" color="mutedForeground" style={{ marginBottom: 6, marginLeft: 2, marginTop: 16 }}>Cor</Text>
+              <View style={styles.editColorRow}>
+                {WALK_COLORS.map(color => (
+                  <Pressable
+                    key={color}
+                    onPress={() => setEditColor(editColor === color ? '' : color)}
+                    style={[styles.editColorDot, { backgroundColor: color }, editColor === color && styles.editColorDotActive]}
+                  />
+                ))}
+              </View>
+
+              <Text size="xs" weight="700" color="mutedForeground" style={{ marginBottom: 6, marginLeft: 2, marginTop: 16 }}>Localização</Text>
+              <TextInput
+                style={[styles.editInput, { backgroundColor: colors.muted, color: colors.foreground, borderColor: colors.border }]}
+                placeholder="São Paulo, SP"
+                placeholderTextColor={colors.mutedForeground}
+                value={editLocation}
+                onChangeText={setEditLocation}
+              />
+
+              <Text size="xs" weight="700" color="mutedForeground" style={{ marginBottom: 6, marginLeft: 2, marginTop: 16 }}>Anotações</Text>
+              <TextInput
+                style={[styles.editInput, styles.editTextArea, { backgroundColor: colors.muted, color: colors.foreground, borderColor: colors.border }]}
+                placeholder="Observações sobre o passeio..."
+                placeholderTextColor={colors.mutedForeground}
+                value={editNotes}
+                onChangeText={setEditNotes}
+                multiline
+              />
+            </ScrollView>
+
+            <View style={[styles.editFooter, { borderTopColor: withAlpha(colors.border, 0.4) }]}>
+              <Pressable onPress={() => setShowEditModal(false)} style={styles.editDiscardBtn}>
+                <Text color="mutedForeground" weight="600">Cancelar</Text>
+              </Pressable>
+              <Pressable
+                onPress={handleSaveEdit}
+                disabled={savingEdit}
+                style={[styles.editSaveBtn, { backgroundColor: savingEdit ? withAlpha(colors.primary, 0.5) : colors.primary }]}
+              >
+                {savingEdit ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Ionicons name="checkmark" size={20} color="#fff" />
+                )}
+                <Text weight="800" size="sm" style={{ color: '#fff', marginLeft: 6 }}>{savingEdit ? 'Salvando...' : 'Salvar'}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </RNModal>
+
       <RNModal visible={showDeleteModal} transparent animationType="fade" statusBarTranslucent>
         <View style={styles.deleteOverlay}>
           <View style={[styles.deleteCard, { backgroundColor: colors.card }]}>
@@ -446,6 +665,124 @@ const styles = StyleSheet.create({
   walkPhoto: {
     width: '100%',
     height: 220,
+  },
+  menuDropdown: {
+    position: 'absolute',
+    top: 40,
+    right: Platform.OS === 'ios' ? 8 : 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    overflow: 'hidden',
+    zIndex: 100,
+    minWidth: 140,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 0.5,
+  },
+  editOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  editSheet: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '90%',
+  },
+  editHandle: {
+    alignItems: 'center',
+    paddingTop: 12,
+  },
+  editHandleBar: {
+    width: 40,
+    height: 5,
+    borderRadius: 2.5,
+  },
+  editContent: {
+    padding: 24,
+    paddingBottom: 8,
+  },
+  editInput: {
+    borderRadius: 10,
+    padding: 12,
+    borderWidth: 1,
+    fontSize: 15,
+  },
+  editTextArea: {
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  editPhotoPicker: {
+    flex: 1,
+    height: 80,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  editPhotoWrapper: {
+    position: 'relative',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  editPhotoPreview: {
+    width: '100%',
+    height: 160,
+    borderRadius: 12,
+  },
+  editRemovePhoto: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  editColorRow: {
+    flexDirection: 'row',
+    gap: 10,
+    flexWrap: 'wrap',
+  },
+  editColorDot: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+  },
+  editColorDotActive: {
+    borderWidth: 3,
+    borderColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  editFooter: {
+    flexDirection: 'row',
+    gap: 12,
+    padding: 16,
+    borderTopWidth: 0.5,
+  },
+  editDiscardBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+  },
+  editSaveBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   deleteOverlay: {
     flex: 1,
