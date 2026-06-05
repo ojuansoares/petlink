@@ -71,18 +71,22 @@ function RouteLine({ route, width, height }: { route: WalkPoint[]; width: number
 
   return (
     <View style={StyleSheet.absoluteFill}>
+      {/* Photo darkening overlay for contrast */}
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.12)' }]} />
+      {/* Shadow layer (wider, more opaque) */}
       {segments.map(s => (
         <View key={`s-${s.key}`} style={{
           position: 'absolute',
           left: s.x - s.w / 2,
-          top: s.y - 6,
+          top: s.y - 7,
           width: s.w,
-          height: 12,
-          borderRadius: 6,
-          backgroundColor: 'rgba(0,0,0,0.25)',
+          height: 14,
+          borderRadius: 7,
+          backgroundColor: 'rgba(0,0,0,0.35)',
           transform: [{ rotate: `${s.a}deg` }],
         }} />
       ))}
+      {/* Green line */}
       {segments.map(s => (
         <View key={`l-${s.key}`} style={{
           position: 'absolute',
@@ -95,6 +99,7 @@ function RouteLine({ route, width, height }: { route: WalkPoint[]; width: number
           transform: [{ rotate: `${s.a}deg` }],
         }} />
       ))}
+      {/* Start marker */}
       <View style={{
         position: 'absolute',
         left: firstPixel.x - 8,
@@ -106,6 +111,7 @@ function RouteLine({ route, width, height }: { route: WalkPoint[]; width: number
         borderWidth: 3,
         borderColor: '#fff',
       }} />
+      {/* End marker */}
       <View style={{
         position: 'absolute',
         left: lastPixel.x - 8,
