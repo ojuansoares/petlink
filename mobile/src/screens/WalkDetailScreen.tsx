@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState, useLayoutEffect } from 'react'
 import { View, ScrollView, StyleSheet, Platform, ActivityIndicator, Pressable, Alert } from 'react-native'
-import MapView, { Polyline, Marker, Region, PROVIDER_GOOGLE } from 'react-native-maps'
+import MapView, { Polyline, Marker, Region } from 'react-native-maps'
 import { Image } from 'expo-image'
 import { Ionicons } from '@expo/vector-icons'
 import { useTheme } from '../hooks/useTheme'
@@ -129,7 +129,6 @@ export default function WalkDetailScreen() {
       <View ref={shotRef} style={styles.mapContainer} collapsable={false}>
         {region ? (
           <MapView
-            provider={PROVIDER_GOOGLE}
             style={StyleSheet.absoluteFill}
             initialRegion={region}
             scrollEnabled
@@ -260,7 +259,6 @@ export default function WalkDetailScreen() {
           <Image source={walk.photoUrl} style={StyleSheet.absoluteFill} contentFit="cover" />
           <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.08)' }]}>
             <MapView
-              provider={PROVIDER_GOOGLE}
               style={StyleSheet.absoluteFill}
               initialRegion={region ?? {
                 latitude: walk.route[0].lat,

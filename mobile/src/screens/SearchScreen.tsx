@@ -12,7 +12,7 @@ import {
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native'
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps'
+import MapView, { Marker } from 'react-native-maps'
 import { useTheme } from '../hooks/useTheme'
 import { useNetworkCheck } from '../hooks/useNetworkCheck'
 import { Text } from '../components/ui/Typography'
@@ -363,7 +363,6 @@ export default function SearchScreen() {
                   {isValidLatLng(placeDetail.lat, placeDetail.lng) ? (
                     <MapView
                       style={{ width: '100%', height: MAP_HEIGHT, borderRadius: 12 }}
-                      provider={PROVIDER_GOOGLE}
                       initialRegion={{
                         latitude: placeDetail.lat,
                         longitude: placeDetail.lng,

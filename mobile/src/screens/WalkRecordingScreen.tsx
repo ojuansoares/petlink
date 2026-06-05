@@ -3,7 +3,7 @@ import {
   View, Pressable, StyleSheet, Platform, Alert, ActivityIndicator,
   Modal as RNModal, TextInput, ScrollView, KeyboardAvoidingView,
 } from 'react-native'
-import MapView, { Polyline, Region, PROVIDER_GOOGLE } from 'react-native-maps'
+import MapView, { Polyline, Region } from 'react-native-maps'
 import { Image } from 'expo-image'
 import { Ionicons } from '@expo/vector-icons'
 import * as ImagePicker from 'expo-image-picker'
@@ -43,6 +43,7 @@ export default function WalkRecordingScreen() {
   const [region, setRegion] = useState<Region | null>(null)
   const [isPaused, setIsPaused] = useState(false)
   const [loadingLocation, setLoadingLocation] = useState(true)
+  const [gpsError, setGpsError] = useState(false)
   const watchRef = useRef<any>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const lastPointRef = useRef<{ lat: number; lng: number } | null>(null)
@@ -62,29 +63,46 @@ export default function WalkRecordingScreen() {
     '#8B5CF6', '#EC4899', '#14B8A6', '#F59E0B',
   ]
 
+  const gpsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   const startGpsWatch = useCallback(async () => {
     watchRef.current?.remove()
-    const sub = await watchPosition(
-      (lat, lng) => {
-        const ts = new Date().toISOString()
-        const last = lastPointRef.current
-        let distanceDelta = 0
-        if (last) {
-          distanceDelta = haversineDistance(last.lat, last.lng, lat, lng)
-        }
-        lastPointRef.current = { lat, lng }
-        dispatch(addRoutePoint({ lat, lng, timestamp: ts, distanceDelta }))
+    if (gpsTimeoutRef.current) clearTimeout(gpsTimeoutRef.current)
+    setGpsError(false)
 
-        if (distanceDelta > 0) {
-          const speedMs = distanceDelta / 5
-          const speedKmh = speedMs * 3.6
-          dispatch(updateMaxSpeed(speedKmh))
-        }
-      },
-      (err) => console.warn('GPS error:', err),
-      { timeInterval: 5000, distanceInterval: 5 },
-    )
-    watchRef.current = sub
+    gpsTimeoutRef.current = setTimeout(() => setGpsError(true), 15000)
+
+    try {
+      const sub = await watchPosition(
+        (lat, lng) => {
+          setGpsError(false)
+          if (gpsTimeoutRef.current) {
+            clearTimeout(gpsTimeoutRef.current)
+            gpsTimeoutRef.current = null
+          }
+
+          const ts = new Date().toISOString()
+          const last = lastPointRef.current
+          let distanceDelta = 0
+          if (last) {
+            distanceDelta = haversineDistance(last.lat, last.lng, lat, lng)
+          }
+          lastPointRef.current = { lat, lng }
+          dispatch(addRoutePoint({ lat, lng, timestamp: ts, distanceDelta }))
+
+          if (distanceDelta > 0) {
+            const speedMs = distanceDelta / 5
+            const speedKmh = speedMs * 3.6
+            dispatch(updateMaxSpeed(speedKmh))
+          }
+        },
+        () => setGpsError(true),
+        { timeInterval: 5000, distanceInterval: 0 },
+      )
+      watchRef.current = sub
+    } catch {
+      setGpsError(true)
+    }
   }, [dispatch])
 
   // On mount: request permission and get initial location for map preview
@@ -117,6 +135,7 @@ export default function WalkRecordingScreen() {
     return () => {
       watchRef.current?.remove()
       if (timerRef.current) clearInterval(timerRef.current)
+      if (gpsTimeoutRef.current) clearTimeout(gpsTimeoutRef.current)
     }
   }, [])
 
@@ -285,7 +304,6 @@ export default function WalkRecordingScreen() {
       {/* Map (always visible) */}
       <View style={styles.mapContainer}>
         <MapView
-          provider={PROVIDER_GOOGLE}
           style={StyleSheet.absoluteFill}
           initialRegion={region ?? {
             latitude: -15.7934,
@@ -372,6 +390,12 @@ export default function WalkRecordingScreen() {
                 </Text>
               </View>
             </View>
+            {gpsError && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                <Ionicons name="alert-circle" size={14} color="#FBBF24" />
+                <Text size="xs" style={{ color: '#FBBF24' }}>GPS sem sinal — mova-se para uma área aberta</Text>
+              </View>
+            )}
           </View>
 
           <View style={styles.controls}>
