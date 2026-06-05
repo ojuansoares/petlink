@@ -12,6 +12,7 @@ import {
   type WalkStats,
 } from '../../api/walks.api'
 import { walkQueueRepository } from '../../data/repositories/WalkQueueRepository'
+import { fetchGamificationThunk } from './gamificationSlice'
 
 const CACHE_PREFIX = 'petlink.walk.cache'
 
@@ -79,9 +80,12 @@ export const fetchWalkByIdThunk = createAsyncThunk(
 
 export const saveWalkThunk = createAsyncThunk(
   'walks/save',
-  async (payload: Omit<Walk, 'id' | 'createdAt'>, { rejectWithValue }) => {
+  async (payload: Omit<Walk, 'id' | 'createdAt'>, { rejectWithValue, dispatch }) => {
     try {
-      return await createWalk(payload)
+      const walk = await createWalk(payload)
+      // Refresh gamification (XP + achievements) after walk is saved
+      dispatch(fetchGamificationThunk())
+      return walk
     } catch (err: any) {
       if (err.isOffline) {
         await walkQueueRepository.enqueue(payload)
@@ -128,13 +132,16 @@ export const fetchWalkStatsThunk = createAsyncThunk(
 
 export const processWalkQueueThunk = createAsyncThunk(
   'walks/processQueue',
-  async (_, { rejectWithValue }) => {
+  async (_, { rejectWithValue, dispatch }) => {
     try {
       let count = 0
       await walkQueueRepository.processQueue(async (payload) => {
         await createWalk(payload)
         count++
       })
+      if (count > 0) {
+        dispatch(fetchGamificationThunk())
+      }
       return count
     } catch (err: any) {
       return rejectWithValue(err.message)

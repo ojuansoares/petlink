@@ -1,5 +1,6 @@
 import { AppError } from '../../shared/AppError'
 import { walksRepository } from './walks.repository'
+import { gamificationService } from '../gamification/gamification.service'
 
 function estimateCalories(durationS: number, distanceM: number, avgSpeedKmh: number): number {
   const weight = 70 // peso médio estimado (kg) — ideal seria vir do pet
@@ -44,7 +45,7 @@ export const walksService = {
     const calories = payload.calories ?? estimateCalories(payload.durationS, payload.distanceM, avgSpeed)
     const avgPace = payload.avgPaceMinKm ?? (avgSpeed > 0 ? 60 / avgSpeed : null)
 
-    return walksRepository.create({
+    const walk = await walksRepository.create({
       pet_id: payload.petId,
       owner_id: payload.ownerId,
       started_at: payload.startedAt,
@@ -63,6 +64,11 @@ export const walksService = {
       color: payload.color ?? null,
       location: payload.location ?? null,
     })
+
+    // Trigger gamification recalculation (XP + achievements) in the background
+    gamificationService.getMyStats(payload.ownerId).catch(() => {})
+
+    return walk
   },
 
   async update(id: string, payload: {

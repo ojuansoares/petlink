@@ -15,6 +15,7 @@ const XP = {
   groupJoined: 30,
   groupCreated: 50,
   petCreated: 40,
+  walk: 50,
 }
 
 function calculateLevel(totalXp: number): { level: number; xpInLevel: number; xpToNext: number } {
@@ -41,6 +42,8 @@ function getThresholdValue(criteriaType: string, counts: Record<string, number>)
     case 'groups_created': return counts.groupsCreated
     case 'checkin_count': return counts.checkinCount
     case 'consultation_count': return counts.consultationCount
+    case 'walk_count': return counts.walkCount
+    case 'walk_distance': return counts.walkDistance
     case 'total_xp': return counts.totalXp
     default: return 0
   }
@@ -67,6 +70,8 @@ export const gamificationService = {
       groupsCreated,
       checkinCount,
       feedingStreak,
+      walkCount,
+      walkDistance,
     ] = await Promise.all([
       Post.countDocuments({ authorId: userId }),
       gamificationRepository.countCompletedVaccines(petIds),
@@ -76,6 +81,8 @@ export const gamificationService = {
       gamificationRepository.countGroupsCreated(userId),
       gamificationRepository.countCheckins(userId),
       gamificationRepository.countFeedingStreak(petIds),
+      gamificationRepository.countWalks(userId),
+      gamificationRepository.sumWalkDistance(userId),
     ])
 
     const petCount = petIds.length
@@ -88,7 +95,8 @@ export const gamificationService = {
       consultationCount * XP.consultation +
       groupsJoined * XP.groupJoined +
       groupsCreated * XP.groupCreated +
-      petCount * XP.petCreated
+      petCount * XP.petCreated +
+      walkCount * XP.walk
 
     const counts = {
       postCount,
@@ -99,6 +107,8 @@ export const gamificationService = {
       groupsCreated,
       checkinCount,
       feedingStreak,
+      walkCount,
+      walkDistance,
       totalXp: activityXp,
     }
 

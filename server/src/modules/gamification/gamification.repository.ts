@@ -152,6 +152,28 @@ export const gamificationRepository = {
     return streak
   },
 
+  async countWalks(ownerId: string): Promise<number> {
+    const { count, error } = await supabaseAdmin
+      .from('walks')
+      .select('*', { count: 'exact', head: true })
+      .eq('owner_id', ownerId)
+      .not('ended_at', 'is', null)
+
+    if (error) throw error
+    return count ?? 0
+  },
+
+  async sumWalkDistance(ownerId: string): Promise<number> {
+    const { data, error } = await supabaseAdmin
+      .from('walks')
+      .select('distance_m')
+      .eq('owner_id', ownerId)
+      .not('ended_at', 'is', null)
+
+    if (error) throw error
+    return (data ?? []).reduce((sum: number, r: any) => sum + (r.distance_m ?? 0), 0)
+  },
+
   async updateUserLevel(userId: string, level: number): Promise<void> {
     await supabaseAdmin
       .from('profiles')

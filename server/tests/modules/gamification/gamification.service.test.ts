@@ -38,6 +38,8 @@ describe('gamificationService', () => {
       countGroupsCreated: 0,
       countCheckins: 0,
       countFeedingStreak: 0,
+      countWalks: 0,
+      sumWalkDistance: 0,
     }
 
     async function setupCounts(overrides: Partial<typeof defaultCounts> = {}) {
@@ -49,6 +51,8 @@ describe('gamificationService', () => {
       mockedRepo.countGroupsCreated.mockResolvedValue(counts.countGroupsCreated)
       mockedRepo.countCheckins.mockResolvedValue(counts.countCheckins)
       mockedRepo.countFeedingStreak.mockResolvedValue(counts.countFeedingStreak)
+      mockedRepo.countWalks.mockResolvedValue(counts.countWalks)
+      mockedRepo.sumWalkDistance.mockResolvedValue(counts.sumWalkDistance)
     }
 
     it('deve retornar level 1 com 0 XP para usuário sem atividades', async () => {
