@@ -127,11 +127,15 @@ export const placesRepository = {
 
     // Sort by distance from user when coords are available
     if (lat !== undefined && lng !== undefined) {
-      results.sort((a, b) => {
-        const distA = haversineDistance(lat, lng, a.lat, a.lng)
-        const distB = haversineDistance(lat, lng, b.lat, b.lng)
-        return distA - distB
-      })
+      try {
+        results.sort((a, b) => {
+          const distA = haversineDistance(lat, lng, a.lat, a.lng)
+          const distB = haversineDistance(lat, lng, b.lat, b.lng)
+          return distA - distB
+        })
+      } catch {
+        // fallback to default ordering on sort error
+      }
     }
 
     setCache(cacheKey, results)

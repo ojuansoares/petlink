@@ -383,8 +383,7 @@ export function ConsultationScreen() {
                   <Pressable
                     onPress={() => navigation.navigate('Search', {
                       tab: 'locais' as const,
-                      osmId: c.place_osm_id!,
-                      osmType: c.place_osm_type!,
+                      q: c.place_name || c.clinic,
                     })}
                   >
                     <Text weight="700" style={{ color: colors.primary, textDecorationLine: 'underline' }}>{c.place_name || c.clinic}</Text>

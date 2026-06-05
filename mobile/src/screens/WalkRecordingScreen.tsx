@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import {
   View, Pressable, StyleSheet, Platform, Alert, ActivityIndicator,
-  Modal as RNModal, TextInput, ScrollView, KeyboardAvoidingView,
+  Modal as RNModal, TextInput, ScrollView, KeyboardAvoidingView, AppState,
 } from 'react-native'
 import MapView, { Polyline, Region } from 'react-native-maps'
 import { Image } from 'expo-image'
@@ -18,7 +18,13 @@ import {
   pauseWalk, resumeWalk, cancelWalk, saveWalkThunk,
   selectActiveWalk, selectIsWalking,
 } from '../store/slices/walksSlices'
-import { watchPosition, haversineDistance, requestLocationPermission, getCurrentPosition } from '../services/LocationService'
+import { selectIsOnline } from '../store/slices/uiSlice'
+import {
+  watchPosition, haversineDistance, requestLocationPermission,
+  requestBackgroundLocationPermission, getCurrentPosition,
+  startBackgroundWalkTracking, stopBackgroundWalkTracking,
+} from '../services/LocationService'
+import { loadBgRoutePoints, clearBgRoutePoints } from '../services/BackgroundLocationTask'
 import { useLocation } from '../hooks/useLocation'
 import { uploadImageWithRetry } from '../api/uploadWithRetry'
 import { AppToast } from '../components/ui/AppToast'
@@ -59,7 +65,12 @@ export default function WalkRecordingScreen() {
   const [walkPhotoUrl, setWalkPhotoUrl] = useState('')
   const [walkColor, setWalkColor] = useState('')
   const [walkLocation, setWalkLocation] = useState('')
+  const [walkNotes, setWalkNotes] = useState('')
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false)
+
+  const isOnline = useAppSelector(selectIsOnline)
+  const activeWalkRef = useRef(activeWalk)
+  useEffect(() => { activeWalkRef.current = activeWalk }, [activeWalk])
 
   const WALK_COLORS = [
     '#3B82F6', '#22C55E', '#F97316', '#EF4444',
@@ -108,6 +119,49 @@ export default function WalkRecordingScreen() {
     }
   }, [dispatch])
 
+  const mergeBackgroundPoints = useCallback(async () => {
+    const bgPoints = await loadBgRoutePoints()
+    if (!bgPoints.length) return
+    const walk = activeWalkRef.current
+    if (!walk) return
+
+    const sorted = bgPoints.sort(
+      (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+    )
+
+    const existingTimestamps = new Set(
+      walk.route.map(p => new Date(p.timestamp).getTime()),
+    )
+
+    let last = lastPointRef.current
+    if (!last && walk.route.length > 0) {
+      const r = walk.route[walk.route.length - 1]
+      last = { lat: r.lat, lng: r.lng }
+    }
+
+    for (const p of sorted) {
+      const ts = new Date(p.timestamp).getTime()
+      if (existingTimestamps.has(ts)) continue
+
+      const distanceDelta = last ? haversineDistance(last.lat, last.lng, p.lat, p.lng) : 0
+      last = { lat: p.lat, lng: p.lng }
+
+      dispatch(addRoutePoint({ lat: p.lat, lng: p.lng, timestamp: p.timestamp, distanceDelta }))
+    }
+
+    await clearBgRoutePoints()
+  }, [dispatch])
+
+  // AppState listener: merge background points when returning to foreground
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        mergeBackgroundPoints()
+      }
+    })
+    return () => sub.remove()
+  }, [mergeBackgroundPoints])
+
   // On mount: request permission and get initial location for map preview
   useEffect(() => {
     (async () => {
@@ -139,6 +193,7 @@ export default function WalkRecordingScreen() {
       watchRef.current?.remove()
       if (timerRef.current) clearInterval(timerRef.current)
       if (gpsTimeoutRef.current) clearTimeout(gpsTimeoutRef.current)
+      stopBackgroundWalkTracking()
     }
   }, [])
 
@@ -165,25 +220,36 @@ export default function WalkRecordingScreen() {
     }
   }, [phase, isWalking, isPaused])
 
-  const handleBeginWalk = () => {
+  const handleBeginWalk = async () => {
     dispatch(startWalk({ petId, petName }))
     setPhase('walking')
+    const bgOk = await requestBackgroundLocationPermission()
+    if (bgOk) {
+      await startBackgroundWalkTracking()
+    }
   }
 
   const handlePause = () => {
     setIsPaused(true)
     dispatch(pauseWalk())
     watchRef.current?.remove()
+    stopBackgroundWalkTracking()
   }
 
-  const handleResume = () => {
+  const handleResume = async () => {
     setIsPaused(false)
     dispatch(resumeWalk())
+    const bgOk = await requestBackgroundLocationPermission()
+    if (bgOk) {
+      await startBackgroundWalkTracking()
+    }
   }
 
-  const handleStop = () => {
+  const handleStop = async () => {
     watchRef.current?.remove()
     if (timerRef.current) clearInterval(timerRef.current)
+    await stopBackgroundWalkTracking()
+    await mergeBackgroundPoints()
     setWalkTitle('')
     setWalkPhotoUrl('')
     setWalkColor('')
@@ -216,7 +282,7 @@ export default function WalkRecordingScreen() {
       calories: null,
       photoUrl: walkPhotoUrl || null,
       route: activeWalk.route,
-      notes: null,
+      notes: walkNotes || null,
       title: walkTitle || null,
       color: walkColor || null,
       location: walkLocation || null,
@@ -277,10 +343,12 @@ export default function WalkRecordingScreen() {
     setShowDiscardModal(true)
   }
 
-  const confirmDiscard = () => {
+  const confirmDiscard = async () => {
     watchRef.current?.remove()
     if (timerRef.current) clearInterval(timerRef.current)
     if (gpsTimeoutRef.current) clearTimeout(gpsTimeoutRef.current)
+    await stopBackgroundWalkTracking()
+    await clearBgRoutePoints()
     setShowDiscardModal(false)
     dispatch(cancelWalk())
     navigation.goBack()
@@ -350,6 +418,12 @@ export default function WalkRecordingScreen() {
             <Text color="mutedForeground" size="sm" style={{ textAlign: 'center', marginTop: 6, lineHeight: 20 }}>
               O mapa e o GPS estão prontos. Quando quiser começar, pressione o botão abaixo.
             </Text>
+            {!isOnline && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 }}>
+                <Ionicons name="cloud-offline-outline" size={14} color="#94A3B8" />
+                <Text size="xs" color="mutedForeground">Sem conexão — o passeio será salvo offline e enviado quando houver internet</Text>
+              </View>
+            )}
 
             <Pressable
               onPress={handleBeginWalk}
@@ -379,6 +453,10 @@ export default function WalkRecordingScreen() {
       {phase === 'walking' && (
         <>
           <View style={[styles.infoOverlay, { backgroundColor: withAlpha('#000', 0.6) }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+              <Ionicons name="moon-outline" size={12} color="rgba(255,255,255,0.5)" />
+              <Text size="xs" style={{ color: 'rgba(255,255,255,0.5)' }}>Funciona com a tela desligada</Text>
+            </View>
             <Text weight="800" size="3xl" style={{ color: '#fff' }}>{formatTime(elapsedS)}</Text>
             <View style={styles.infoRow}>
               <View style={styles.infoItem}>
@@ -398,6 +476,12 @@ export default function WalkRecordingScreen() {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
                 <Ionicons name="alert-circle" size={14} color="#FBBF24" />
                 <Text size="xs" style={{ color: '#FBBF24' }}>GPS sem sinal — mova-se para uma área aberta</Text>
+              </View>
+            )}
+            {!isOnline && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                <Ionicons name="cloud-offline-outline" size={14} color="#94A3B8" />
+                <Text size="xs" style={{ color: '#94A3B8' }}>Sem conexão — o mapa pode não exibir todos os detalhes</Text>
               </View>
             )}
           </View>
@@ -436,113 +520,125 @@ export default function WalkRecordingScreen() {
               <View style={[styles.finishHandleBar, { backgroundColor: withAlpha(colors.border, 0.6) }]} />
             </View>
 
-              <ScrollView contentContainerStyle={styles.finishContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-                <Heading size="lg" weight="800" style={{ textAlign: 'center', marginBottom: 20 }}>
-                  Finalizar Passeio
-                </Heading>
+            <ScrollView contentContainerStyle={styles.finishContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              <Heading size="lg" weight="800" style={{ textAlign: 'center', marginBottom: 20 }}>
+                Finalizar Passeio
+              </Heading>
 
-                <Text size="xs" weight="700" color="mutedForeground" style={{ marginBottom: 6, marginLeft: 2 }}>
-                  Título
-                </Text>
-                <TextInput
-                  style={[styles.finishInput, { backgroundColor: colors.muted, color: colors.foreground, borderColor: colors.border }]}
-                  placeholder="Ex: Passeio matinal no parque"
-                  placeholderTextColor={colors.mutedForeground}
-                  value={walkTitle}
-                  onChangeText={setWalkTitle}
-                />
+              <Text size="xs" weight="700" color="mutedForeground" style={{ marginBottom: 6, marginLeft: 2 }}>
+                Título
+              </Text>
+              <TextInput
+                style={[styles.finishInput, { backgroundColor: colors.muted, color: colors.foreground, borderColor: colors.border }]}
+                placeholder="Ex: Passeio matinal no parque"
+                placeholderTextColor={colors.mutedForeground}
+                value={walkTitle}
+                onChangeText={setWalkTitle}
+              />
 
-                <Text size="xs" weight="700" color="mutedForeground" style={{ marginBottom: 6, marginLeft: 2, marginTop: 16 }}>
-                  Foto (opcional)
-                </Text>
-                {walkPhotoUrl ? (
-                  <View style={styles.finishPhotoWrapper}>
-                    <Image source={walkPhotoUrl} style={styles.finishPhotoPreview} contentFit="cover" />
-                    <Pressable
-                      style={[styles.finishRemovePhoto, { backgroundColor: withAlpha(colors.card, 0.8) }]}
-                      onPress={() => setWalkPhotoUrl('')}
-                    >
-                      <Ionicons name="trash" size={18} color={colors.destructive} />
-                    </Pressable>
-                  </View>
-                ) : (
+              <Text size="xs" weight="700" color="mutedForeground" style={{ marginBottom: 6, marginLeft: 2, marginTop: 16 }}>
+                Foto (opcional)
+              </Text>
+              {walkPhotoUrl ? (
+                <View style={styles.finishPhotoWrapper}>
+                  <Image source={walkPhotoUrl} style={styles.finishPhotoPreview} contentFit="cover" />
                   <Pressable
-                    onPress={() => setShowImagePicker(true)}
-                    disabled={isUploadingPhoto}
-                    style={[styles.finishPhotoPicker, { borderColor: colors.border, backgroundColor: withAlpha(colors.card, 0.5) }]}
+                    style={[styles.finishRemovePhoto, { backgroundColor: withAlpha(colors.card, 0.8) }]}
+                    onPress={() => setWalkPhotoUrl('')}
                   >
-                    {isUploadingPhoto ? (
-                      <ActivityIndicator color={colors.primary} />
-                    ) : (
-                      <>
-                        <Ionicons name="camera-outline" size={28} color={colors.mutedForeground} />
-                        <Text size="sm" color="mutedForeground" style={{ marginTop: 6 }}>Adicionar foto</Text>
-                      </>
-                    )}
+                    <Ionicons name="trash" size={18} color={colors.destructive} />
                   </Pressable>
-                )}
-
-                <Text size="xs" weight="700" color="mutedForeground" style={{ marginBottom: 6, marginLeft: 2, marginTop: 16 }}>
-                  Cor (opcional)
-                </Text>
-                <View style={styles.finishColorRow}>
-                  {WALK_COLORS.map(color => (
-                    <Pressable
-                      key={color}
-                      onPress={() => setWalkColor(walkColor === color ? '' : color)}
-                      style={[
-                        styles.finishColorDot,
-                        { backgroundColor: color },
-                        walkColor === color && styles.finishColorDotActive,
-                      ]}
-                    />
-                  ))}
                 </View>
-
-                <Text size="xs" weight="700" color="mutedForeground" style={{ marginBottom: 6, marginLeft: 2, marginTop: 16 }}>
-                  Localização
-                </Text>
-                <View style={[styles.finishLocationRow, { borderColor: colors.border, backgroundColor: colors.muted }]}>
-                  <Ionicons name="location-outline" size={18} color={colors.mutedForeground} />
-                  {isLoadingLocation ? (
-                    <ActivityIndicator size="small" color={colors.primary} />
-                  ) : (
-                    <TextInput
-                      style={[styles.finishLocationInput, { color: colors.foreground }]}
-                      value={walkLocation}
-                      onChangeText={setWalkLocation}
-                      placeholder="São Paulo, SP"
-                      placeholderTextColor={colors.mutedForeground}
-                    />
-                  )}
-                </View>
-              </ScrollView>
-
-              <View style={[styles.finishFooter, { borderTopColor: withAlpha(colors.border, 0.4) }]}>
+              ) : (
                 <Pressable
-                  onPress={() => {
-                    setShowFinishModal(false)
-                    dispatch(cancelWalk())
-                    navigation.goBack()
-                  }}
-                  style={styles.finishDiscardBtn}
+                  onPress={() => setShowImagePicker(true)}
+                  disabled={isUploadingPhoto}
+                  style={[styles.finishPhotoPicker, { borderColor: colors.border, backgroundColor: withAlpha(colors.card, 0.5) }]}
                 >
-                  <Text color="mutedForeground" weight="600">Descartar</Text>
-                </Pressable>
-                <Pressable
-                  onPress={handleFinishWalk}
-                  disabled={saving}
-                  style={[styles.finishSaveBtn, { backgroundColor: saving ? withAlpha(colors.primary, 0.5) : colors.primary }]}
-                >
-                  {saving ? (
-                    <ActivityIndicator size="small" color="#fff" />
+                  {isUploadingPhoto ? (
+                    <ActivityIndicator color={colors.primary} />
                   ) : (
-                    <Ionicons name="checkmark" size={20} color="#fff" />
+                    <>
+                      <Ionicons name="camera-outline" size={28} color={colors.mutedForeground} />
+                      <Text size="sm" color="mutedForeground" style={{ marginTop: 6 }}>Adicionar foto</Text>
+                    </>
                   )}
-                  <Text weight="800" size="sm" style={{ color: '#fff', marginLeft: 6 }}>{saving ? 'Salvando...' : 'Salvar'}</Text>
                 </Pressable>
+              )}
+
+              <Text size="xs" weight="700" color="mutedForeground" style={{ marginBottom: 6, marginLeft: 2, marginTop: 16 }}>
+                Cor (opcional)
+              </Text>
+              <View style={styles.finishColorRow}>
+                {WALK_COLORS.map(color => (
+                  <Pressable
+                    key={color}
+                    onPress={() => setWalkColor(walkColor === color ? '' : color)}
+                    style={[
+                      styles.finishColorDot,
+                      { backgroundColor: color },
+                      walkColor === color && styles.finishColorDotActive,
+                    ]}
+                  />
+                ))}
               </View>
+
+              <Text size="xs" weight="700" color="mutedForeground" style={{ marginBottom: 6, marginLeft: 2, marginTop: 16 }}>
+                Localização
+              </Text>
+              <View style={[styles.finishLocationRow, { borderColor: colors.border, backgroundColor: colors.muted }]}>
+                <Ionicons name="location-outline" size={18} color={colors.mutedForeground} />
+                {isLoadingLocation ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  <TextInput
+                    style={[styles.finishLocationInput, { color: colors.foreground }]}
+                    value={walkLocation}
+                    onChangeText={setWalkLocation}
+                    placeholder="São Paulo, SP"
+                    placeholderTextColor={colors.mutedForeground}
+                  />
+                )}
+              </View>
+
+              <Text size="xs" weight="700" color="mutedForeground" style={{ marginBottom: 6, marginLeft: 2, marginTop: 16 }}>
+                Anotações
+              </Text>
+              <TextInput
+                style={[styles.finishInput, styles.finishNotesArea, { backgroundColor: colors.muted, color: colors.foreground, borderColor: colors.border }]}
+                placeholder="Observações sobre o passeio..."
+                placeholderTextColor={colors.mutedForeground}
+                value={walkNotes}
+                onChangeText={setWalkNotes}
+                multiline
+              />
+            </ScrollView>
+
+            <View style={[styles.finishFooter, { borderTopColor: withAlpha(colors.border, 0.4) }]}>
+              <Pressable
+                onPress={() => {
+                  setShowFinishModal(false)
+                  dispatch(cancelWalk())
+                  navigation.goBack()
+                }}
+                style={styles.finishDiscardBtn}
+              >
+                <Text color="mutedForeground" weight="600">Descartar</Text>
+              </Pressable>
+              <Pressable
+                onPress={handleFinishWalk}
+                disabled={saving}
+                style={[styles.finishSaveBtn, { backgroundColor: saving ? withAlpha(colors.primary, 0.5) : colors.primary }]}
+              >
+                {saving ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Ionicons name="checkmark" size={20} color="#fff" />
+                )}
+                <Text weight="800" size="sm" style={{ color: '#fff', marginLeft: 6 }}>{saving ? 'Salvando...' : 'Salvar'}</Text>
+              </Pressable>
             </View>
+          </View>
         </KeyboardAvoidingView>
       </RNModal>
 
@@ -708,6 +804,10 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     fontSize: 16,
     borderWidth: 1,
+  },
+  finishNotesArea: {
+    minHeight: 80,
+    textAlignVertical: 'top',
   },
   finishPhotoPicker: {
     height: 120,

@@ -53,6 +53,7 @@ import {
   restoreScheduledNotifications,
 } from './src/services/NotificationService'
 import { navigateFromNotification } from './src/navigation/navigationRef'
+import './src/services/BackgroundLocationTask'
 
 LogBox.ignoreLogs([
   'InteractionManager has been deprecated',

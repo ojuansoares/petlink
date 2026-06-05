@@ -1,4 +1,6 @@
 import * as Location from 'expo-location'
+import * as TaskManager from 'expo-task-manager'
+import { BACKGROUND_WALK_TASK } from './BackgroundLocationTask'
 
 // ─── Permissão ────────────────────────────────────────────────
 export async function requestLocationPermission(): Promise<boolean> {
@@ -111,6 +113,49 @@ export async function getAddressFromCoords(
   } catch (err) {
     console.error('[Location] Erro no reverse geocode:', err)
     return null
+  }
+}
+
+// ─── Background tracking (walk with screen off) ──────────────
+export async function startBackgroundWalkTracking(): Promise<boolean> {
+  const bgPermission = await requestBackgroundLocationPermission()
+  if (!bgPermission) return false
+
+  const isDefined = TaskManager.isTaskDefined(BACKGROUND_WALK_TASK)
+  if (!isDefined) {
+    console.warn('[Location] Background walk task not defined')
+    return false
+  }
+
+  try {
+    await Location.startLocationUpdatesAsync(BACKGROUND_WALK_TASK, {
+      accuracy: Location.Accuracy.High,
+      timeInterval: 5000,
+      distanceInterval: 0,
+      showsBackgroundLocationIndicator: true,
+      foregroundService: {
+        notificationTitle: 'Passeio em andamento',
+        notificationBody: 'O GPS está registrando seu trajeto',
+        notificationColor: '#22C55E',
+      },
+      pausesUpdatesAutomatically: false,
+      activityType: Location.ActivityType.Fitness,
+    })
+    return true
+  } catch (e) {
+    console.error('[Location] Error starting background tracking:', e)
+    return false
+  }
+}
+
+export async function stopBackgroundWalkTracking(): Promise<void> {
+  try {
+    const isRunning = await Location.hasStartedLocationUpdatesAsync(BACKGROUND_WALK_TASK)
+    if (isRunning) {
+      await Location.stopLocationUpdatesAsync(BACKGROUND_WALK_TASK)
+    }
+  } catch (e) {
+    console.error('[Location] Error stopping background tracking:', e)
   }
 }
 

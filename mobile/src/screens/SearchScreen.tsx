@@ -111,6 +111,8 @@ export default function SearchScreen() {
   const [submittingReview, setSubmittingReview] = useState(false)
   const userCoords = useRef<{ lat: number; lng: number } | null>(null)
 
+  const autoSearchRef = useRef(false)
+
   useEffect(() => {
     const params = route.params
     if (params?.tab) {
@@ -119,10 +121,24 @@ export default function SearchScreen() {
         setSearched(false)
       }
     }
-    if (params?.osmId && params?.osmType) {
-      handlePlaceOpen(params.osmType, params.osmId)
+    if (params?.q) {
+      setQuery(params.q)
     }
   }, [route.params])
+
+  useEffect(() => {
+    if (!query || autoSearchRef.current) return
+    if (activeTab !== 'locais' || query.length < 2) return
+    const params = route.params
+    if (!params?.q) return
+    autoSearchRef.current = true
+    const timer = setTimeout(() => {
+      const { lat, lng } = userCoords.current ?? {}
+      dispatch(searchPlacesThunk({ q: query, lat, lng }))
+      setSearched(true)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [query, activeTab])
 
   // Get user location for place search proximity
   useEffect(() => {
