@@ -124,8 +124,8 @@ export default function WalkRecordingScreen() {
           setRegion({
             latitude: pos.lat,
             longitude: pos.lng,
-            latitudeDelta: 0.01,
-            longitudeDelta: 0.01,
+            latitudeDelta: 0.005,
+            longitudeDelta: 0.005,
           })
         }
       } catch {

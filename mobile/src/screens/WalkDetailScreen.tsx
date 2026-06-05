@@ -18,6 +18,108 @@ import { CreatePostModal } from '../components/ui/CreatePostModal'
 import { captureRef } from 'react-native-view-shot'
 import { useAppDispatch } from '../store'
 import { deleteWalkThunk } from '../store/slices/walksSlices'
+import type { WalkPoint } from '../api/walks.api'
+
+const COMPOSITE_SIZE = 400
+
+function latLngToPixel(
+  lat: number, lng: number,
+  minLat: number, maxLat: number, minLng: number, maxLng: number,
+  width: number, height: number,
+) {
+  return {
+    x: ((lng - minLng) / (maxLng - minLng)) * width,
+    y: ((maxLat - lat) / (maxLat - minLat)) * height,
+  }
+}
+
+function RouteLine({ route, width, height }: { route: WalkPoint[]; width: number; height: number }) {
+  const lats = route.map(p => p.lat)
+  const lngs = route.map(p => p.lng)
+  const minLat = Math.min(...lats)
+  const maxLat = Math.max(...lats)
+  const minLng = Math.min(...lngs)
+  const maxLng = Math.max(...lngs)
+
+  const padLat = (maxLat - minLat) * 0.08 || 0.001
+  const padLng = (maxLng - minLng) * 0.08 || 0.001
+
+  const adjMinLat = minLat - padLat
+  const adjMaxLat = maxLat + padLat
+  const adjMinLng = minLng - padLng
+  const adjMaxLng = maxLng + padLng
+
+  const segments: { key: string; x: number; y: number; w: number; a: number }[] = []
+
+  for (let i = 0; i < route.length - 1; i++) {
+    const p1 = latLngToPixel(route[i].lat, route[i].lng, adjMinLat, adjMaxLat, adjMinLng, adjMaxLng, width, height)
+    const p2 = latLngToPixel(route[i + 1].lat, route[i + 1].lng, adjMinLat, adjMaxLat, adjMinLng, adjMaxLng, width, height)
+
+    const dx = p2.x - p1.x
+    const dy = p2.y - p1.y
+    const len = Math.sqrt(dx * dx + dy * dy)
+    if (len < 1) continue
+    const angle = Math.atan2(dy, dx) * (180 / Math.PI)
+
+    segments.push({ key: String(i), x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2, w: len, a: angle })
+  }
+
+  const last = route[route.length - 1]
+  const lastPixel = latLngToPixel(last.lat, last.lng, adjMinLat, adjMaxLat, adjMinLng, adjMaxLng, width, height)
+  const first = route[0]
+  const firstPixel = latLngToPixel(first.lat, first.lng, adjMinLat, adjMaxLat, adjMinLng, adjMaxLng, width, height)
+
+  return (
+    <View style={StyleSheet.absoluteFill}>
+      {segments.map(s => (
+        <View key={`s-${s.key}`} style={{
+          position: 'absolute',
+          left: s.x - s.w / 2,
+          top: s.y - 6,
+          width: s.w,
+          height: 12,
+          borderRadius: 6,
+          backgroundColor: 'rgba(0,0,0,0.25)',
+          transform: [{ rotate: `${s.a}deg` }],
+        }} />
+      ))}
+      {segments.map(s => (
+        <View key={`l-${s.key}`} style={{
+          position: 'absolute',
+          left: s.x - s.w / 2,
+          top: s.y - 3,
+          width: s.w,
+          height: 6,
+          borderRadius: 3,
+          backgroundColor: '#22C55E',
+          transform: [{ rotate: `${s.a}deg` }],
+        }} />
+      ))}
+      <View style={{
+        position: 'absolute',
+        left: firstPixel.x - 8,
+        top: firstPixel.y - 8,
+        width: 16,
+        height: 16,
+        borderRadius: 8,
+        backgroundColor: '#22C55E',
+        borderWidth: 3,
+        borderColor: '#fff',
+      }} />
+      <View style={{
+        position: 'absolute',
+        left: lastPixel.x - 8,
+        top: lastPixel.y - 8,
+        width: 16,
+        height: 16,
+        borderRadius: 8,
+        backgroundColor: '#EF4444',
+        borderWidth: 3,
+        borderColor: '#fff',
+      }} />
+    </View>
+  )
+}
 
 type ScreenRoute = RouteProp<AppStackParamList, 'WalkDetail'>
 
@@ -64,8 +166,8 @@ export default function WalkDetailScreen() {
     return {
       latitude: (minLat + maxLat) / 2,
       longitude: (minLng + maxLng) / 2,
-      latitudeDelta: (maxLat - minLat) * 1.5 || 0.01,
-      longitudeDelta: (maxLng - minLng) * 1.5 || 0.01,
+      latitudeDelta: (maxLat - minLat) * 1.2 || 0.005,
+      longitudeDelta: (maxLng - minLng) * 1.2 || 0.005,
     }
   }, [walk.route])
 
@@ -260,39 +362,10 @@ export default function WalkDetailScreen() {
         <View
           ref={compositeRef}
           collapsable={false}
-          style={{ position: 'absolute', top: -9999, left: 0, width: 400, height: 400 }}
+          style={{ position: 'absolute', top: -9999, left: 0, width: COMPOSITE_SIZE, height: COMPOSITE_SIZE }}
         >
           <Image source={walk.photoUrl} style={StyleSheet.absoluteFill} contentFit="cover" />
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.08)' }]}>
-            <MapView
-              style={StyleSheet.absoluteFill}
-              initialRegion={region ?? {
-                latitude: walk.route[0].lat,
-                longitude: walk.route[0].lng,
-                latitudeDelta: 0.02,
-                longitudeDelta: 0.02,
-              }}
-              scrollEnabled={false}
-              zoomEnabled={false}
-              rotateEnabled={false}
-              pitchEnabled={false}
-            >
-              <Polyline
-                coordinates={walk.route.map(p => ({ latitude: p.lat, longitude: p.lng }))}
-                strokeColor="rgba(0,0,0,0.25)"
-                strokeWidth={10}
-                lineCap="round"
-                lineJoin="round"
-              />
-              <Polyline
-                coordinates={walk.route.map(p => ({ latitude: p.lat, longitude: p.lng }))}
-                strokeColor="#22C55E"
-                strokeWidth={5}
-                lineCap="round"
-                lineJoin="round"
-              />
-            </MapView>
-          </View>
+          <RouteLine route={walk.route} width={COMPOSITE_SIZE} height={COMPOSITE_SIZE} />
         </View>
       )}
       <RNModal visible={showDeleteModal} transparent animationType="fade" statusBarTranslucent>
