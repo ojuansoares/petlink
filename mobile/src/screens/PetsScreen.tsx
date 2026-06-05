@@ -342,7 +342,11 @@ export default function PetsScreen() {
     })
   }
 
+  const deletingPetRef = useRef(false)
+
   const handleDeletePet = async () => {
+    if (deletingPetRef.current) return
+    deletingPetRef.current = true
     requireOnline(async () => {
       if (!activePet) return
       try {
@@ -353,6 +357,8 @@ export default function PetsScreen() {
         setIsEditing(false)
       } catch (err) {
         dispatch(showToast({ type: 'error', title: 'Pet', message: 'Erro ao remover.' }))
+      } finally {
+        deletingPetRef.current = false
       }
     })
   }
@@ -924,7 +930,7 @@ export default function PetsScreen() {
            <Text style={{ textAlign: 'center' }}>Tem certeza que deseja remover permanentemente o registro de {activePet?.name}?</Text>
            <View style={{ flexDirection: 'row', gap: 12 }}>
              <Button label="Cancelar" variant="outline" style={{ flex: 1 }} onPress={() => setIsDeleteModalOpen(false)} />
-             <Button label="Excluir" variant="primary" style={{ flex: 1, backgroundColor: colors.destructive }} onPress={handleDeletePet} />
+             <Button label="Excluir" variant="primary" style={{ flex: 1, backgroundColor: colors.destructive }} loading={deletingPetRef.current} disabled={deletingPetRef.current} onPress={handleDeletePet} />
            </View>
         </View>
       </AppModal>

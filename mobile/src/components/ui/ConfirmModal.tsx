@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useRef } from 'react'
 import { Modal, View, Pressable, StyleSheet } from 'react-native'
 import { useTheme } from '../../hooks/useTheme'
 import { Text, Heading } from './Typography'
@@ -25,6 +25,13 @@ export function ConfirmModal({
   onCancel,
 }: ConfirmModalProps) {
   const { colors, withAlpha } = useTheme()
+  const confirmingRef = useRef(false)
+
+  const handleConfirm = () => {
+    if (confirmingRef.current) return
+    confirmingRef.current = true
+    onConfirm()
+  }
 
   return (
     <Modal visible={visible} transparent statusBarTranslucent animationType="fade">
@@ -45,8 +52,8 @@ export function ConfirmModal({
               </Pressable>
             ) : null}
             <Pressable
-              onPress={onConfirm}
-              style={[styles.btn, { backgroundColor: destructive ? colors.destructive : colors.primary }]}
+              onPress={handleConfirm}
+              style={[styles.btn, { backgroundColor: destructive ? colors.destructive : colors.primary, opacity: confirmingRef.current ? 0.5 : 1 }]}
             >
               <Text size="sm" weight="600" style={{ color: '#fff' }}>{confirmLabel}</Text>
             </Pressable>

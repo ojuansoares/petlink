@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import {
   Modal,
   Pressable,
@@ -42,6 +42,14 @@ export function ActionOptionsModal({
   const { colors, withAlpha } = useTheme()
   const insets = useSafeAreaInsets()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const deletingRef = useRef(false)
+
+  useEffect(() => {
+    if (!visible) {
+      setShowDeleteConfirm(false)
+      deletingRef.current = false
+    }
+  }, [visible])
 
   const handleClose = () => {
     setShowDeleteConfirm(false)
@@ -70,8 +78,11 @@ export function ActionOptionsModal({
                 <Button label="Cancelar" variant="outline" onPress={() => setShowDeleteConfirm(false)} style={{ flex: 1 }} />
                 <Button 
                   label="Excluir" 
-                  style={{ flex: 1, backgroundColor: colors.destructive }} 
+                  style={{ flex: 1, backgroundColor: colors.destructive, opacity: deletingRef.current ? 0.5 : 1 }} 
+                  disabled={deletingRef.current}
                   onPress={() => {
+                    if (deletingRef.current) return
+                    deletingRef.current = true
                     if (onDelete) onDelete()
                     handleClose()
                   }} 

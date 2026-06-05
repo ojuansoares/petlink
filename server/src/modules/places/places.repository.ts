@@ -32,13 +32,16 @@ interface OsmDetailsResult {
   place_id: number
   osm_id: number
   osm_type: string
-  lat: string
-  lon: string
-  display_name: string
+  lat?: string
+  lon?: string
+  display_name?: string
+  localname?: string
+  names?: { name?: string; [key: string]: any }
   category: string
   type: string
-  address?: Record<string, string>
+  address?: Array<{ localname?: string; [key: string]: any }> | Record<string, string>
   extratags?: Record<string, string>
+  centroid?: { type: string; coordinates: number[] }
 }
 
 const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org'
@@ -148,6 +151,7 @@ export const placesRepository = {
     if (cached) return cached
 
     const typeMap: Record<string, string> = { node: 'N', way: 'W', relation: 'R' }
+    const reverseTypeMap: Record<string, string> = { N: 'node', W: 'way', R: 'relation' }
     const osmTypeShort = typeMap[osmType]
     if (!osmTypeShort) return null
 
@@ -157,13 +161,32 @@ export const placesRepository = {
       const data: OsmDetailsResult = await nominatimFetch(url)
       if (!data || !data.osm_id) return null
 
+      let lat = safeParseFloat(data.lat)
+      let lon = safeParseFloat(data.lon)
+      if ((lat === 0 || lon === 0) && data.centroid?.coordinates?.length === 2) {
+        lon = safeParseFloat(data.centroid.coordinates[0])
+        lat = safeParseFloat(data.centroid.coordinates[1])
+      }
+
+      const addressLocalname = Array.isArray(data.address) ? data.address[0]?.localname : undefined
+      const name = data.localname || data.names?.name || data.display_name?.split(',')[0] || data.display_name || addressLocalname || `${data.type} ${data.osm_id}`
+      const addressParts: string[] = []
+      if (Array.isArray(data.address)) {
+        for (const entry of data.address) {
+          if (entry.localname && !addressParts.includes(entry.localname)) {
+            addressParts.push(entry.localname)
+          }
+        }
+      }
+      const displayName = data.display_name || addressParts.join(', ') || name
+
       const result = {
         osmId: data.osm_id,
-        osmType: data.osm_type,
-        name: data.display_name?.split(',')[0] || data.display_name,
-        displayName: data.display_name,
-        lat: safeParseFloat(data.lat),
-        lng: safeParseFloat(data.lon),
+        osmType: reverseTypeMap[data.osm_type] ?? data.osm_type,
+        name,
+        displayName,
+        lat,
+        lng: lon,
         category: data.category,
         type: data.type,
         address: data.address || null,

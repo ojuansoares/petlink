@@ -386,8 +386,8 @@ export function ConsultationScreen() {
                       q: c.place_name || c.clinic,
                     })}
                   >
-                    <Text weight="700" style={{ color: colors.primary, textDecorationLine: 'underline' }}>{c.place_name || c.clinic}</Text>
-                    {c.place_address && <Text size="xs" color="mutedForeground">{c.place_address}</Text>}
+                    <Text weight="700" style={{ color: colors.primary, textDecorationLine: 'underline' }} numberOfLines={1}>{c.place_name || c.clinic}</Text>
+                    {c.place_address && <Text size="xs" color="mutedForeground" numberOfLines={1}>{c.place_address}</Text>}
                   </Pressable>
                 ) : (
                   <Text weight="700">{c.clinic}</Text>

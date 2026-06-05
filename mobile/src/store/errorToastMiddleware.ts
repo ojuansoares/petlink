@@ -5,6 +5,7 @@ const IGNORED_PREFIXES = [
   'auth/',        // auth has its own per-screen error display
   'ui/',          // ui actions are not thunks
   'gamification/', // silent fetch is fine
+  'places/',       // places handles its own error toasts
 ]
 
 export const errorToastMiddleware: Middleware = () => (next) => (action: any) => {

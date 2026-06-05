@@ -58,32 +58,21 @@ export default function WalkScreen() {
   const [frequencySet, setFrequencySet] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const lastStatsKey = useRef('')
+  const statsTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   useEffect(() => {
-    (async () => {
-      const done = await AsyncStorage.getItem(`petlink.walk.tutorial.${petId}`)
-      if (done !== 'true') {
-        setShowTutorial(true)
-      }
-      const freq = await AsyncStorage.getItem(`petlink.walk.frequency.${petId}`)
-      if (freq) {
-        setFrequency(freq as WalkFrequency)
-        setFrequencySet(true)
-      }
-    })()
-  }, [petId])
-
-  useEffect(() => {
-    dispatch(fetchWalksThunk(petId))
-  }, [dispatch, petId])
-
-  useEffect(() => {
-    const start = startOfMonth(calendarDate).toISOString()
-    const end = endOfMonth(calendarDate).toISOString()
-    const key = `${petId}-${start}-${end}`
-    if (key === lastStatsKey.current) return
-    lastStatsKey.current = key
-    dispatch(fetchWalkStatsThunk({ petId, start, end }))
+    if (statsTimeoutRef.current) clearTimeout(statsTimeoutRef.current)
+    statsTimeoutRef.current = setTimeout(() => {
+      const start = startOfMonth(calendarDate).toISOString()
+      const end = endOfMonth(calendarDate).toISOString()
+      const key = `${petId}-${start}-${end}`
+      if (key === lastStatsKey.current) return
+      lastStatsKey.current = key
+      dispatch(fetchWalkStatsThunk({ petId, start, end }))
+    }, 300)
+    return () => {
+      if (statsTimeoutRef.current) clearTimeout(statsTimeoutRef.current)
+    }
   }, [dispatch, petId, calendarDate])
 
   const handleFinishTutorial = async () => {

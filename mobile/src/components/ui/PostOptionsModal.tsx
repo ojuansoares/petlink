@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import {
   Modal,
   Pressable,
@@ -51,6 +51,7 @@ export function PostOptionsModal({ post, visible, onClose, isOwnPost, context = 
 
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
+  const deletingRef = useRef(false)
   const [caption, setCaption] = useState(post.caption || '')
   const [location, setLocation] = useState(post.location || '')
   const [isPinning, setIsPinning] = useState(false)
@@ -114,6 +115,8 @@ export function PostOptionsModal({ post, visible, onClose, isOwnPost, context = 
   }
 
   const handleDelete = async () => {
+    if (deletingRef.current) return
+    deletingRef.current = true
     requireOnline(async () => {
       try {
         await dispatch(deletePostThunk(post.id)).unwrap()
@@ -123,6 +126,8 @@ export function PostOptionsModal({ post, visible, onClose, isOwnPost, context = 
       } catch (error: any) {
         console.error('[handleDelete] Error:', error)
         dispatch(showToast({ type: 'error', title: 'Exclusão', message: 'Erro ao excluir publicação' }))
+      } finally {
+        deletingRef.current = false
       }
     })
   }
@@ -233,7 +238,7 @@ export function PostOptionsModal({ post, visible, onClose, isOwnPost, context = 
               </Text>
               <View style={styles.dialogActions}>
                 <Button label="Cancelar" variant="outline" onPress={() => setDeleteConfirmOpen(false)} style={{ flex: 1 }} />
-                <Button label="Excluir" style={{ flex: 1, backgroundColor: colors.destructive }} onPress={handleDelete} />
+                <Button label="Excluir" style={{ flex: 1, backgroundColor: colors.destructive }} loading={deletingRef.current} disabled={deletingRef.current} onPress={handleDelete} />
               </View>
             </View>
           </View>

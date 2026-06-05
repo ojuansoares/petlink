@@ -14,7 +14,7 @@ import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import type { Walk } from '../store/slices/walksSlices'
 import { uploadImageWithRetry } from '../api/uploadWithRetry'
-import { formatWalkDistance } from '../utils/formatNumber'
+import { formatWalkDistance, formatWalkDuration } from '../utils/formatNumber'
 import { CreatePostModal } from '../components/ui/CreatePostModal'
 import { captureRef } from 'react-native-view-shot'
 import { useAppDispatch } from '../store'
@@ -39,7 +39,7 @@ function latLngToPixel(
   }
 }
 
-function RouteLine({ route, width, height }: { route: WalkPoint[]; width: number; height: number }) {
+function RouteLine({ route, width, height, topInset = 0 }: { route: WalkPoint[]; width: number; height: number; topInset?: number }) {
   const lats = route.map(p => p.lat)
   const lngs = route.map(p => p.lng)
   const minLat = Math.min(...lats)
@@ -55,11 +55,15 @@ function RouteLine({ route, width, height }: { route: WalkPoint[]; width: number
   const adjMinLng = minLng - padLng
   const adjMaxLng = maxLng + padLng
 
+  const effectiveHeight = height - topInset
+
   const segments: { key: string; x: number; y: number; w: number; a: number }[] = []
 
   for (let i = 0; i < route.length - 1; i++) {
-    const p1 = latLngToPixel(route[i].lat, route[i].lng, adjMinLat, adjMaxLat, adjMinLng, adjMaxLng, width, height)
-    const p2 = latLngToPixel(route[i + 1].lat, route[i + 1].lng, adjMinLat, adjMaxLat, adjMinLng, adjMaxLng, width, height)
+    const p1 = latLngToPixel(route[i].lat, route[i].lng, adjMinLat, adjMaxLat, adjMinLng, adjMaxLng, width, effectiveHeight)
+    const p2 = latLngToPixel(route[i + 1].lat, route[i + 1].lng, adjMinLat, adjMaxLat, adjMinLng, adjMaxLng, width, effectiveHeight)
+    p1.y += topInset
+    p2.y += topInset
 
     const dx = p2.x - p1.x
     const dy = p2.y - p1.y
@@ -71,27 +75,23 @@ function RouteLine({ route, width, height }: { route: WalkPoint[]; width: number
   }
 
   const last = route[route.length - 1]
-  const lastPixel = latLngToPixel(last.lat, last.lng, adjMinLat, adjMaxLat, adjMinLng, adjMaxLng, width, height)
+  const lastPixel = latLngToPixel(last.lat, last.lng, adjMinLat, adjMaxLat, adjMinLng, adjMaxLng, width, effectiveHeight)
+  lastPixel.y += topInset
   const first = route[0]
-  const firstPixel = latLngToPixel(first.lat, first.lng, adjMinLat, adjMaxLat, adjMinLng, adjMaxLng, width, height)
+  const firstPixel = latLngToPixel(first.lat, first.lng, adjMinLat, adjMaxLat, adjMinLng, adjMaxLng, width, effectiveHeight)
+  firstPixel.y += topInset
 
   return (
     <View style={StyleSheet.absoluteFill}>
-      {/* Photo darkening overlay for contrast */}
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.12)' }]} />
-      {/* Shadow layer (wider, more opaque) */}
-      {segments.map(s => (
-        <View key={`s-${s.key}`} style={{
-          position: 'absolute',
-          left: s.x - s.w / 2,
-          top: s.y - 7,
-          width: s.w,
-          height: 14,
-          borderRadius: 7,
-          backgroundColor: 'rgba(0,0,0,0.35)',
-          transform: [{ rotate: `${s.a}deg` }],
-        }} />
-      ))}
+      {/* Photo darkening overlay for contrast (below topInset only) */}
+      <View style={{
+        position: 'absolute',
+        top: topInset,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0,0,0,0.25)',
+      }} />
       {/* Green line */}
       {segments.map(s => (
         <View key={`l-${s.key}`} style={{
@@ -143,8 +143,11 @@ export default function WalkDetailScreen() {
   const dispatch = useAppDispatch()
   const shotRef = useRef<any>(null)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const deletingRef = useRef(false)
 
   const handleDelete = async () => {
+    if (deletingRef.current) return
+    deletingRef.current = true
     setShowDeleteModal(false)
     await dispatch(deleteWalkThunk(walk.id))
     navigation.goBack()
@@ -287,7 +290,8 @@ export default function WalkDetailScreen() {
     }
   }, [walk.route])
 
-  const compositeRef = useRef<any>(null)
+  const photoCompositeRef = useRef<any>(null)
+  const mapCompositeRef = useRef<any>(null)
 
   const handleShare = async () => {
     setSharing(true)
@@ -295,13 +299,23 @@ export default function WalkDetailScreen() {
       let finalUrl = ''
 
       if (walk.photoUrl && walk.route?.length > 1) {
-        const compositeUri = await captureRef(compositeRef, {
+        const compositeUri = await captureRef(photoCompositeRef, {
           format: 'png',
           quality: 0.9,
         })
         const formData = new FormData()
         formData.append('folder', 'petlink/walks')
         formData.append('file', { uri: compositeUri, name: `walk-${walk.id}-composite.png`, type: 'image/png' } as any)
+        const data = await uploadImageWithRetry({ formData })
+        finalUrl = data?.url ?? ''
+      } else if (walk.route?.length > 1) {
+        const mapUri = await captureRef(mapCompositeRef, {
+          format: 'png',
+          quality: 0.9,
+        })
+        const formData = new FormData()
+        formData.append('folder', 'petlink/walks')
+        formData.append('file', { uri: mapUri, name: `walk-${walk.id}-map.png`, type: 'image/png' } as any)
         const data = await uploadImageWithRetry({ formData })
         finalUrl = data?.url ?? ''
       } else {
@@ -476,12 +490,71 @@ export default function WalkDetailScreen() {
       {/* Hidden composite view for photo + route overlay capture */}
       {walk.photoUrl && walk.route?.length > 1 && (
         <View
-          ref={compositeRef}
+          ref={photoCompositeRef}
           collapsable={false}
           style={{ position: 'absolute', top: -9999, left: 0, width: COMPOSITE_SIZE, height: COMPOSITE_SIZE }}
         >
           <Image source={walk.photoUrl} style={StyleSheet.absoluteFill} contentFit="cover" />
-          <RouteLine route={walk.route} width={COMPOSITE_SIZE} height={COMPOSITE_SIZE} />
+          {/* Route overlay (includes its own darkening) */}
+          <RouteLine route={walk.route} width={COMPOSITE_SIZE} height={COMPOSITE_SIZE} topInset={110} />
+          {/* Stats cards on top of everything */}
+          <View style={{
+            position: 'absolute', top: 36, left: 0, right: 0,
+            flexDirection: 'row', justifyContent: 'center', gap: 14,
+          }}>
+            <View style={{
+              backgroundColor: 'rgba(0,0,0,0.28)', borderRadius: 12,
+              paddingHorizontal: 18, paddingVertical: 12,
+              alignItems: 'center', minWidth: 100,
+            }}>
+              <Text style={{ color: '#fff', fontWeight: '900', fontSize: 22 }} numberOfLines={1}>
+                {distanceText}
+              </Text>
+            </View>
+            <View style={{
+              backgroundColor: 'rgba(0,0,0,0.28)', borderRadius: 12,
+              paddingHorizontal: 18, paddingVertical: 12,
+              alignItems: 'center', minWidth: 100,
+            }}>
+              <Text style={{ color: '#fff', fontWeight: '900', fontSize: 22 }} numberOfLines={1}>
+                {formatWalkDuration(walk.durationS)}
+              </Text>
+            </View>
+          </View>
+        </View>
+      )}
+      {!walk.photoUrl && walk.route?.length > 1 && (
+        <View
+          ref={mapCompositeRef}
+          collapsable={false}
+          style={{ position: 'absolute', top: -9999, left: 0, width: COMPOSITE_SIZE, height: COMPOSITE_SIZE }}
+        >
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: '#1a1a2e' }]} />
+          <RouteLine route={walk.route} width={COMPOSITE_SIZE} height={COMPOSITE_SIZE} topInset={110} />
+          {/* Stats cards */}
+          <View style={{
+            position: 'absolute', top: 36, left: 0, right: 0,
+            flexDirection: 'row', justifyContent: 'center', gap: 14,
+          }}>
+            <View style={{
+              backgroundColor: 'rgba(0,0,0,0.28)', borderRadius: 12,
+              paddingHorizontal: 18, paddingVertical: 12,
+              alignItems: 'center', minWidth: 100,
+            }}>
+              <Text style={{ color: '#fff', fontWeight: '900', fontSize: 22 }} numberOfLines={1}>
+                {distanceText}
+              </Text>
+            </View>
+            <View style={{
+              backgroundColor: 'rgba(0,0,0,0.28)', borderRadius: 12,
+              paddingHorizontal: 18, paddingVertical: 12,
+              alignItems: 'center', minWidth: 100,
+            }}>
+              <Text style={{ color: '#fff', fontWeight: '900', fontSize: 22 }} numberOfLines={1}>
+                {formatWalkDuration(walk.durationS)}
+              </Text>
+            </View>
+          </View>
         </View>
       )}
       {/* Edit modal */}
@@ -610,7 +683,8 @@ export default function WalkDetailScreen() {
               </Pressable>
               <Pressable
                 onPress={handleDelete}
-                style={[styles.deleteBtn, { backgroundColor: colors.destructive }]}
+                disabled={deletingRef.current}
+                style={[styles.deleteBtn, { backgroundColor: colors.destructive, opacity: deletingRef.current ? 0.5 : 1 }]}
               >
                 <Text weight="800" style={{ color: '#fff' }}>Excluir</Text>
               </Pressable>

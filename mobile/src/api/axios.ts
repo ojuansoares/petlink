@@ -59,7 +59,8 @@ api.interceptors.response.use(
       const status = error.response?.status ?? 'NETWORK'
       const method = (error.config?.method ?? 'GET').toUpperCase()
       const url = `${error.config?.baseURL ?? API_BASE_URL}${error.config?.url ?? ''}`
-      console.log(`[API][ERROR] ${method} ${url} -> ${status}`)
+      const body = error.response?.data ? JSON.stringify(error.response.data) : ''
+      console.log(`[API][ERROR] ${method} ${url} -> ${status} ${body}`)
     }
 
     const original = error.config

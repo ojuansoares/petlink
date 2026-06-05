@@ -1,5 +1,6 @@
 import * as TaskManager from 'expo-task-manager'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { haversineDistance } from '../utils/geoUtils'
 
 export const BACKGROUND_WALK_TASK = 'BACKGROUND_WALK_TRACKING'
 
@@ -12,23 +13,38 @@ export interface BgRoutePoint {
   distanceDelta: number
 }
 
+const MAX_ACCURACY = 50
+const MIN_DISTANCE = 3
+
 TaskManager.defineTask(BACKGROUND_WALK_TASK, async ({ data, error }) => {
   if (error) return
 
   const { locations }: any = data ?? {}
   if (!locations?.length) return
 
-  const points: BgRoutePoint[] = locations.map((loc: any) => ({
-    lat: loc.coords.latitude,
-    lng: loc.coords.longitude,
-    timestamp: new Date(loc.timestamp).toISOString(),
-    distanceDelta: 0,
-  }))
-
   try {
     const raw = await AsyncStorage.getItem(STORAGE_KEY)
     const existing: BgRoutePoint[] = raw ? JSON.parse(raw) : []
-    existing.push(...points)
+    const lastPoint = existing.length > 0 ? existing[existing.length - 1] : null
+
+    let prev = lastPoint
+    for (const loc of locations) {
+      if (loc.coords.accuracy > MAX_ACCURACY) continue
+
+      const lat = loc.coords.latitude
+      const lng = loc.coords.longitude
+      const timestamp = new Date(loc.timestamp).toISOString()
+
+      if (prev) {
+        const dist = haversineDistance(prev.lat, prev.lng, lat, lng)
+        if (dist < MIN_DISTANCE) continue
+      }
+
+      const point: BgRoutePoint = { lat, lng, timestamp, distanceDelta: 0 }
+      existing.push(point)
+      prev = point
+    }
+
     const trimmed = existing.slice(-20000)
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed))
   } catch (e) {

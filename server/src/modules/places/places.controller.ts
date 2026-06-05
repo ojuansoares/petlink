@@ -56,7 +56,7 @@ export const placesController = {
       placeLng,
       placeCategory,
       authorId: authReq.user.id,
-      authorName: authReq.user.email ?? 'Usuário',
+      authorName: authReq.user.name,
       rating,
       comment,
     })

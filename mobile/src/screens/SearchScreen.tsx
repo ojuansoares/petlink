@@ -19,6 +19,7 @@ import { Text } from '../components/ui/Typography'
 import { Avatar } from '../components/ui/Avatar'
 import { Button } from '../components/ui/Button'
 import { AppToast } from '../components/ui/AppToast'
+import { ActionOptionsModal } from '../components/ui/ActionOptionsModal'
 import { api } from '../api/axios'
 import { groupsApi, type Group, type GroupDetails, type GroupInvite } from '../api/groups.api'
 import { useAppDispatch, useAppSelector } from '../store'
@@ -29,6 +30,7 @@ import {
   fetchPlaceDetailsThunk,
   fetchPlaceReviewsThunk,
   addPlaceReviewThunk,
+  deletePlaceReviewThunk,
   selectPlaceSearchResults,
   selectPlaceReviews,
   selectSelectedPlace,
@@ -61,7 +63,7 @@ interface SearchPet {
 }
 
 function isValidLatLng(lat: any, lng: any): boolean {
-  return typeof lat === 'number' && typeof lng === 'number' && isFinite(lat) && isFinite(lng)
+  return isFinite(Number(lat)) && isFinite(Number(lng))
 }
 
 type Tab = 'pessoas' | 'pets' | 'grupos' | 'locais'
@@ -109,6 +111,9 @@ export default function SearchScreen() {
   const [reviewRating, setReviewRating] = useState(0)
   const [reviewComment, setReviewComment] = useState('')
   const [submittingReview, setSubmittingReview] = useState(false)
+  const [showReviewsModal, setShowReviewsModal] = useState(false)
+  const [reviewMenuTarget, setReviewMenuTarget] = useState<any>(null)
+  const [deletingReview, setDeletingReview] = useState(false)
   const userCoords = useRef<{ lat: number; lng: number } | null>(null)
 
   const autoSearchRef = useRef(false)
@@ -228,7 +233,13 @@ export default function SearchScreen() {
     setExpandedPlace({ osmType, osmId })
     try {
       const result = await dispatch(fetchPlaceDetailsThunk({ osmType, osmId })).unwrap()
-      setPlaceDetail(result)
+      console.log('[PlaceDetail] raw result keys:', Object.keys(result || {}))
+      console.log('[PlaceDetail] name:', JSON.stringify(result?.name), 'displayName:', JSON.stringify(result?.displayName))
+      if (!result) {
+        setPlaceDetail(null)
+        return
+      }
+      setPlaceDetail({ ...result, lat: Number(result.lat), lng: Number(result.lng) })
       dispatch(fetchPlaceReviewsThunk({ osmType, osmId }))
     } catch {
       setPlaceDetail(null)
@@ -243,20 +254,24 @@ export default function SearchScreen() {
       setPlaceDetail(null)
       return
     }
+    setReviewRating(0)
+    setReviewComment('')
     handlePlaceOpen(place.osmType, place.osmId)
   }, [expandedPlace, handlePlaceOpen])
 
   const handleSubmitReview = useCallback(async () => {
     if (!reviewRating || !placeDetail) return
+    console.log('[SubmitReview] placeDetail:', JSON.stringify(placeDetail))
     setSubmittingReview(true)
     try {
+      const placeName = placeDetail.name || placeDetail.displayName?.split(',')[0] || placeDetail.displayName || 'Lugar'
       await dispatch(addPlaceReviewThunk({
         osmType: placeDetail.osmType,
         osmId: placeDetail.osmId,
         rating: reviewRating,
         comment: reviewComment || undefined,
-        placeName: placeDetail.name,
-        placeAddress: placeDetail.displayName,
+        placeName,
+        placeAddress: placeDetail.displayName || '',
         placeLat: placeDetail.lat,
         placeLng: placeDetail.lng,
         placeCategory: placeDetail.category,
@@ -265,12 +280,41 @@ export default function SearchScreen() {
       setReviewComment('')
       dispatch(showToast({ type: 'success', title: 'Avaliado!', message: 'Sua avaliação foi salva' }))
       dispatch(fetchPlaceReviewsThunk({ osmType: placeDetail.osmType, osmId: placeDetail.osmId }))
-    } catch {
-      dispatch(showToast({ type: 'error', title: 'Erro', message: 'Não foi possível avaliar' }))
+      const fresh = await dispatch(fetchPlaceDetailsThunk({ osmType: placeDetail.osmType, osmId: placeDetail.osmId })).unwrap()
+      if (fresh) setPlaceDetail({ ...fresh, lat: Number(fresh.lat), lng: Number(fresh.lng) })
+    } catch (err: any) {
+      const msg = typeof err === 'string' ? err : err?.message || ''
+      if (msg.includes('já avaliou')) {
+        dispatch(showToast({ type: 'info', title: 'Você já avaliou', message: 'Remova a avaliação anterior para reavaliar' }))
+      } else {
+        dispatch(showToast({ type: 'error', title: 'Erro', message: 'Não foi possível avaliar' }))
+      }
     } finally {
       setSubmittingReview(false)
     }
   }, [reviewRating, reviewComment, placeDetail, dispatch])
+
+  const handleDeleteReview = useCallback(async (reviewId: string) => {
+    setDeletingReview(true)
+    try {
+      await dispatch(deletePlaceReviewThunk(reviewId)).unwrap()
+      dispatch(showToast({ type: 'success', title: 'Removida', message: 'Avaliação removida' }))
+      if (placeDetail) {
+        dispatch(fetchPlaceReviewsThunk({ osmType: placeDetail.osmType, osmId: placeDetail.osmId }))
+        const fresh = await dispatch(fetchPlaceDetailsThunk({ osmType: placeDetail.osmType, osmId: placeDetail.osmId })).unwrap()
+        if (fresh) setPlaceDetail({ ...fresh, lat: Number(fresh.lat), lng: Number(fresh.lng) })
+      }
+    } catch {
+      dispatch(showToast({ type: 'error', title: 'Erro', message: 'Não foi possível remover' }))
+    } finally {
+      setDeletingReview(false)
+      setReviewMenuTarget(null)
+    }
+  }, [dispatch, placeDetail])
+
+  const handleReviewMenuPress = useCallback((review: any) => {
+    setReviewMenuTarget(review)
+  }, [])
 
   const handleGroupCardPress = useCallback(async (group: Group) => {
     setLoadingDetail(true)
@@ -377,31 +421,34 @@ export default function SearchScreen() {
               ) : placeDetail ? (
                 <>
                   {isValidLatLng(placeDetail.lat, placeDetail.lng) ? (
-                    <MapView
-                      style={{ width: '100%', height: MAP_HEIGHT, borderRadius: 12 }}
-                      initialRegion={{
-                        latitude: placeDetail.lat,
-                        longitude: placeDetail.lng,
-                        latitudeDelta: 0.01,
-                        longitudeDelta: 0.01,
-                      }}
-                      scrollEnabled={false}
-                      zoomEnabled={false}
-                    >
-                      <Marker
-                        coordinate={{ latitude: placeDetail.lat, longitude: placeDetail.lng }}
-                        title={placeDetail.name}
-                        description={placeDetail.displayName}
-                      />
-                    </MapView>
+                <View style={{ height: MAP_HEIGHT, borderRadius: 12, overflow: 'hidden', backgroundColor: colors.muted, marginBottom: 10 }}>
+                  <MapView
+                    key={`map-${placeDetail.osmId}`}
+                    style={{ flex: 1 }}
+                    initialRegion={{
+                      latitude: placeDetail.lat,
+                      longitude: placeDetail.lng,
+                      latitudeDelta: 0.05,
+                      longitudeDelta: 0.05,
+                    }}
+                    scrollEnabled={false}
+                    zoomEnabled={false}
+                  >
+                    <Marker
+                      coordinate={{ latitude: placeDetail.lat, longitude: placeDetail.lng }}
+                      title={placeDetail.name}
+                      description={placeDetail.displayName}
+                    />
+                  </MapView>
+                </View>
                   ) : (
-                    <View style={{ height: MAP_HEIGHT, alignItems: 'center', justifyContent: 'center' }}>
+                    <View style={{ height: MAP_HEIGHT, alignItems: 'center', justifyContent: 'center', marginBottom: 10 }}>
                       <Ionicons name="map-outline" size={40} color={colors.mutedForeground} />
                       <Text color="mutedForeground" style={{ marginTop: 8 }}>Localização não disponível no mapa</Text>
                     </View>
                   )}
 
-                  <View style={{ padding: 12, gap: 8 }}>
+                  <View style={{ gap: 8 }}>
                     <Text weight="800" size="lg">{placeDetail.name}</Text>
                     <Text size="sm" color="mutedForeground">{placeDetail.displayName}</Text>
 
@@ -410,10 +457,14 @@ export default function SearchScreen() {
                         <Ionicons name="star" size={16} color="#FBBF24" />
                         <Text weight="700" size="sm">{placeDetail.avgRating}</Text>
                         <Text size="xs" color="mutedForeground">({placeDetail.reviewsCount} {placeDetail.reviewsCount === 1 ? 'avaliação' : 'avaliações'})</Text>
+                        <Pressable onPress={() => setShowReviewsModal(true)}>
+                          <Text weight="700" size="xs" style={{ color: colors.primary, marginLeft: 4 }}>Visualizar todas</Text>
+                        </Pressable>
                       </View>
                     )}
 
-                    <View style={{ borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: withAlpha(colors.border, 0.5), paddingTop: 12, marginTop: 4 }}>
+
+                    <View style={{ borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: withAlpha(colors.border, 0.5), paddingTop: 8 }}>
                       <Text weight="700" size="sm">Avaliações</Text>
 
                       <View style={{ flexDirection: 'row', gap: 4, marginTop: 8 }}>
@@ -444,28 +495,6 @@ export default function SearchScreen() {
                         style={{ marginTop: 8 }}
                       />
 
-                      {placeReviews.length > 0 && (
-                        <View style={{ marginTop: 12, gap: 8 }}>
-                          {placeReviews.map((rv: any) => (
-                            <View key={rv.id} style={[styles.reviewCard, { backgroundColor: withAlpha(colors.muted, 0.2) }]}>
-                              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <Text weight="700" size="sm">{rv.authorName}</Text>
-                                <View style={{ flexDirection: 'row', gap: 2 }}>
-                                  {Array.from({ length: 5 }).map((_, i) => (
-                                    <Ionicons
-                                      key={i}
-                                      name={i < rv.rating ? 'star' : 'star-outline'}
-                                      size={12}
-                                      color="#FBBF24"
-                                    />
-                                  ))}
-                                </View>
-                              </View>
-                              {rv.comment && <Text size="sm" color="mutedForeground" style={{ marginTop: 4 }}>{rv.comment}</Text>}
-                            </View>
-                          ))}
-                        </View>
-                      )}
                     </View>
                   </View>
                 </>
@@ -765,6 +794,80 @@ export default function SearchScreen() {
         </Pressable>
       </Modal>
 
+      {/* Reviews Modal */}
+      <Modal visible={showReviewsModal} animationType="slide" transparent statusBarTranslucent onRequestClose={() => setShowReviewsModal(false)}>
+        <Pressable style={styles.backdrop} onPress={() => setShowReviewsModal(false)}>
+          <Pressable
+            onPress={(e) => e.stopPropagation()}
+            style={[styles.reviewSheet, { backgroundColor: colors.background }]}
+          >
+            <View style={styles.sheetHandle}>
+              <View style={[styles.handleBar, { backgroundColor: withAlpha(colors.border, 0.6) }]} />
+            </View>
+
+            <Text weight="800" size="xl" style={{ marginBottom: 10, textAlign: 'center' }}>Avaliações</Text>
+
+            <View style={{ flex: 1, paddingHorizontal: 2 }}>
+              {placeReviews.length === 0 ? (
+                <Text color="mutedForeground" style={{ textAlign: 'center' }}>Nenhuma avaliação ainda</Text>
+              ) : (
+                <FlatList
+                  data={placeReviews}
+                  keyExtractor={(item: any) => item.id}
+                  showsVerticalScrollIndicator={false}
+                  style={{ width: '100%' }}
+                  contentContainerStyle={{ gap: 10, paddingBottom: 8 }}
+                  renderItem={({ item: rv }: { item: any }) => (
+                    <View style={[styles.reviewCard, { backgroundColor: withAlpha(colors.muted, 0.2) }]}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Text weight="700" size="sm">{rv.authorName}</Text>
+                          <View style={{ flexDirection: 'row', gap: 2 }}>
+                            {Array.from({ length: 5 }).map((_, i) => (
+                              <Ionicons
+                                key={i}
+                                name={i < rv.rating ? 'star' : 'star-outline'}
+                                size={12}
+                                color="#FBBF24"
+                              />
+                            ))}
+                          </View>
+                        </View>
+                        {currentUser?.id === rv.authorId && (
+                          <Pressable onPress={() => handleReviewMenuPress(rv)} hitSlop={8}>
+                            <Ionicons name="ellipsis-vertical" size={18} color={colors.mutedForeground} />
+                          </Pressable>
+                        )}
+                      </View>
+                      {rv.comment && <Text size="sm" color="mutedForeground" style={{ marginTop: 6 }}>{rv.comment}</Text>}
+                    </View>
+                  )}
+                />
+              )}
+            </View>
+
+            <Button label="Fechar" variant="outline" onPress={() => setShowReviewsModal(false)} style={{ marginTop: 8, marginBottom: 8, width: '100%' }} />
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <ActionOptionsModal
+        visible={!!reviewMenuTarget}
+        onClose={() => setReviewMenuTarget(null)}
+        title="Avaliação"
+        options={[
+          {
+            label: 'Remover avaliação',
+            icon: 'trash-outline',
+            variant: 'destructive',
+            onPress: () => {},
+          },
+        ]}
+        confirmDeleteTitle="Remover avaliação?"
+        confirmDeleteDesc="Esta ação não pode ser desfeita."
+        onDelete={() => reviewMenuTarget && handleDeleteReview(reviewMenuTarget.id)}
+      />
+
       <AppToast />
     </View>
   )
@@ -883,6 +986,15 @@ const styles = StyleSheet.create({
     padding: 32,
     alignItems: 'center',
   },
+  reviewSheet: {
+    width: '100%',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 32,
+    paddingBottom: 24,
+    maxHeight: '45%',
+    flex: 1,
+  },
   placeIconWrap: {
     width: 44,
     height: 44,
@@ -891,7 +1003,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   placeExpanded: {
-    padding: 12,
+    paddingHorizontal: 12,
+    paddingBottom: 12,
   },
   reviewInput: {
     borderRadius: 10,

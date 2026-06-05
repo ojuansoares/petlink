@@ -1203,11 +1203,16 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=
 - **Fase 3 — Push Notifications**: Infra completa — dual transport FCM+Expo, cron scheduler (vacinas, consultas), 7 gatilhos sociais (like, comentário, seguir, curtir comentário, post grupo, convite grupo), agendamento local (alimentação, vacina, aniversário) com backup/restore, deep links, action buttons.
 - **Fase 4 — Social & Engajamento**: Grupos v2 (feed de posts, membros, fixar posts, likes, comentários, busca), Grupos v3 (convite interno com busca de usuários, aceitar/recusar), Gamificação (níveis, XP, badges com progresso, modal de detalhes, feedback visual de desbloqueio).
 
-**Pendentes:**
+**Pendentes (RF do README ainda não implementados):**
 
-Nenhum — Fases 1-4 e tarefas H1-H8 estão concluídas. ✅
+| RF | Requisito |
+|----|-----------|
+| RF22 | **Geofencing** — notificações de eventos próximos (pet shops, clínicas) com cerca virtual |
+| RF24 | **Exportação JSON/CSV** — exportar histórico de saúde do pet |
+| RF26 | **Alertas de temperatura** — integração com API de clima |
+| RF28 | **Backup Google Drive** — backup em nuvem do Google Drive |
 
-Próximas fases disponíveis: Fase 5 (Qualidade — testes, Sentry, CI/CD, analytics), Fase 6 (Passeio — walk tracking), Onboarding, Splash animada, Login Social.
+> **Nota:** Todos os outros 22 RFs do README estão implementados ✅
 
 ---
 
@@ -1510,8 +1515,6 @@ Nenhuma das alterações mexe em código nativo (native modules, podfile, gradle
 
 ---
 
----
-
 ## Arquivos alterados nesta sessão (03/06/2026) — Item 51: Estado de erro/offline nas telas
 
 ### Mobile
@@ -1534,6 +1537,32 @@ Nenhuma das alterações mexe em código nativo (native modules, podfile, gradle
 | 52 | Performance | ✅ |
 
 ---
+
+# Build Profiles & Google Maps
+
+## Dev Build (profile: `development`)
+- **Keystore**: EAS gerencia (JKS)
+- **SHA-1**: `47:99:EA:F6:DB:44:25:2D:39:4A:D5:ED:DD:68:08:B0:91:07:8E:8A`
+- **Usar**: Testes no dia a dia
+- **Build**: `npx eas build --platform android --profile development`
+- **Google Maps**: Adicionar SHA-1 acima na restrição da chave de API
+
+## Release/Play Store (profile: `production`)
+- **Keystore**: Próprio (gerar um separado)
+- **SHA-1**: Diferente do dev, precisa ver com `npx eas credentials --profile production`
+- **Google Maps**: Adicionar SHA-1 de produção na restrição da chave
+
+## Google Cloud
+- **Projeto**: petlink-b90a4
+- **Chave API**: `AIzaSyDCd8h2shAzU3ejsXO7fB1dunwEWgZsrxs`
+- **Billing**: Ativo, conta "Minha conta de faturamento do Maps"
+- **Cartão**: Mastercard final 0829
+- **US$200/mês grátis** — não vai pagar nada
+
+## Observações
+- EAS reusa o mesmo keystore do profile `development` pra todos os builds desse profile
+- Sempre que criar um novo profile de build, precisa ver o SHA-1 dele e adicionar na chave do Maps
+
 
 ## Arquivos alterados nesta sessão (03/06/2026) — Fase 6: Walk Tracking
 
@@ -1566,6 +1595,73 @@ Nenhuma das alterações mexe em código nativo (native modules, podfile, gradle
 | `package.json` | + react-native-maps |
 
 ---
+
+## Arquivos alterados nesta sessão (05/06/2026) — Correções Lugares + Reviews
+
+### Server
+
+| Arquivo | Mudança |
+|---------|---------|
+| `src/app.ts` | `console.error` do `AppError` agora loga método + path |
+| `src/middlewares/auth.middleware.ts` | `AuthRequest.user` ganha campo `name` (extraído de `user_metadata` + fallback p/ profiles Supabase) |
+| `src/modules/places/places.repository.ts` | `fetchOsmDetails` trata Nominatim `/details` sem `display_name` (usa `localname` + monta `displayName` do array `address`) |
+| `src/modules/places/places.controller.ts` | `authorName` usa `authReq.user.name` em vez de `authReq.user.email` |
+| `src/modules/places/places.repository.ts` | Interface `OsmDetailsResult` atualizada p/ formato real do Nominatim |
+| `src/scripts/migrate-review-authors.ts` | **Novo** — migra `authorName` de email/nickname p/ nome real via Supabase profiles |
+
+### Mobile
+
+| Arquivo | Mudança |
+|---------|---------|
+| `src/api/axios.ts` | Log da response body em erros `[API][ERROR]` |
+| `src/screens/SearchScreen.tsx` | `handleSubmitReview` envia `placeName` com fallback; loga `placeDetail` no submit; trata erro 409 c/ toast informativo |
+| `src/screens/SearchScreen.tsx` | `handleSubmitReview`/`handleDeleteReview` dão refresh em `placeDetail` após ação (avgRating + reviewsCount) |
+| `src/screens/SearchScreen.tsx` | Modal de avaliações com FlatList scrollável + botão "Visualizar todas" ao lado da estrela |
+| `src/screens/SearchScreen.tsx` | Cada review card: nome + estrelas lado a lado, três pontinhos (`⋮`) p/ remover (só própria) |
+| `src/screens/SearchScreen.tsx` | `marginBottom: 10` abaixo do mapa no expandido |
+| `src/components/ui/ActionOptionsModal.tsx` | `useEffect` reseta `deletingRef` quando `visible=false` (botão "Excluir" não ficava clicável após 1ª exclusão) |
+
+### Tabela de tarefas — Lugares (Fase 7)
+
+| # | Tarefa | Status |
+|---|--------|--------|
+| L9 | Modal de avaliações com scroll + opção de remover | ✅ |
+| L10 | Nome do autor na review usa nome real (não email) | ✅ |
+| L11 | Migração de autorName existentes | ✅ |
+| L12 | Cache Nominatim c/ fallback p/ localname | ✅ |
+| L13 | Visualizar todas + ação remover nos três pontinhos | ✅ |
+| L14 | Refresh avgRating após avaliar/remover | ✅ |
+
+### RFs pendentes do README documentados
+
+Foram identificados e registrados na seção "Pendentes" os 4 RFs do README que ainda não foram implementados: RF22 (Geofencing), RF24 (Exportação JSON/CSV), RF26 (Alertas de temperatura), RF28 (Backup Google Drive). Total: 22/26 RFs concluídos.
+
+1. First: Improve location search in SearchScreen
+   - Add filter buttons that appear only when searching "Locais"
+   - Colorful buttons for: PetFriendly, category, rating, distance
+   - Need to update the search to support these filters
+
+2. Then: Add "Set as Pet-Friendly" button on place details
+   - When opening a place, a button to mark it as Pet-Friendly
+   - This feeds into both the PetFriendly filter and geofencing
+
+3. Then: Geofencing (RF22)
+   - Using the now-categorized locations to trigger notifications
+
+4. Then: Temperature alerts (RF26)
+
+5. Then: JSON/CSV export (RF24)
+
+6. Finally: Google Drive backup (RF28)
+
+### Walk Tracking — Correções (Fase 6)
+
+| # | Tarefa | Status |
+|---|--------|--------|
+| W14 | WalkCalendar com tema verde (em vez de laranja) | ✅ |
+| W15 | RouteLine no composite de compartilhamento (sem foto) | ✅ |
+| W16 | Debounce (300ms) nas requisições de stats | ✅ |
+| W17 | Duplo clique: ConfirmModal, ActionOptionsModal, PostOptionsModal, WalkDetailScreen, WalkRecordingScreen, PetsScreen | ✅ |
 
 ## Princípios
 

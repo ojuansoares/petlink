@@ -20,3 +20,14 @@ export function formatWalkDistance(meters: number | null | undefined): string {
   if (meters < 1000) return `${Math.round(meters)} m`
   return `${(meters / 1000).toFixed(2)} km`
 }
+
+export function formatWalkDuration(seconds: number | null | undefined): string {
+  if (!seconds || seconds <= 0) return '0 min'
+  const h = Math.floor(seconds / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  const s = seconds % 60
+  if (h > 0) return `${h}h ${m}min`
+  if (m > 0 && s > 0) return `${m}min ${s}s`
+  if (m > 0) return `${m}min`
+  return `${s}s`
+}

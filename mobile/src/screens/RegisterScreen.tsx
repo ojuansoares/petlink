@@ -282,7 +282,6 @@ export default function RegisterScreen({ navigation }: Readonly<Props>) {
               />
 
               <OptionSelect
-                label="Localização"
                 placeholder="Selecione o estado"
                 value={location}
                 onChange={setLocation}

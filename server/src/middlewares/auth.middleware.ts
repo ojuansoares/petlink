@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express'
 import { supabaseAdmin } from '../config/supabase'
 
 export interface AuthRequest extends Request {
-  user?: { id: string; email: string }
+  user?: { id: string; email: string; name: string }
 }
 
 export async function authMiddleware(
@@ -25,7 +25,23 @@ export async function authMiddleware(
       return res.status(401).json({ error: 'Token inválido ou expirado' })
     }
 
-    req.user = { id: user.id, email: user.email! }
+    const meta = user.user_metadata ?? {}
+    let name =
+      (meta.full_name as string | undefined) ||
+      (meta.name as string | undefined) ||
+      (meta.given_name as string | undefined) ||
+      ''
+
+    if (!name || name === user.email?.split('@')[0]) {
+      const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('name')
+        .eq('id', user.id)
+        .maybeSingle()
+      name = profile?.name || user.email?.split('@')[0] || 'Usuário'
+    }
+
+    req.user = { id: user.id, email: user.email!, name }
     next()
   } catch (err: any) {
     console.error('[AuthMiddleware] Erro ao validar token:', err.message)

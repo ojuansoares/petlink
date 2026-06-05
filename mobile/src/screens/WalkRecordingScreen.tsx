@@ -20,10 +20,11 @@ import {
 } from '../store/slices/walksSlices'
 import { selectIsOnline } from '../store/slices/uiSlice'
 import {
-  watchPosition, haversineDistance, requestLocationPermission,
+  watchPosition, requestLocationPermission,
   requestBackgroundLocationPermission, getCurrentPosition,
   startBackgroundWalkTracking, stopBackgroundWalkTracking,
 } from '../services/LocationService'
+import { haversineDistance } from '../utils/geoUtils'
 import { loadBgRoutePoints, clearBgRoutePoints } from '../services/BackgroundLocationTask'
 import { useLocation } from '../hooks/useLocation'
 import { uploadImageWithRetry } from '../api/uploadWithRetry'
@@ -111,7 +112,7 @@ export default function WalkRecordingScreen() {
           }
         },
         () => setGpsError(true),
-        { timeInterval: 5000, distanceInterval: 0 },
+        { timeInterval: 3000, distanceInterval: 0 },
       )
       watchRef.current = sub
     } catch {
@@ -144,19 +145,30 @@ export default function WalkRecordingScreen() {
       if (existingTimestamps.has(ts)) continue
 
       const distanceDelta = last ? haversineDistance(last.lat, last.lng, p.lat, p.lng) : 0
-      last = { lat: p.lat, lng: p.lng }
+      if (distanceDelta > 0 && distanceDelta < 3) continue
 
+      last = { lat: p.lat, lng: p.lng }
       dispatch(addRoutePoint({ lat: p.lat, lng: p.lng, timestamp: p.timestamp, distanceDelta }))
     }
 
     await clearBgRoutePoints()
   }, [dispatch])
 
-  // AppState listener: merge background points when returning to foreground
+  const phaseRef = useRef(phase)
+  const isPausedRef = useRef(isPaused)
+  useEffect(() => { phaseRef.current = phase }, [phase])
+  useEffect(() => { isPausedRef.current = isPaused }, [isPaused])
+
+  // AppState listener: merge background points + recalculate timer on foreground
   useEffect(() => {
     const sub = AppState.addEventListener('change', (nextState) => {
       if (nextState === 'active') {
         mergeBackgroundPoints()
+        const walk = activeWalkRef.current
+        if (walk && phaseRef.current === 'walking' && !isPausedRef.current) {
+          const elapsed = Math.floor((Date.now() - new Date(walk.startedAt).getTime()) / 1000) - Math.round(walk.totalPausedS)
+          setElapsedS(Math.max(0, elapsed))
+        }
       }
     })
     return () => sub.remove()
@@ -239,6 +251,10 @@ export default function WalkRecordingScreen() {
   const handleResume = async () => {
     setIsPaused(false)
     dispatch(resumeWalk())
+    if (activeWalkRef.current) {
+      const elapsed = Math.floor((Date.now() - new Date(activeWalkRef.current.startedAt).getTime()) / 1000) - Math.round(activeWalkRef.current.totalPausedS)
+      setElapsedS(Math.max(0, elapsed))
+    }
     const bgOk = await requestBackgroundLocationPermission()
     if (bgOk) {
       await startBackgroundWalkTracking()
@@ -343,7 +359,11 @@ export default function WalkRecordingScreen() {
     setShowDiscardModal(true)
   }
 
+  const discardingRef = useRef(false)
+
   const confirmDiscard = async () => {
+    if (discardingRef.current) return
+    discardingRef.current = true
     watchRef.current?.remove()
     if (timerRef.current) clearInterval(timerRef.current)
     if (gpsTimeoutRef.current) clearTimeout(gpsTimeoutRef.current)
@@ -659,7 +679,8 @@ export default function WalkRecordingScreen() {
               </Pressable>
               <Pressable
                 onPress={confirmDiscard}
-                style={[styles.discardBtn, { backgroundColor: colors.destructive }]}
+                disabled={discardingRef.current}
+                style={[styles.discardBtn, { backgroundColor: colors.destructive, opacity: discardingRef.current ? 0.5 : 1 }]}
               >
                 <Text weight="800" style={{ color: '#fff' }}>Descartar</Text>
               </Pressable>

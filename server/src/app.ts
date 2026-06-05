@@ -68,14 +68,15 @@ app.use('/gamification', gamificationRoutes)
 app.use('/pets', vaccinationCardRoutes)
 app.use('/places', placesRoutes)
 
-app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
   if (err instanceof AppError) {
+    console.error(`[${req.method} ${req.path}] AppError ${err.statusCode}: ${err.message}`)
     res.status(err.statusCode).json({ error: err.message, code: err.code })
     return
   }
 
   Sentry.captureException(err)
-  console.error('[ERRO INESPERADO]:', err)
+  console.error(`[${req.method} ${req.path}] ERRO INESPERADO:`, err)
   res.status(500).json({ error: 'Erro interno inesperado' })
 })
 
