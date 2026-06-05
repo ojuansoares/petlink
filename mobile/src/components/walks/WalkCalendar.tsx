@@ -65,14 +65,14 @@ export function WalkCalendar({ year, month, walkDays, onDayPress, onPrevMonth, o
               style={[
                 styles.dayCell,
                 hasWalk && { backgroundColor: withAlpha('#F97316', 0.2), borderRadius: 8, paddingVertical: 6 },
-                isTodayDate && { borderColor: '#F97316', borderWidth: 1.5, borderRadius: 8, paddingVertical: 6 },
+                isTodayDate && { backgroundColor: withAlpha('#F97316', 0.12), borderRadius: 8, paddingVertical: 6 },
               ]}
             >
               <Text
                 size="xs"
                 weight={isTodayDate ? '800' : '600'}
                 style={{
-                  color: isCurrentMonth ? colors.foreground : withAlpha(colors.mutedForeground, 0.55),
+                  color: isTodayDate ? '#F97316' : isCurrentMonth ? colors.foreground : withAlpha(colors.mutedForeground, 0.55),
                   opacity: isCurrentMonth ? 1 : 1,
                 }}
               >
