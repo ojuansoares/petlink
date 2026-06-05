@@ -57,6 +57,7 @@ describe('feedingSlice', () => {
       isLoadingLogs: false,
       isLoadingScore: false,
       isSaving: false,
+      fetchError: false,
     })
   })
 
