@@ -300,7 +300,7 @@ export default function WalkScreen() {
                 <Text size="xs" weight="800" color="mutedForeground" style={styles.topicLabel}>DESEMPENHO</Text>
                 <View style={styles.statsRow}>
                   <WalkStatsCard icon="flame-outline" label="Calorias" value={`${totalCalories}`} color="#F97316" />
-                  <WalkStatsCard icon="calendar-outline" label="Registros" value={`${stats.length} dias`} color="#EC4899" />
+                  <WalkStatsCard icon="calendar-outline" label="Registros" value={`${walkDays.size} dias`} color="#EC4899" />
                 </View>
               </View>
             </>
