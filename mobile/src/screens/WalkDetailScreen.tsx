@@ -131,12 +131,22 @@ export default function WalkDetailScreen() {
             zoomEnabled
           >
             {walk.route.length > 1 && (
-              <Polyline
-                coordinates={walk.route.map(p => ({ latitude: p.lat, longitude: p.lng }))}
-                strokeColor={colors.primary}
-                strokeWidth={5}
-                lineDashPattern={[0]}
-              />
+              <>
+                <Polyline
+                  coordinates={walk.route.map(p => ({ latitude: p.lat, longitude: p.lng }))}
+                  strokeColor="rgba(0,0,0,0.25)"
+                  strokeWidth={12}
+                  lineCap="round"
+                  lineJoin="round"
+                />
+                <Polyline
+                  coordinates={walk.route.map(p => ({ latitude: p.lat, longitude: p.lng }))}
+                  strokeColor="#22C55E"
+                  strokeWidth={6}
+                  lineCap="round"
+                  lineJoin="round"
+                />
+              </>
             )}
             {walk.route.length > 0 && (
               <>
@@ -269,13 +279,17 @@ export default function WalkDetailScreen() {
             >
               <Polyline
                 coordinates={walk.route.map(p => ({ latitude: p.lat, longitude: p.lng }))}
-                strokeColor="rgba(0,0,0,0.45)"
+                strokeColor="rgba(0,0,0,0.25)"
                 strokeWidth={10}
+                lineCap="round"
+                lineJoin="round"
               />
               <Polyline
                 coordinates={walk.route.map(p => ({ latitude: p.lat, longitude: p.lng }))}
-                strokeColor={colors.primary}
+                strokeColor="#22C55E"
                 strokeWidth={5}
+                lineCap="round"
+                lineJoin="round"
               />
             </MapView>
           </View>

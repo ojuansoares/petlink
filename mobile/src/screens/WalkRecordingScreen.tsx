@@ -307,15 +307,25 @@ export default function WalkRecordingScreen() {
             longitudeDelta: 0.1,
           }}
           showsUserLocation
-          followsUserLocation={phase === 'walking'}
+          followsUserLocation
         >
           {activeWalk && activeWalk.route.length > 1 && (
-            <Polyline
-              coordinates={activeWalk.route.map(p => ({ latitude: p.lat, longitude: p.lng }))}
-              strokeColor={colors.primary}
-              strokeWidth={4}
-              lineDashPattern={[0]}
-            />
+            <>
+              <Polyline
+                coordinates={activeWalk.route.map(p => ({ latitude: p.lat, longitude: p.lng }))}
+                strokeColor="rgba(0,0,0,0.25)"
+                strokeWidth={12}
+                lineCap="round"
+                lineJoin="round"
+              />
+              <Polyline
+                coordinates={activeWalk.route.map(p => ({ latitude: p.lat, longitude: p.lng }))}
+                strokeColor="#22C55E"
+                strokeWidth={6}
+                lineCap="round"
+                lineJoin="round"
+              />
+            </>
           )}
         </MapView>
         {!region && (
