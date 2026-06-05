@@ -52,6 +52,7 @@ export default function WalkRecordingScreen() {
   const { getCurrentLocation, isLoadingLocation } = useLocation()
 
   const [showFinishModal, setShowFinishModal] = useState(false)
+  const [showDiscardModal, setShowDiscardModal] = useState(false)
   const [showImagePicker, setShowImagePicker] = useState(false)
   const [walkTitle, setWalkTitle] = useState('')
   const [walkPhotoUrl, setWalkPhotoUrl] = useState('')
@@ -271,23 +272,16 @@ export default function WalkRecordingScreen() {
   }
 
   const handleDiscard = () => {
-    Alert.alert(
-      'Descartar passeio?',
-      'Todo o trajeto será perdido.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Descartar',
-          style: 'destructive',
-          onPress: () => {
-            watchRef.current?.remove()
-            if (timerRef.current) clearInterval(timerRef.current)
-            dispatch(cancelWalk())
-            navigation.goBack()
-          },
-        },
-      ]
-    )
+    setShowDiscardModal(true)
+  }
+
+  const confirmDiscard = () => {
+    watchRef.current?.remove()
+    if (timerRef.current) clearInterval(timerRef.current)
+    if (gpsTimeoutRef.current) clearTimeout(gpsTimeoutRef.current)
+    setShowDiscardModal(false)
+    dispatch(cancelWalk())
+    navigation.goBack()
   }
 
   const formatTime = (s: number) => {
@@ -538,6 +532,32 @@ export default function WalkRecordingScreen() {
         </KeyboardAvoidingView>
       </RNModal>
 
+      <RNModal visible={showDiscardModal} transparent animationType="fade" statusBarTranslucent>
+        <View style={styles.discardOverlay}>
+          <View style={[styles.discardCard, { backgroundColor: colors.card }]}>
+            <Ionicons name="alert-triangle-outline" size={40} color={colors.destructive} style={{ marginBottom: 8 }} />
+            <Heading size="lg" weight="800" style={{ textAlign: 'center' }}>Descartar passeio?</Heading>
+            <Text color="mutedForeground" size="sm" style={{ textAlign: 'center', marginTop: 8, lineHeight: 20 }}>
+              Todo o trajeto será perdido.
+            </Text>
+            <View style={styles.discardButtons}>
+              <Pressable
+                onPress={() => setShowDiscardModal(false)}
+                style={[styles.discardBtn, { backgroundColor: withAlpha(colors.muted, 0.3) }]}
+              >
+                <Text weight="700">Cancelar</Text>
+              </Pressable>
+              <Pressable
+                onPress={confirmDiscard}
+                style={[styles.discardBtn, { backgroundColor: colors.destructive }]}
+              >
+                <Text weight="800" style={{ color: '#fff' }}>Descartar</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </RNModal>
+
       <ImagePickerSheet
         visible={showImagePicker}
         onClose={() => setShowImagePicker(false)}
@@ -756,5 +776,31 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 14,
     borderRadius: 14,
+  },
+  discardOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  discardCard: {
+    width: '100%',
+    maxWidth: 320,
+    borderRadius: 24,
+    padding: 32,
+    alignItems: 'center',
+  },
+  discardButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 24,
+    width: '100%',
+  },
+  discardBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
   },
 })

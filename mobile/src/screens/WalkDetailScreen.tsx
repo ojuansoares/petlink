@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState, useLayoutEffect } from 'react'
-import { View, ScrollView, StyleSheet, Platform, ActivityIndicator, Pressable, Alert } from 'react-native'
+import { View, ScrollView, StyleSheet, Platform, ActivityIndicator, Pressable, Modal as RNModal } from 'react-native'
 import MapView, { Polyline, Marker, Region } from 'react-native-maps'
 import { Image } from 'expo-image'
 import { Ionicons } from '@expo/vector-icons'
@@ -28,21 +28,16 @@ export default function WalkDetailScreen() {
   const walk = route.params.walk as Walk
   const dispatch = useAppDispatch()
   const shotRef = useRef<any>(null)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
 
   const handleDelete = async () => {
+    setShowDeleteModal(false)
     await dispatch(deleteWalkThunk(walk.id))
     navigation.goBack()
   }
 
   const handleDeletePress = () => {
-    Alert.alert(
-      'Excluir passeio',
-      'Tem certeza? Esta ação não pode ser desfeita.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Excluir', style: 'destructive', onPress: handleDelete },
-      ]
-    )
+    setShowDeleteModal(true)
   }
 
   useLayoutEffect(() => {
@@ -286,6 +281,31 @@ export default function WalkDetailScreen() {
           </View>
         </View>
       )}
+      <RNModal visible={showDeleteModal} transparent animationType="fade" statusBarTranslucent>
+        <View style={styles.deleteOverlay}>
+          <View style={[styles.deleteCard, { backgroundColor: colors.card }]}>
+            <Ionicons name="alert-triangle-outline" size={40} color={colors.destructive} style={{ marginBottom: 8 }} />
+            <Heading size="lg" weight="800" style={{ textAlign: 'center' }}>Excluir passeio</Heading>
+            <Text color="mutedForeground" size="sm" style={{ textAlign: 'center', marginTop: 8, lineHeight: 20 }}>
+              Tem certeza? Esta ação não pode ser desfeita.
+            </Text>
+            <View style={styles.deleteButtons}>
+              <Pressable
+                onPress={() => setShowDeleteModal(false)}
+                style={[styles.deleteBtn, { backgroundColor: withAlpha(colors.muted, 0.3) }]}
+              >
+                <Text weight="700">Cancelar</Text>
+              </Pressable>
+              <Pressable
+                onPress={handleDelete}
+                style={[styles.deleteBtn, { backgroundColor: colors.destructive }]}
+              >
+                <Text weight="800" style={{ color: '#fff' }}>Excluir</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </RNModal>
     </ScrollView>
   )
 }
@@ -333,5 +353,31 @@ const styles = StyleSheet.create({
   walkPhoto: {
     width: '100%',
     height: 220,
+  },
+  deleteOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  deleteCard: {
+    width: '100%',
+    maxWidth: 320,
+    borderRadius: 24,
+    padding: 32,
+    alignItems: 'center',
+  },
+  deleteButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 24,
+    width: '100%',
+  },
+  deleteBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
   },
 })
