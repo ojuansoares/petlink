@@ -284,7 +284,7 @@ export default function WalkDetailScreen() {
       <RNModal visible={showDeleteModal} transparent animationType="fade" statusBarTranslucent>
         <View style={styles.deleteOverlay}>
           <View style={[styles.deleteCard, { backgroundColor: colors.card }]}>
-            <Ionicons name="alert-triangle-outline" size={40} color={colors.destructive} style={{ marginBottom: 8 }} />
+            <Ionicons name="warning-outline" size={40} color={colors.destructive} style={{ marginBottom: 8 }} />
             <Heading size="lg" weight="800" style={{ textAlign: 'center' }}>Excluir passeio</Heading>
             <Text color="mutedForeground" size="sm" style={{ textAlign: 'center', marginTop: 8, lineHeight: 20 }}>
               Tem certeza? Esta ação não pode ser desfeita.

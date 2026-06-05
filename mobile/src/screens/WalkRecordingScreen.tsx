@@ -535,7 +535,7 @@ export default function WalkRecordingScreen() {
       <RNModal visible={showDiscardModal} transparent animationType="fade" statusBarTranslucent>
         <View style={styles.discardOverlay}>
           <View style={[styles.discardCard, { backgroundColor: colors.card }]}>
-            <Ionicons name="alert-triangle-outline" size={40} color={colors.destructive} style={{ marginBottom: 8 }} />
+            <Ionicons name="warning-outline" size={40} color={colors.destructive} style={{ marginBottom: 8 }} />
             <Heading size="lg" weight="800" style={{ textAlign: 'center' }}>Descartar passeio?</Heading>
             <Text color="mutedForeground" size="sm" style={{ textAlign: 'center', marginTop: 8, lineHeight: 20 }}>
               Todo o trajeto será perdido.
