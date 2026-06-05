@@ -52,6 +52,7 @@ export default function WalkRecordingScreen() {
   const { getCurrentLocation, isLoadingLocation } = useLocation()
 
   const [showFinishModal, setShowFinishModal] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [showDiscardModal, setShowDiscardModal] = useState(false)
   const [showImagePicker, setShowImagePicker] = useState(false)
   const [walkTitle, setWalkTitle] = useState('')
@@ -194,7 +195,8 @@ export default function WalkRecordingScreen() {
   }
 
   const handleFinishWalk = async () => {
-    if (!activeWalk) return
+    if (!activeWalk || saving) return
+    setSaving(true)
     const now = new Date().toISOString()
     const durationS = Math.floor((Date.now() - new Date(activeWalk.startedAt).getTime()) / 1000) - Math.round(activeWalk.totalPausedS)
     const avgSpeed = durationS > 0 ? (activeWalk.distanceM / 1000) / (durationS / 3600) : 0
@@ -529,10 +531,15 @@ export default function WalkRecordingScreen() {
                 </Pressable>
                 <Pressable
                   onPress={handleFinishWalk}
-                  style={[styles.finishSaveBtn, { backgroundColor: colors.primary }]}
+                  disabled={saving}
+                  style={[styles.finishSaveBtn, { backgroundColor: saving ? withAlpha(colors.primary, 0.5) : colors.primary }]}
                 >
-                  <Ionicons name="checkmark" size={20} color="#fff" />
-                  <Text weight="800" size="sm" style={{ color: '#fff', marginLeft: 6 }}>Salvar</Text>
+                  {saving ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Ionicons name="checkmark" size={20} color="#fff" />
+                  )}
+                  <Text weight="800" size="sm" style={{ color: '#fff', marginLeft: 6 }}>{saving ? 'Salvando...' : 'Salvar'}</Text>
                 </Pressable>
               </View>
             </View>
