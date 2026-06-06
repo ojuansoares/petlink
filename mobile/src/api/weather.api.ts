@@ -6,10 +6,16 @@ export interface WeatherInfo {
   label: string
 }
 
-export async function fetchCurrentWeather(lat: number, lng: number): Promise<WeatherInfo | null> {
+export async function fetchCurrentWeather(lat?: number, lng?: number, location?: string): Promise<WeatherInfo | null> {
   try {
-    console.log('[Weather API] chamando GET /weather/current', { lat, lng })
-    const { data } = await api.get('/weather/current', { params: { lat, lng } })
+    const params: Record<string, string> = {}
+    if (lat !== undefined && lng !== undefined && isFinite(lat) && isFinite(lng)) {
+      params.lat = String(lat)
+      params.lng = String(lng)
+    }
+    if (location) params.location = location
+    console.log('[Weather API] chamando GET /weather/current', params)
+    const { data } = await api.get('/weather/current', { params })
     console.log('[Weather API] resposta:', JSON.stringify(data))
     return data as WeatherInfo
   } catch (err: any) {

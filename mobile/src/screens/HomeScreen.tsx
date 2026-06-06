@@ -154,48 +154,33 @@ export default function HomeScreen() {
   // Fetch weather using profile location
   // ─── Weather ─────────────────────────────────────────────
   useEffect(() => {
-    console.log('[Weather] profile?.location =', JSON.stringify(profile?.location))
-    if (!profile?.location || (typeof profile.location === 'string' && !profile.location.trim())) {
+    const loc = profile?.location
+    console.log('[Weather] profile?.location =', JSON.stringify(loc))
+    if (!loc || (typeof loc === 'string' && !loc.trim())) {
       console.log('[Weather] profile sem location, pulando')
       return
     }
-    let lat: number, lng: number
-    const loc = profile.location
+
     if (typeof loc === 'string' && loc.includes(',')) {
+      // Lat/lng pair — parse and send as coords
       const parts = loc.split(',').map(Number)
-      if (parts.length !== 2 || !isFinite(parts[0]) || !isFinite(parts[1])) {
-        console.log('[Weather] location string inválida:', loc)
+      if (parts.length === 2 && isFinite(parts[0]) && isFinite(parts[1])) {
+        console.log('[Weather] enviando coordenadas:', { lat: parts[0], lng: parts[1] })
+        fetchCurrentWeather(parts[0], parts[1])
+          .then(data => { if (data) setWeather(data) })
         return
       }
-      lat = parts[0]; lng = parts[1]
-    } else if (typeof loc === 'object' && (loc as any).lat !== undefined) {
-      lat = Number((loc as any).lat); lng = Number((loc as any).lng)
-      if (!isFinite(lat) || !isFinite(lng)) {
-        console.log('[Weather] location object inválido:', loc)
-        return
-      }
-    } else if (typeof loc === 'string' && loc.length > 0) {
-      // Might be a single coord or non-comma format — try parsing as plain text
-      console.log('[Weather] formato de location não reconhecido:', typeof loc, loc)
-      return
-    } else {
-      console.log('[Weather] formato de location não reconhecido:', typeof loc, loc)
+    }
+
+    // Text location (state code like "SP") — send to server for geocoding
+    if (typeof loc === 'string' && loc.trim().length > 0) {
+      console.log('[Weather] enviando texto para geocodificar:', loc.trim())
+      fetchCurrentWeather(undefined, undefined, loc.trim())
+        .then(data => { if (data) setWeather(data) })
       return
     }
 
-    console.log('[Weather] buscando clima para:', { lat, lng })
-    fetchCurrentWeather(lat, lng)
-      .then(data => {
-        if (data) {
-          console.log('[Weather] sucesso:', data)
-          setWeather(data)
-        } else {
-          console.log('[Weather] resposta vazia/nula')
-        }
-      })
-      .catch(err => {
-        console.log('[Weather] erro no fetch:', err)
-      })
+    console.log('[Weather] formato de location não reconhecido:', typeof loc, loc)
   }, [profile?.location])
 
   const [reminders, setReminders] = useState<ReminderItem[]>([])
@@ -653,27 +638,21 @@ export default function HomeScreen() {
         <Pressable
           onPress={() => {
             console.log('[Weather] refresh manual')
-            if (!profile?.location) {
-              console.log('[Weather] sem location no refresh')
-              return
-            }
-            let lat: number, lng: number
-            const loc = profile.location
+            const loc = profile?.location
+            if (!loc || (typeof loc === 'string' && !loc.trim())) return
+
             if (typeof loc === 'string' && loc.includes(',')) {
               const parts = loc.split(',').map(Number)
-              if (parts.length !== 2 || !isFinite(parts[0]) || !isFinite(parts[1])) return
-              lat = parts[0]; lng = parts[1]
-            } else if (typeof loc === 'object' && (loc as any).lat !== undefined) {
-              lat = Number((loc as any).lat); lng = Number((loc as any).lng)
-              if (!isFinite(lat) || !isFinite(lng)) return
-            } else return
-            console.log('[Weather] refresh para:', { lat, lng })
-            fetchCurrentWeather(lat, lng)
-              .then(data => {
-                console.log('[Weather] refresh resultado:', data)
-                setWeather(data)
-              })
-              .catch(err => console.log('[Weather] refresh erro:', err))
+              if (parts.length === 2 && isFinite(parts[0]) && isFinite(parts[1])) {
+                console.log('[Weather] refresh coordenadas:', { lat: parts[0], lng: parts[1] })
+                fetchCurrentWeather(parts[0], parts[1]).then(setWeather)
+                return
+              }
+            }
+            if (typeof loc === 'string' && loc.trim().length > 0) {
+              console.log('[Weather] refresh texto:', loc.trim())
+              fetchCurrentWeather(undefined, undefined, loc.trim()).then(setWeather)
+            }
           }}
           style={{
             flexDirection: 'row',
