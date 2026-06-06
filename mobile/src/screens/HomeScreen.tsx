@@ -33,6 +33,7 @@ import { homeCacheRepository } from '../data/repositories/HomeCacheRepository'
 import { format, parseISO } from 'date-fns'
 import { CreatePostModal } from '../components/ui/CreatePostModal'
 import { WebView } from 'react-native-webview'
+import { fetchCurrentWeather, WeatherInfo } from '../api/weather.api'
 
 const SPECIES_TRANSLATION: Record<string, string> = {
   dog: 'Cachorro',
@@ -64,6 +65,7 @@ export default function HomeScreen() {
   const gamificationStats = useAppSelector(selectGamification)
 
   const [showCreatePost, setShowCreatePost] = useState(false)
+  const [weather, setWeather] = useState<WeatherInfo | null>(null)
   const [bannerUrl, setBannerUrl] = useState<string | null>(null)
   const [webViewLoading, setWebViewLoading] = useState(false)
   const [petCarouselIndex, setPetCarouselIndex] = useState(0)
@@ -148,6 +150,47 @@ export default function HomeScreen() {
       loadVaccineForPet(pets[nextIdx].id)
     }
   }, [activePet?.id, petCarouselIndex])
+
+  // Fetch weather using profile location
+  useEffect(() => {
+    if (!profile?.location) {
+      console.log('[Weather] profile sem location, pulando')
+      return
+    }
+    let lat: number, lng: number
+    const loc = profile.location
+    if (typeof loc === 'string' && loc.includes(',')) {
+      const parts = loc.split(',').map(Number)
+      if (parts.length !== 2 || !isFinite(parts[0]) || !isFinite(parts[1])) {
+        console.log('[Weather] location string inválida:', loc)
+        return
+      }
+      lat = parts[0]; lng = parts[1]
+    } else if (typeof loc === 'object' && (loc as any).lat !== undefined) {
+      lat = Number((loc as any).lat); lng = Number((loc as any).lng)
+      if (!isFinite(lat) || !isFinite(lng)) {
+        console.log('[Weather] location object inválido:', loc)
+        return
+      }
+    } else {
+      console.log('[Weather] formato de location não reconhecido:', typeof loc, loc)
+      return
+    }
+
+    console.log('[Weather] buscando clima para:', { lat, lng })
+    fetchCurrentWeather(lat, lng)
+      .then(data => {
+        if (data) {
+          console.log('[Weather] sucesso:', data)
+          setWeather(data)
+        } else {
+          console.log('[Weather] resposta vazia/nula')
+        }
+      })
+      .catch(err => {
+        console.log('[Weather] erro no fetch:', err)
+      })
+  }, [profile?.location])
 
   const [reminders, setReminders] = useState<ReminderItem[]>([])
   const [remindersLoading, setRemindersLoading] = useState(false)
@@ -597,6 +640,67 @@ export default function HomeScreen() {
             <Text size="xs" weight="700" style={{ marginTop: 4, color: '#F97316' }}>Alimentação</Text>
           </Pressable>
         </View>
+      )}
+
+      {/* TEMPERATURE WIDGET */}
+      {weather && (
+        <Pressable
+          onPress={() => {
+            console.log('[Weather] refresh manual')
+            if (!profile?.location) {
+              console.log('[Weather] sem location no refresh')
+              return
+            }
+            let lat: number, lng: number
+            const loc = profile.location
+            if (typeof loc === 'string' && loc.includes(',')) {
+              const parts = loc.split(',').map(Number)
+              if (parts.length !== 2 || !isFinite(parts[0]) || !isFinite(parts[1])) return
+              lat = parts[0]; lng = parts[1]
+            } else if (typeof loc === 'object' && (loc as any).lat !== undefined) {
+              lat = Number((loc as any).lat); lng = Number((loc as any).lng)
+              if (!isFinite(lat) || !isFinite(lng)) return
+            } else return
+            console.log('[Weather] refresh para:', { lat, lng })
+            fetchCurrentWeather(lat, lng)
+              .then(data => {
+                console.log('[Weather] refresh resultado:', data)
+                setWeather(data)
+              })
+              .catch(err => console.log('[Weather] refresh erro:', err))
+          }}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: weather.status === 'danger'
+              ? withAlpha('#EF4444', 0.12)
+              : weather.status === 'caution'
+                ? withAlpha('#F59E0B', 0.12)
+                : withAlpha('#22C55E', 0.12),
+            marginHorizontal: 16,
+            marginBottom: 12,
+            paddingVertical: 12,
+            paddingHorizontal: 16,
+            borderRadius: 12,
+            borderWidth: 1,
+            borderColor: weather.status === 'danger'
+              ? withAlpha('#EF4444', 0.3)
+              : weather.status === 'caution'
+                ? withAlpha('#F59E0B', 0.3)
+                : withAlpha('#22C55E', 0.3),
+          }}
+        >
+          <Text style={{ fontSize: 28, marginRight: 12 }}>
+            {weather.temperature > 30 ? '🥵' : weather.temperature < 10 ? '🥶' : weather.temperature < 15 || weather.temperature > 28 ? '😐' : '✅'}
+          </Text>
+          <View style={{ flex: 1 }}>
+            <Text weight="700" size="sm">{Math.round(weather.temperature)}°C — {weather.label}</Text>
+            {weather.status === 'danger' && <Text size="xs" style={{ marginTop: 2, color: '#EF4444' }}>Cuidado! Temperatura extrema — evite exposição prolongada do seu pet.</Text>}
+            {weather.status === 'caution' && <Text size="xs" style={{ marginTop: 2, color: '#B45309' }}>Atenção — fique de olho no bem-estar do seu pet.</Text>}
+            {weather.status === 'ideal' && <Text size="xs" style={{ marginTop: 2, color: '#16A34A' }}>Temperatura ideal para passear com seu pet!</Text>}
+          </View>
+          <Ionicons name="refresh" size={18} color="#999" />
+        </Pressable>
       )}
 
       {/* BANNER CAROUSEL */}

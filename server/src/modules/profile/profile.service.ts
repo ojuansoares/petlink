@@ -10,6 +10,9 @@ import { Comment } from '../../models/Comment'
 import { CommentLike } from '../../models/CommentLike'
 import { Checkin } from '../../models/Checkin'
 import { Review } from '../../models/Review'
+import { Location } from '../../models/Location'
+import { PlaceReview } from '../../models/PlaceReview'
+import { PetFriendlyPlace } from '../../models/PetFriendlyPlace'
 
 async function attachEmail<T extends Record<string, any>>(userId: string, profile: T): Promise<T & { email: string | null }> {
   const { data, error } = await supabaseAdmin.auth.admin.getUserById(userId)
@@ -133,6 +136,11 @@ export const profileService = {
     }
     await Checkin.deleteMany({ userId })
     await Review.deleteMany({ authorId: userId })
+
+    // ─── Lugares (MongoDB) ────────────────────────────────
+    await Location.deleteMany({ addedBy: userId })
+    await PlaceReview.deleteMany({ authorId: userId })
+    await PetFriendlyPlace.deleteMany({ addedBy: userId })
 
     // ─── Grupos (Supabase) ────────────────────────────────
     const ownedGroups = await supabaseAdmin

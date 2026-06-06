@@ -45,7 +45,7 @@ export const notificationsController = {
     const authReq = req as AuthRequest
     if (!authReq.user) return res.status(401).json({ error: 'Não autenticado' })
 
-    const allowed = ['enabled', 'alimentacao', 'vacinas', 'social_likes', 'social_follows', 'aniversario']
+    const allowed = ['enabled', 'alimentacao', 'vacinas', 'social_likes', 'social_follows', 'aniversario', 'temperatura']
     const updates: Record<string, boolean> = {}
     for (const key of allowed) {
       if (typeof req.body[key] === 'boolean') {

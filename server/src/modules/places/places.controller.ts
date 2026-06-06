@@ -11,10 +11,12 @@ export const placesController = {
     const lat = req.query.lat ? parseFloat(req.query.lat as string) : undefined
     const lng = req.query.lng ? parseFloat(req.query.lng as string) : undefined
     const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 20
+    const petFriendly = req.query.pet_friendly === 'true'
+    const category = req.query.category as string | undefined
 
     if (!q?.trim()) return res.status(400).json({ error: 'q é obrigatório' })
 
-    const results = await placesService.search(q.trim(), lat, lng, limit)
+    const results = await placesService.search(q.trim(), lat, lng, limit, petFriendly, category)
     return res.status(200).json(results)
   },
 
@@ -24,7 +26,7 @@ export const placesController = {
 
     const { osmType, osmId } = req.params as { osmType: string; osmId: string }
 
-    const place = await placesService.getDetails(osmType, osmId)
+    const place = await placesService.getDetails(osmType, osmId, authReq.user.id)
     if (!place) return res.status(404).json({ error: 'Lugar não encontrado' })
 
     return res.status(200).json(place)
@@ -72,5 +74,25 @@ export const placesController = {
 
     await placesService.deleteReview(reviewId, authReq.user.id)
     return res.status(204).end()
+  },
+
+  async togglePetFriendly(req: Request, res: Response) {
+    const authReq = req as AuthRequest
+    if (!authReq.user) return res.status(401).json({ error: 'Não autenticado' })
+
+    const { osmType, osmId } = req.params as { osmType: string; osmId: string }
+
+    const { voted, voteCount } = await placesService.togglePetFriendly({
+      osmType,
+      osmId: parseInt(osmId, 10),
+      userId: authReq.user.id,
+    })
+
+    return res.status(200).json({ voted, voteCount, petFriendly: voteCount > 0 })
+  },
+
+  async listPetFriendlyIds(_req: Request, res: Response) {
+    const ids = await placesService.listPetFriendlyIds()
+    return res.status(200).json(ids)
   },
 }

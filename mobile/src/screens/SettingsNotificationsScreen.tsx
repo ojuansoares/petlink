@@ -23,6 +23,7 @@ const ASYNC_KEYS = {
   social_likes: ASYNC_PREFIX + 'social_likes',
   social_follows: ASYNC_PREFIX + 'social_follows',
   aniversario:  ASYNC_PREFIX + 'aniversario',
+  temperatura:  ASYNC_PREFIX + 'temperatura',
 } as const
 
 const CATEGORIES: { key: keyof typeof ASYNC_KEYS; icon: string; label: string; desc: string }[] = [
@@ -32,6 +33,7 @@ const CATEGORIES: { key: keyof typeof ASYNC_KEYS; icon: string; label: string; d
   { key: 'aniversario',   icon: 'gift-outline',              label: 'Aniversário',    desc: 'Lembretes de aniversário do pet' },
   { key: 'social_likes',  icon: 'heart-outline',             label: 'Curtidas e comentários', desc: 'Interações em suas publicações' },
   { key: 'social_follows', icon: 'people-outline',            label: 'Novos seguidores', desc: 'Quando alguém seguir você' },
+  { key: 'temperatura',   icon: 'thermometer-outline',       label: 'Alertas de temperatura', desc: 'Notificações de risco climático para o pet' },
 ]
 
 export default function SettingsNotificationsScreen() {

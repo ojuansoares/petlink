@@ -178,6 +178,47 @@ export const petsRepository = {
     if (error) throw error
   },
 
+  async exportPetData(petId: string) {
+    const petPromise = supabaseAdmin.from('pets').select('*').eq('id', petId).maybeSingle()
+    const vaccinesPromise = supabaseAdmin.from('vaccines').select('*').eq('pet_id', petId).order('applied_at', { ascending: false })
+    const consultationsPromise = supabaseAdmin.from('consultations').select('*').eq('pet_id', petId).order('consulted_at', { ascending: false })
+    const walksPromise = supabaseAdmin.from('walks').select('*').eq('pet_id', petId).order('started_at', { ascending: false })
+    const weightRecordsPromise = supabaseAdmin.from('weight_records').select('*').eq('pet_id', petId).order('recorded_at', { ascending: false })
+    const feedingPlansPromise = supabaseAdmin.from('feeding_plans').select('*').eq('pet_id', petId).eq('is_active', true).order('order_index')
+    const feedingLogsPromise = supabaseAdmin.from('feeding_logs').select('*').eq('pet_id', petId).order('log_date', { ascending: false })
+    const calendarEventsPromise = supabaseAdmin.from('calendar_events').select('*').eq('pet_id', petId).order('event_date', { ascending: false })
+
+    const [
+      petResult, vaccinesResult, consultationsResult,
+      walksResult, weightRecordsResult,
+      feedingPlansResult, feedingLogsResult, calendarEventsResult,
+    ] = await Promise.all([
+      petPromise, vaccinesPromise, consultationsPromise,
+      walksPromise, weightRecordsPromise,
+      feedingPlansPromise, feedingLogsPromise, calendarEventsPromise,
+    ])
+
+    if (petResult.error) throw petResult.error
+    if (vaccinesResult.error) throw vaccinesResult.error
+    if (consultationsResult.error) throw consultationsResult.error
+    if (walksResult.error) throw walksResult.error
+    if (weightRecordsResult.error) throw weightRecordsResult.error
+    if (feedingPlansResult.error) throw feedingPlansResult.error
+    if (feedingLogsResult.error) throw feedingLogsResult.error
+    if (calendarEventsResult.error) throw calendarEventsResult.error
+
+    return {
+      pet: petResult.data,
+      vaccines: vaccinesResult.data ?? [],
+      consultations: consultationsResult.data ?? [],
+      walks: walksResult.data ?? [],
+      weightRecords: weightRecordsResult.data ?? [],
+      feedingPlans: feedingPlansResult.data ?? [],
+      feedingLogs: feedingLogsResult.data ?? [],
+      calendarEvents: calendarEventsResult.data ?? [],
+    }
+  },
+
   async deleteCascadeByIdAndOwner(ownerId: string, petId: string) {
     const { data: pet, error: findError } = await supabaseAdmin
       .from('pets')

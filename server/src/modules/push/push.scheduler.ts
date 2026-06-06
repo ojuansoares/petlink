@@ -1,6 +1,7 @@
 import cron from 'node-cron'
 import { supabaseAdmin } from '../../config/supabase'
 import { sendPush } from './push.service'
+import { weatherService } from '../../services/weather.service'
 
 function getLocalDateString(date: Date = new Date()): string {
   const year = date.getFullYear()
@@ -75,11 +76,53 @@ async function checkConsultations(): Promise<void> {
   }
 }
 
+async function checkTemperatureAlerts(): Promise<void> {
+  const { data: profiles, error } = await supabaseAdmin
+    .from('profiles')
+    .select('id, location')
+    .not('location', 'is', null)
+
+  if (error || !profiles?.length) return
+
+  for (const profile of profiles) {
+    const loc = profile.location
+    if (!loc) continue
+
+    let lat: number, lng: number
+    if (typeof loc === 'string' && loc.includes(',')) {
+      const parts = loc.split(',').map(Number)
+      if (parts.length !== 2 || !isFinite(parts[0]) || !isFinite(parts[1])) continue
+      lat = parts[0]; lng = parts[1]
+    } else if (typeof loc === 'object' && (loc as any).lat !== undefined) {
+      lat = Number((loc as any).lat); lng = Number((loc as any).lng)
+      if (!isFinite(lat) || !isFinite(lng)) continue
+    } else continue
+
+    const result = await weatherService.getCurrentWeather(lat, lng)
+    if (!result || !weatherService.needsAlert(result)) continue
+
+    await sendPush(
+      profile.id,
+      'temperature_alert',
+      weatherService.getAlertTitle(result),
+      weatherService.getAlertBody(result),
+      { screen: 'Home', temperature: result.temperature },
+    )
+
+    // Avoid rate limiting — one Open-Meteo call per user per cycle
+    await new Promise(r => setTimeout(r, 200))
+  }
+}
+
 export function startPushScheduler(): void {
   cron.schedule('0 8 * * *', () => {
     checkVaccines()
     checkConsultations()
   }, { timezone: 'America/Sao_Paulo' })
 
-  console.log('Push scheduler started (daily at 08:00)')
+  cron.schedule('0 */2 * * *', () => {
+    checkTemperatureAlerts()
+  }, { timezone: 'America/Sao_Paulo' })
+
+  console.log('Push scheduler started (daily at 08:00, temperature alerts every 2h)')
 }

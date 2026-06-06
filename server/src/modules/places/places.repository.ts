@@ -1,4 +1,5 @@
 import { PlaceReview } from '../../models/PlaceReview'
+import { PetFriendlyPlace } from '../../models/PetFriendlyPlace'
 import { AppError } from '../../shared/AppError'
 import { mapId } from '../../shared/mapId'
 
@@ -96,6 +97,107 @@ function safeParseFloat(v: any): number {
   return isFinite(n) ? n : 0
 }
 
+const OSM_TYPE_TO_CATEGORY: Record<string, string> = {
+  veterinary: 'vet',
+  vet: 'vet',
+  pet_shop: 'petshop',
+  pet: 'petshop',
+  park: 'park',
+  hotel: 'hotel',
+  beach: 'beach',
+  dog_park: 'park',
+  animal_hospital: 'vet',
+  clinic: 'vet',
+  animal_boarding: 'hotel',
+  kennel: 'hotel',
+  pet_grooming: 'petshop',
+  pet_supply: 'petshop',
+}
+
+function normalizeCategory(type: string): string {
+  return OSM_TYPE_TO_CATEGORY[type] || 'other'
+}
+
+const OSM_TYPE_LABELS: Record<string, string> = {
+  veterinary: 'Clínica Veterinária',
+  vet: 'Veterinário',
+  pet_shop: 'Pet Shop',
+  pet: 'Pet',
+  park: 'Parque',
+  hotel: 'Hotel',
+  beach: 'Praia',
+  dog_park: 'Parque para Cães',
+  animal_hospital: 'Hospital Veterinário',
+  clinic: 'Clínica',
+  animal_boarding: 'Hotel para Pets',
+  kennel: 'Canil',
+  pet_grooming: 'Tosa e Banho',
+  pet_supply: 'Loja de Pets',
+  restaurant: 'Restaurante',
+  cafe: 'Café',
+  fast_food: 'Fast Food',
+  supermarket: 'Supermercado',
+  mall: 'Shopping',
+  pharmacy: 'Farmácia',
+  hospital: 'Hospital',
+  dentist: 'Dentista',
+  school: 'Escola',
+  university: 'Universidade',
+  library: 'Biblioteca',
+  place_of_worship: 'Igreja/Templo',
+  police: 'Delegacia',
+  fire_station: 'Corpo de Bombeiros',
+  post_office: 'Correios',
+  bank: 'Banco',
+  atm: 'Caixa Eletrônico',
+  fuel: 'Posto de Gasolina',
+  parking: 'Estacionamento',
+  bus_station: 'Rodoviária',
+  train_station: 'Estação de Trem',
+  airport: 'Aeroporto',
+  ferry_terminal: 'Terminal de Balsa',
+  theatre: 'Teatro',
+  cinema: 'Cinema',
+  museum: 'Museu',
+  zoo: 'Zoológico',
+  stadium: 'Estádio',
+  sports_centre: 'Centro Esportivo',
+  gym: 'Academia',
+  swimming_pool: 'Piscina',
+  campground: 'Acampamento',
+  picnic_site: 'Área de Piquenique',
+  playground: 'Parquinho',
+  garden: 'Jardim',
+  nature_reserve: 'Reserva Natural',
+  forest: 'Floresta',
+  water_park: 'Parque Aquático',
+  marketplace: 'Feira/ Mercado',
+  convenience: 'Mercado',
+  bakery: 'Padaria',
+  butcher: 'Açougue',
+  florist: 'Floricultura',
+  gift_shop: 'Loja de Presentes',
+  chemist: 'Farmácia',
+  hairdresser: 'Salão de Beleza',
+  department_store: 'Loja de Departamento',
+  clothes: 'Loja de Roupas',
+  shoes: 'Sapataria',
+  electronics: 'Loja de Eletrônicos',
+  furniture: 'Loja de Móveis',
+  hardware: 'Loja de Materiais de Construção',
+  garden_centre: 'Centro de Jardinagem',
+  car_dealer: 'Concessionária',
+  car_repair: 'Oficina Mecânica',
+  car_wash: 'Lava Rápido',
+  bicycle_rental: 'Aluguel de Bicicletas',
+  bicycle_parking: 'Estacionamento de Bicicletas',
+  taxi: 'Ponto de Táxi',
+}
+
+function getTypeLabel(type: string): string {
+  return OSM_TYPE_LABELS[type] || type.replace(/_/g, ' ')
+}
+
 function mapNominatimResult(r: NominatimResult) {
   return {
     osmId: r.osm_id,
@@ -106,6 +208,8 @@ function mapNominatimResult(r: NominatimResult) {
     lng: safeParseFloat(r.lon),
     category: r.category,
     type: r.type,
+    typeLabel: getTypeLabel(r.type),
+    normalizedCategory: normalizeCategory(r.type),
     icon: r.icon || null,
     importance: r.importance,
     boundingbox: r.boundingbox || null,
@@ -113,8 +217,8 @@ function mapNominatimResult(r: NominatimResult) {
 }
 
 export const placesRepository = {
-  async search(query: string, lat?: number, lng?: number, limit = 20) {
-    const cacheKey = `search:${query}:${lat ?? ''}:${lng ?? ''}:${limit}`
+  async search(query: string, lat?: number, lng?: number, limit = 20, petFriendly = false, category?: string) {
+    const cacheKey = `search:${query}:${lat ?? ''}:${lng ?? ''}:${limit}:pf${petFriendly}:cat${category ?? ''}`
     const cached = getCached(cacheKey)
     if (cached) return cached
 
@@ -124,9 +228,31 @@ export const placesRepository = {
     }
 
     const data: NominatimResult[] = await nominatimFetch(url)
-    const results = data
+    let results = data
       .filter(r => r.osm_id && r.osm_type)
       .map(mapNominatimResult)
+
+    // Enrich with pet-friendly vote info from our DB
+    const pfVoteMap = new Map<string, number>()
+    if (results.length > 0) {
+      const pfAgg = await PetFriendlyPlace.aggregate([
+        { $match: { $or: results.map(r => ({ osmType: r.osmType, osmId: r.osmId })) } },
+        { $group: { _id: { osmId: '$osmId', osmType: '$osmType' }, voteCount: { $sum: 1 } } },
+      ])
+      for (const entry of pfAgg) {
+        pfVoteMap.set(`${entry._id.osmType}-${entry._id.osmId}`, entry.voteCount)
+      }
+    }
+
+    // Filter by pet-friendly if enabled (has at least 1 vote)
+    if (petFriendly) {
+      results = results.filter(r => (pfVoteMap.get(`${r.osmType}-${r.osmId}`) ?? 0) > 0)
+    }
+
+    // Filter by normalized category
+    if (category) {
+      results = results.filter(r => (r as any).normalizedCategory === category)
+    }
 
     // Sort by distance from user when coords are available
     if (lat !== undefined && lng !== undefined) {
@@ -139,6 +265,11 @@ export const placesRepository = {
       } catch {
         // fallback to default ordering on sort error
       }
+    }
+
+    for (const r of results) {
+      (r as any).petFriendly = (pfVoteMap.get(`${r.osmType}-${r.osmId}`) ?? 0) > 0
+      const v = pfVoteMap.get(`${r.osmType}-${r.osmId}`) ?? 0; (r as any).petFriendlyVotes = v
     }
 
     setCache(cacheKey, results)
@@ -251,11 +382,52 @@ export const placesRepository = {
     return review.toJSON()
   },
 
+  async getPetFriendlyInfo(osmType: string, osmId: number): Promise<{ petFriendly: boolean; voteCount: number }> {
+    const count = await PetFriendlyPlace.countDocuments({ osmType, osmId })
+    return { petFriendly: count > 0, voteCount: count }
+  },
+
+  async getUserVote(osmType: string, osmId: number, userId: string): Promise<boolean> {
+    const entry = await PetFriendlyPlace.findOne({ osmType, osmId, addedBy: userId }).select('_id').lean()
+    return !!entry
+  },
+
   async deleteReview(reviewId: string, userId: string) {
     const review = await PlaceReview.findById(reviewId)
     if (!review) throw new AppError('Avaliação não encontrada', 404)
     if (review.authorId !== userId) throw new AppError('Sem permissão', 403)
 
     await PlaceReview.findByIdAndDelete(reviewId)
+  },
+
+  async togglePetFriendly(input: { osmType: string; osmId: number; userId: string }) {
+    const existing = await PetFriendlyPlace.findOne({ osmType: input.osmType, osmId: input.osmId, addedBy: input.userId })
+
+    if (existing) {
+      await PetFriendlyPlace.findByIdAndDelete(existing._id)
+    } else {
+      const details = await this.fetchOsmDetails(input.osmType, input.osmId)
+      await PetFriendlyPlace.create({
+        osmType: input.osmType,
+        osmId: input.osmId,
+        name: details?.name || `${input.osmType} ${input.osmId}`,
+        address: details?.displayName || '',
+        lat: details?.lat || 0,
+        lng: details?.lng || 0,
+        category: details?.category || 'other',
+        addedBy: input.userId,
+      })
+    }
+
+    const voteCount = await PetFriendlyPlace.countDocuments({ osmType: input.osmType, osmId: input.osmId })
+    return { voted: !existing, voteCount }
+  },
+
+  async listPetFriendlyIds() {
+    const entries = await PetFriendlyPlace.aggregate([
+      { $group: { _id: { osmId: '$osmId', osmType: '$osmType' }, voteCount: { $sum: 1 } } },
+      { $project: { _id: 0, osmId: '$_id.osmId', osmType: '$_id.osmType', voteCount: 1 } },
+    ])
+    return entries
   },
 }

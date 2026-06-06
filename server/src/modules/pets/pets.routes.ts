@@ -11,6 +11,7 @@ router.get('/user/:userId', authMiddleware, petsController.getPublicPets)
 router.get('/:petId', authMiddleware, petsController.get)
 router.put('/:petId', authMiddleware, petsController.update)
 router.delete('/:petId', authMiddleware, petsController.remove)
+router.get('/:petId/export', authMiddleware, petsController.exportData)
 
 export default router
 

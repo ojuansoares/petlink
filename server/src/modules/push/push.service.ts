@@ -33,7 +33,7 @@ async function deletePushToken(userId: string): Promise<void> {
 
 async function saveNotification(
   userId: string,
-  type: 'vaccine_due' | 'geofence' | 'social',
+  type: 'vaccine_due' | 'geofence' | 'social' | 'temperature_alert',
   title: string,
   body: string | null,
   data: Record<string, unknown> | null,
@@ -127,7 +127,7 @@ async function sendViaFirebase(
 
 export async function sendPush(
   userId: string,
-  type: 'vaccine_due' | 'geofence' | 'social',
+  type: 'vaccine_due' | 'geofence' | 'social' | 'temperature_alert',
   title: string,
   body: string | null,
   data: Record<string, unknown> | null = null,
@@ -137,6 +137,7 @@ export async function sendPush(
   if (prefs.enabled === false) return
 
   if (type === 'vaccine_due' && prefs.vacinas === false) return
+  if (type === 'temperature_alert' && prefs.temperatura === false) return
   if (type === 'social') {
     const screen = data?.screen as string | undefined
     if (screen === 'PublicProfile' && prefs.social_follows === false) return

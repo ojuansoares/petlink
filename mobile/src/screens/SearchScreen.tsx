@@ -31,13 +31,16 @@ import {
   fetchPlaceReviewsThunk,
   addPlaceReviewThunk,
   deletePlaceReviewThunk,
+  togglePetFriendlyThunk,
   selectPlaceSearchResults,
   selectPlaceReviews,
   selectSelectedPlace,
   selectPlacesLoadingSearch,
   selectPlacesError,
+  selectTogglingPetFriendly,
   clearSelectedPlace,
   clearSearchResults,
+  clearError,
 } from '../store/slices/placesSlices'
 import { OsmPlaceResult } from '../api/places.api'
 import type { AppStackParamList } from '../navigation/types'
@@ -101,6 +104,7 @@ export default function SearchScreen() {
   const [pendingInvites, setPendingInvites] = useState<GroupInvite[]>([])
   const [loading, setLoading] = useState(false)
   const [searched, setSearched] = useState(false)
+  const [searchError, setSearchError] = useState<string | null>(null)
   const [showDropdown, setShowDropdown] = useState(false)
   const [selectedGroup, setSelectedGroup] = useState<GroupDetails | null>(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
@@ -115,6 +119,11 @@ export default function SearchScreen() {
   const [reviewMenuTarget, setReviewMenuTarget] = useState<any>(null)
   const [deletingReview, setDeletingReview] = useState(false)
   const userCoords = useRef<{ lat: number; lng: number } | null>(null)
+  const togglingPetFriendly = useAppSelector(selectTogglingPetFriendly)
+
+  const [petFriendlyFilter, setPetFriendlyFilter] = useState(false)
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null)
+  const [minRatingFilter, setMinRatingFilter] = useState(0)
 
   const autoSearchRef = useRef(false)
 
@@ -160,7 +169,8 @@ export default function SearchScreen() {
   }, [activeTab])
 
   const doSearch = useCallback(async (text: string, tab: Tab) => {
-    if (!isOnline || text.length < 2) return
+    if (text.length < 2) return
+    setSearchError(null)
     setLoading(true)
     try {
       if (tab === 'pessoas') {
@@ -174,6 +184,7 @@ export default function SearchScreen() {
         setGroupResults(res.groups ?? [])
       }
     } catch {
+      setSearchError('Erro ao buscar. Tente novamente.')
       if (tab === 'pessoas') setPeopleResults([])
       else if (tab === 'pets') setPetResults([])
       else if (tab === 'grupos') setGroupResults([])
@@ -200,13 +211,25 @@ export default function SearchScreen() {
     }
   }, [activeTab, dispatch])
 
+  const CATEGORY_DEFAULT_QUERY: Record<string, string> = {
+    vet: 'clínica veterinária',
+    petshop: 'pet shop',
+    park: 'parque',
+    hotel: 'hotel pet',
+    beach: 'praia',
+  }
+
+  const executeLocaisSearch = useCallback((q: string, pf: boolean, cat: string | null, _rating: number) => {
+    const searchTerm = q.length >= 2 ? q : (cat ? (CATEGORY_DEFAULT_QUERY[cat] || cat) : '')
+    if (!searchTerm) return
+    const { lat, lng } = userCoords.current ?? {}
+    dispatch(searchPlacesThunk({ q: searchTerm, lat, lng, petFriendly: pf, category: cat ?? undefined }))
+    setSearched(true)
+  }, [dispatch])
+
   const handleSearchSubmit = useCallback(() => {
     if (activeTab === 'locais') {
-      if (query.length >= 2) {
-        const { lat, lng } = userCoords.current ?? {}
-        dispatch(searchPlacesThunk({ q: query, lat, lng }))
-        setSearched(true)
-      }
+      executeLocaisSearch(query, petFriendlyFilter, categoryFilter, minRatingFilter)
       return
     }
     if (query.length >= 2) {
@@ -215,7 +238,7 @@ export default function SearchScreen() {
         groupsApi.listPendingInvites().then(setPendingInvites).catch(() => {})
       }
     }
-  }, [query, activeTab, doSearch, dispatch])
+  }, [query, activeTab, doSearch, dispatch, executeLocaisSearch, petFriendlyFilter, categoryFilter, minRatingFilter])
 
   const handleTabChange = useCallback((tab: Tab) => {
     setActiveTab(tab)
@@ -223,23 +246,24 @@ export default function SearchScreen() {
     setSearched(false)
     setExpandedPlace(null)
     setPlaceDetail(null)
+    setPetFriendlyFilter(false)
+    setCategoryFilter(null)
+    setMinRatingFilter(0)
     if (tab !== 'locais') userCoords.current = null
     dispatch(clearSelectedPlace())
     dispatch(clearSearchResults())
   }, [dispatch])
 
-  const handlePlaceOpen = useCallback(async (osmType: string, osmId: number) => {
+  const handlePlaceOpen = useCallback(async (osmType: string, osmId: number, initialPetFriendly = false) => {
     setLoadingPlaceDetail(true)
     setExpandedPlace({ osmType, osmId })
     try {
       const result = await dispatch(fetchPlaceDetailsThunk({ osmType, osmId })).unwrap()
-      console.log('[PlaceDetail] raw result keys:', Object.keys(result || {}))
-      console.log('[PlaceDetail] name:', JSON.stringify(result?.name), 'displayName:', JSON.stringify(result?.displayName))
       if (!result) {
         setPlaceDetail(null)
         return
       }
-      setPlaceDetail({ ...result, lat: Number(result.lat), lng: Number(result.lng) })
+      setPlaceDetail({ ...result, lat: Number(result.lat), lng: Number(result.lng), petFriendly: result.petFriendly ?? initialPetFriendly, userVoted: result.userVoted ?? false, petFriendlyVotes: result.petFriendlyVotes ?? 0 })
       dispatch(fetchPlaceReviewsThunk({ osmType, osmId }))
     } catch {
       setPlaceDetail(null)
@@ -256,7 +280,7 @@ export default function SearchScreen() {
     }
     setReviewRating(0)
     setReviewComment('')
-    handlePlaceOpen(place.osmType, place.osmId)
+    handlePlaceOpen(place.osmType, place.osmId, place.petFriendly ?? false)
   }, [expandedPlace, handlePlaceOpen])
 
   const handleSubmitReview = useCallback(async () => {
@@ -281,7 +305,7 @@ export default function SearchScreen() {
       dispatch(showToast({ type: 'success', title: 'Avaliado!', message: 'Sua avaliação foi salva' }))
       dispatch(fetchPlaceReviewsThunk({ osmType: placeDetail.osmType, osmId: placeDetail.osmId }))
       const fresh = await dispatch(fetchPlaceDetailsThunk({ osmType: placeDetail.osmType, osmId: placeDetail.osmId })).unwrap()
-      if (fresh) setPlaceDetail({ ...fresh, lat: Number(fresh.lat), lng: Number(fresh.lng) })
+      if (fresh) setPlaceDetail({ ...fresh, lat: Number(fresh.lat), lng: Number(fresh.lng), petFriendly: fresh.petFriendly ?? placeDetail.petFriendly })
     } catch (err: any) {
       const msg = typeof err === 'string' ? err : err?.message || ''
       if (msg.includes('já avaliou')) {
@@ -302,7 +326,7 @@ export default function SearchScreen() {
       if (placeDetail) {
         dispatch(fetchPlaceReviewsThunk({ osmType: placeDetail.osmType, osmId: placeDetail.osmId }))
         const fresh = await dispatch(fetchPlaceDetailsThunk({ osmType: placeDetail.osmType, osmId: placeDetail.osmId })).unwrap()
-        if (fresh) setPlaceDetail({ ...fresh, lat: Number(fresh.lat), lng: Number(fresh.lng) })
+        if (fresh) setPlaceDetail({ ...fresh, lat: Number(fresh.lat), lng: Number(fresh.lng), petFriendly: fresh.petFriendly ?? placeDetail.petFriendly })
       }
     } catch {
       dispatch(showToast({ type: 'error', title: 'Erro', message: 'Não foi possível remover' }))
@@ -405,7 +429,7 @@ export default function SearchScreen() {
           <View style={styles.resultInfo}>
             <Text weight="700">{item.name}</Text>
             <Text size="sm" color="mutedForeground" numberOfLines={1}>{item.displayName}</Text>
-
+            <Text size="xs" color="mutedForeground" style={{ marginTop: 2 }}>{item.typeLabel}</Text>
           </View>
           <Ionicons
             name={isExpanded ? 'chevron-up' : 'chevron-forward'}
@@ -448,20 +472,62 @@ export default function SearchScreen() {
                     </View>
                   )}
 
-                  <View style={{ gap: 8 }}>
-                    <Text weight="800" size="lg">{placeDetail.name}</Text>
-                    <Text size="sm" color="mutedForeground">{placeDetail.displayName}</Text>
+                    <View style={{ gap: 8 }}>
+                      <Text weight="800" size="lg">{placeDetail.name}</Text>
+                      <Text size="sm" color="mutedForeground">{placeDetail.displayName}</Text>
 
-                    {placeDetail.avgRating > 0 && (
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        <Ionicons name="star" size={16} color="#FBBF24" />
-                        <Text weight="700" size="sm">{placeDetail.avgRating}</Text>
-                        <Text size="xs" color="mutedForeground">({placeDetail.reviewsCount} {placeDetail.reviewsCount === 1 ? 'avaliação' : 'avaliações'})</Text>
-                        <Pressable onPress={() => setShowReviewsModal(true)}>
-                          <Text weight="700" size="xs" style={{ color: colors.primary, marginLeft: 4 }}>Visualizar todas</Text>
-                        </Pressable>
-                      </View>
-                    )}
+                      <Pressable
+                        onPress={() => {
+                          dispatch(togglePetFriendlyThunk({ osmType: placeDetail.osmType, osmId: placeDetail.osmId }))
+                            .unwrap()
+                            .then((res) => {
+                              setPlaceDetail((prev: any) => prev ? { ...prev, userVoted: res.voted, petFriendlyVotes: res.voteCount, petFriendly: res.petFriendly } : prev)
+                              const msg = res.voted ? 'Você votou como Pet Friendly' : 'Voto removido'
+                              dispatch(showToast({ type: 'success', title: 'Pet Friendly', message: msg }))
+                            })
+                            .catch(() => {
+                              dispatch(showToast({ type: 'error', title: 'Erro', message: 'Não foi possível alterar' }))
+                            })
+                        }}
+                        disabled={togglingPetFriendly}
+                        style={[
+                          styles.pfButton,
+                          {
+                            backgroundColor: placeDetail.userVoted ? colors.primary : withAlpha(colors.muted, 0.4),
+                            borderColor: placeDetail.userVoted ? colors.primary : withAlpha(colors.border, 0.3),
+                          },
+                        ]}
+                      >
+                        <Ionicons
+                          name={placeDetail.userVoted ? 'paw' : 'paw-outline'}
+                          size={16}
+                          color={placeDetail.userVoted ? 'white' : colors.mutedForeground}
+                        />
+                        <Text
+                          weight="700"
+                          size="sm"
+                          style={{ color: placeDetail.userVoted ? 'white' : colors.foreground }}
+                        >
+                          {placeDetail.userVoted ? 'Pet Friendly' : 'Apoiar como Pet Friendly'}
+                        </Text>
+                        {togglingPetFriendly && <ActivityIndicator size="small" color="white" />}
+                      </Pressable>
+                      {placeDetail.petFriendlyVotes > 0 && (
+                        <Text size="xs" color="mutedForeground" style={{ textAlign: 'center' }}>
+                          {placeDetail.petFriendlyVotes} {placeDetail.petFriendlyVotes === 1 ? 'usuário considera' : 'usuários consideram'} como Pet Friendly
+                        </Text>
+                      )}
+
+                      {placeDetail.avgRating > 0 && (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Ionicons name="star" size={16} color="#FBBF24" />
+                          <Text weight="700" size="sm">{placeDetail.avgRating}</Text>
+                          <Text size="xs" color="mutedForeground">({placeDetail.reviewsCount} {placeDetail.reviewsCount === 1 ? 'avaliação' : 'avaliações'})</Text>
+                          <Pressable onPress={() => setShowReviewsModal(true)}>
+                            <Text weight="700" size="xs" style={{ color: colors.primary, marginLeft: 4 }}>Visualizar todas</Text>
+                          </Pressable>
+                        </View>
+                      )}
 
 
                     <View style={{ borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: withAlpha(colors.border, 0.5), paddingTop: 8 }}>
@@ -654,6 +720,78 @@ export default function SearchScreen() {
         </>
       )}
 
+      {activeTab === 'locais' && (
+        <View style={[styles.filterRow, { borderBottomColor: withAlpha(colors.border, 0.3) }]}>
+          <Pressable
+            onPress={() => {
+              const next = !petFriendlyFilter
+              setPetFriendlyFilter(next)
+              executeLocaisSearch(query, next, categoryFilter, minRatingFilter)
+            }}
+            style={[
+              styles.filterPill,
+              { backgroundColor: petFriendlyFilter ? colors.primary : withAlpha(colors.muted, 0.5) },
+            ]}
+          >
+            <Ionicons name="paw" size={14} color={petFriendlyFilter ? 'white' : colors.mutedForeground} />
+            <Text
+              size="xs"
+              weight="700"
+              style={{ color: petFriendlyFilter ? 'white' : colors.mutedForeground }}
+            >
+              Pet Friendly
+            </Text>
+          </Pressable>
+
+          <View style={styles.filterDivider} />
+
+          {(['vet', 'petshop', 'park', 'hotel', 'beach', 'other'] as const).map((cat) => {
+            const catColors: Record<string, string> = {
+              vet: '#3B82F6',
+              petshop: '#F59E0B',
+              park: '#10B981',
+              hotel: '#8B5CF6',
+              beach: '#06B6D4',
+              other: '#6B7280',
+            }
+            const catLabels: Record<string, string> = {
+              vet: 'Vet',
+              petshop: 'PetShop',
+              park: 'Parque',
+              hotel: 'Hotel',
+              beach: 'Praia',
+              other: 'Outros',
+            }
+            const isActive = categoryFilter === cat
+            return (
+              <Pressable
+                key={cat}
+                onPress={() => {
+                  const next = isActive ? null : cat
+                  setCategoryFilter(next)
+                  executeLocaisSearch(query, petFriendlyFilter, next, minRatingFilter)
+                }}
+                style={[
+                  styles.categoryPill,
+                  {
+                    backgroundColor: isActive ? catColors[cat] : withAlpha(colors.muted, 0.3),
+                    borderColor: isActive ? catColors[cat] : withAlpha(colors.border, 0.3),
+                  },
+                ]}
+              >
+                <Text
+                  size="xs"
+                  weight="700"
+                  style={{ color: isActive ? 'white' : colors.mutedForeground }}
+                >
+                  {catLabels[cat]}
+                </Text>
+              </Pressable>
+            )
+          })}
+        </View>
+      )}
+
       {isLoading && (
         <View style={[styles.loadingBar, { backgroundColor: withAlpha(colors.primary, 0.1) }]}>
           <ActivityIndicator size="small" color={colors.primary} />
@@ -664,7 +802,16 @@ export default function SearchScreen() {
       {placesError && activeTab === 'locais' && (
         <View style={styles.center}>
           <Ionicons name="alert-circle-outline" size={48} color={colors.mutedForeground} />
-          <Text color="mutedForeground" style={{ marginTop: 12 }}>{placesError}</Text>
+          <Text color="mutedForeground" style={{ marginTop: 12, textAlign: 'center' }}>{placesError}</Text>
+          <Button
+            label="Tente novamente"
+            variant="outline"
+            style={{ marginTop: 16 }}
+            onPress={() => {
+              dispatch(clearError())
+              executeLocaisSearch(query, petFriendlyFilter, categoryFilter, minRatingFilter)
+            }}
+          />
         </View>
       )}
 
@@ -677,10 +824,21 @@ export default function SearchScreen() {
 
       {!isLoading && searched && results.length === 0 && !placesError && activeTab !== 'locais' && (
         <View style={styles.center}>
-          <Ionicons name="search-outline" size={48} color={colors.mutedForeground} />
-          <Text color="mutedForeground" style={{ marginTop: 12 }}>
-            Nenhum{activeTab === 'grupos' ? '' : 'a'} {currentOption.label.toLowerCase()} encontrado{activeTab === 'grupos' ? '' : 'a'}
+          <Ionicons name={searchError ? 'alert-circle-outline' : 'search-outline'} size={48} color={colors.mutedForeground} />
+          <Text color="mutedForeground" style={{ marginTop: 12, textAlign: 'center' }}>
+            {searchError ?? `Nenhum${activeTab === 'grupos' ? '' : 'a'} ${currentOption.label.toLowerCase()} encontrado${activeTab === 'grupos' ? '' : 'a'}`}
           </Text>
+          {searchError && (
+            <Button
+              label="Tente novamente"
+              variant="outline"
+              style={{ marginTop: 16 }}
+              onPress={() => {
+                setSearchError(null)
+                doSearch(query, activeTab)
+              }}
+            />
+          )}
         </View>
       )}
 
@@ -1018,5 +1176,45 @@ const styles = StyleSheet.create({
   reviewCard: {
     padding: 12,
     borderRadius: 10,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginHorizontal: 16,
+    marginBottom: 8,
+    paddingVertical: 6,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    overflow: 'scroll',
+  },
+  filterPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  filterDivider: {
+    width: 1,
+    height: 20,
+    backgroundColor: 'rgba(128,128,128,0.2)',
+    marginHorizontal: 4,
+  },
+  categoryPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  pfButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    borderWidth: 1,
   },
 })

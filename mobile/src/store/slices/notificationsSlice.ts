@@ -15,12 +15,14 @@ export interface AppNotification {
 }
 
 export interface NotificationPreferences {
-  enabled:      boolean
-  alimentacao:  boolean
-  vacinas:      boolean
-  social_likes: boolean
+  enabled:        boolean
+  alimentacao:    boolean
+  vacinas:       boolean
+  social_likes:   boolean
   social_follows: boolean
-  aniversario:  boolean
+  aniversario:   boolean
+  temperatura:   boolean
+  [key: string]:  boolean
 }
 
 interface NotificationsState {

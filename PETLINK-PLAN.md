@@ -1047,6 +1047,7 @@ Search: { tab?: 'pessoas' | 'pets' | 'grupos' | 'locais'; osm_id?: number } | un
 | social_likes | boolean DEFAULT true | |
 | social_follows | boolean DEFAULT true | |
 | aniversario | boolean DEFAULT true | |
+| temperatura | boolean DEFAULT true | |
 | updated_at | timestamptz | |
 
 ### `achievements`
@@ -1205,14 +1206,11 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=
 
 **Pendentes (RF do README ainda não implementados):**
 
-| RF | Requisito |
-|----|-----------|
-| RF22 | **Geofencing** — notificações de eventos próximos (pet shops, clínicas) com cerca virtual |
-| RF24 | **Exportação JSON/CSV** — exportar histórico de saúde do pet |
-| RF26 | **Alertas de temperatura** — integração com API de clima |
-| RF28 | **Backup Google Drive** — backup em nuvem do Google Drive |
-
-> **Nota:** Todos os outros 22 RFs do README estão implementados ✅
+> ✅ **RF26 (Alertas de temperatura)** — implementado (05/06/2026).
+> ✅ **RF24 (Exportação JSON/CSV/PDF)** — implementado (05/06/2026).
+> ⏭️ **RF22 (Geofencing)** — pulado por decisão do usuário.
+> ⏭️ **RF28 (Backup Google Drive)** — pulado por decisão do usuário.
+> **Nota:** Todos os 26 RFs do README foram tratados (24 implementados, 2 pulados) ✅
 
 ---
 
@@ -1632,9 +1630,34 @@ Nenhuma das alterações mexe em código nativo (native modules, podfile, gradle
 | L13 | Visualizar todas + ação remover nos três pontinhos | ✅ |
 | L14 | Refresh avgRating após avaliar/remover | ✅ |
 
-### RFs pendentes do README documentados
+### RFs pendentes do README — reordenados
 
-Foram identificados e registrados na seção "Pendentes" os 4 RFs do README que ainda não foram implementados: RF22 (Geofencing), RF24 (Exportação JSON/CSV), RF26 (Alertas de temperatura), RF28 (Backup Google Drive). Total: 22/26 RFs concluídos.
+RF22 (Geofencing) foi pulado por decisão do usuário. Ordem de implementação definida: 1º RF26 (Alertas de temperatura), 2º RF24 (Exportação JSON/CSV), 3º RF28 (Backup Google Drive). Total: 22/26 RFs concluídos, 1 pulado (RF22).
+
+### Filtros de busca de locais + Pet Friendly
+
+**O que foi implementado:**
+
+- **Server:** Novo model MongoDB `PetFriendlyPlace` (osmId, osmType, name, address, lat, lng, category, addedBy) com índice único (osmId+osmType)
+- **Server:** `POST /places/:osmType/:osmId/pet-friendly` — toggle pet-friendly (cria ou remove)
+- **Server:** `GET /places/pet-friendly/ids` — lista IDs de lugares pet-friendly
+- **Server:** `GET /places/search?pet_friendly=true` — filtra resultados do Nominatim apenas por lugares marcados como pet-friendly
+- **Server:** Detalhes do lugar (`GET /places/:osmType/:osmId`) agora inclui campo `petFriendly: boolean`
+- **Mobile:** Barra de filtros colorida na aba "Locais" — botão "Pet Friendly" (verde), pills de categoria coloridas (Vet azul, PetShop amarelo, Park verde, Hotel roxo, Beach ciano)
+- **Mobile:** Botão "Definir como Pet Friendly" / "Pet Friendly" no detalhe expandido do lugar — toggle com feedback visual e toast
+- **Mobile:** `placesSlice` — novos thunks `togglePetFriendlyThunk`, `fetchPetFriendlyIdsThunk`, estado `petFriendlyIds[]` e `togglingPetFriendly`
+
+**Arquivos alterados:**
+| Arquivo | Mudança |
+|---------|---------|
+| `server/src/models/PetFriendlyPlace.ts` | **Novo** — Mongoose model |
+| `server/src/modules/places/places.controller.ts` | +2 handlers (togglePetFriendly, listPetFriendlyIds) |
+| `server/src/modules/places/places.service.ts` | +2 métodos + search aceita `petFriendly` + getDetails inclui `petFriendly` |
+| `server/src/modules/places/places.repository.ts` | search filtra/enriquece com pet-friendly; +3 métodos (togglePetFriendly, listPetFriendlyIds, getPetFriendlyFlag) |
+| `server/src/modules/places/places.routes.ts` | +2 rotas (pet-friendly/ids, /:type/:id/pet-friendly) |
+| `mobile/src/api/places.api.ts` | OsmPlaceResult + petFriendly; OsmPlaceDetails + petFriendly; +2 funções (togglePetFriendly, listPetFriendlyIds); searchPlaces aceita petFriendly |
+| `mobile/src/store/slices/placesSlices.ts` | +2 thunks, estado petFriendlyIds/togglingPetFriendly, extraReducers; removido searchFilters obsoleto |
+| `mobile/src/screens/SearchScreen.tsx` | Barra de filtros (Pet Friendly toggle + category pills); botão "Definir como Pet Friendly" no expanded; executeLocaisSearch refatorado c/ filtros |
 
 1. First: Improve location search in SearchScreen
    - Add filter buttons that appear only when searching "Locais"
@@ -1662,6 +1685,53 @@ Foram identificados e registrados na seção "Pendentes" os 4 RFs do README que 
 | W15 | RouteLine no composite de compartilhamento (sem foto) | ✅ |
 | W16 | Debounce (300ms) nas requisições de stats | ✅ |
 | W17 | Duplo clique: ConfirmModal, ActionOptionsModal, PostOptionsModal, WalkDetailScreen, WalkRecordingScreen, PetsScreen | ✅ |
+
+---
+
+## Arquivos alterados nesta sessão (05/06/2026) — RF26: Alertas de temperatura
+
+### Server
+
+| Arquivo | Mudança |
+|---------|---------|
+| `src/services/weather.service.ts` | **Novo** — Open-Meteo integration; `getCurrentWeather`, `needsAlert`, `getAlertTitle`, `getAlertBody`; thresholds: ideal 15–28°C, caution 10–15°C/28–30°C, danger <10°C/>30°C |
+| `src/modules/weather/weather.routes.ts` | **Novo** — `GET /weather/current` (auth) |
+| `src/modules/weather/weather.controller.ts` | **Novo** — handler current com lat/lng |
+| `src/modules/push/push.scheduler.ts` | `checkTemperatureAlerts()` — cron a cada 2h, busca profiles com location, chama `weatherService`, envia push se danger |
+| `src/modules/push/push.service.ts` | + tipo `temperature_alert` + verifica `prefs.temperatura` |
+| `src/modules/notifications/notifications.repository.ts` | + `temperatura` em `NotificationPreferences` (default `true`) |
+| `src/modules/notifications/notifications.controller.ts` | + `temperatura` nos campos permitidos do upsert |
+| `src/app.ts` | + rota `/weather` |
+| `src/migrations/014_temperature_alerts.sql` | **Novo** — `ALTER TABLE user_notification_preferences ADD COLUMN temperatura BOOLEAN NOT NULL DEFAULT true` |
+
+### Mobile
+
+| Arquivo | Mudança |
+|---------|---------|
+| `src/api/weather.api.ts` | **Novo** — `fetchCurrentWeather(lat, lng)` → `WeatherInfo` |
+| `src/screens/HomeScreen.tsx` | Widget de temperatura abaixo das quick actions: emoji + °C + status + mensagem de segurança; tap p/ refresh; fetch automático via `profile.location` |
+| `src/screens/SettingsNotificationsScreen.tsx` | + toggle "Alertas de temperatura" (ícone `thermometer-outline`) |
+| `src/store/slices/notificationsSlice.ts` | `temperatura` adicionado ao tipo `NotificationPreferences` |
+
+---
+
+## Arquivos alterados nesta sessão (05/06/2026) — RF24: Exportação JSON/CSV
+
+### Server
+
+| Arquivo | Mudança |
+|---------|---------|
+| `src/modules/pets/pets.routes.ts` | + rota `GET /:petId/export?format=json\|csv` |
+| `src/modules/pets/pets.controller.ts` | + handler `exportData` — valida auth, petId, format; retorna arquivo com `Content-Disposition: attachment` |
+| `src/modules/pets/pets.service.ts` | + método `exportData` — reúne dados do pet (vacinas, consultas, peso, passeios, alimentação, eventos) e gera JSON ou CSV |
+| `src/modules/pets/pets.repository.ts` | + método `exportPetData` — 8 queries paralelas (pets, vaccines, consultations, walks, weight_records, feeding_plans, feeding_logs, calendar_events) |
+
+### Mobile
+
+| Arquivo | Mudança |
+|---------|---------|
+| `src/api/petsExport.api.ts` | **Novo** — `exportPetData(petId, petName, format)` baixa usando `File.downloadFileAsync` e abre share sheet via `expo-sharing` |
+| `src/screens/PetsScreen.tsx` | + `ControlCard` "Exportar Dados" na aba Controle (ícone `download-outline`, cor verde do tema) |
 
 ## Princípios
 

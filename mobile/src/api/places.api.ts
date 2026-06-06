@@ -9,9 +9,13 @@ export interface OsmPlaceResult {
   lng: number
   category: string
   type: string
+  typeLabel: string
+  normalizedCategory: string
   icon: string | null
   importance: number
   boundingbox: string[] | null
+  petFriendly?: boolean
+  petFriendlyVotes?: number
 }
 
 export interface OsmPlaceDetails {
@@ -27,6 +31,9 @@ export interface OsmPlaceDetails {
   extratags: Record<string, string> | null
   avgRating: number
   reviewsCount: number
+  petFriendly: boolean
+  petFriendlyVotes: number
+  userVoted: boolean
 }
 
 export interface PlaceReview {
@@ -46,11 +53,15 @@ export async function searchPlaces(
   q: string,
   lat?: number,
   lng?: number,
-  limit = 20
+  limit = 20,
+  petFriendly = false,
+  category?: string
 ): Promise<OsmPlaceResult[]> {
   const params: Record<string, string> = { q, limit: String(limit) }
   if (lat !== undefined) params.lat = String(lat)
   if (lng !== undefined) params.lng = String(lng)
+  if (petFriendly) params.pet_friendly = 'true'
+  if (category) params.category = category
 
   const { data } = await api.get('/places/search', { params })
   return data
@@ -91,4 +102,17 @@ export async function addPlaceReview(
 
 export async function deletePlaceReview(reviewId: string): Promise<void> {
   await api.delete(`/places/reviews/${reviewId}`)
+}
+
+export async function togglePetFriendly(
+  osmType: string,
+  osmId: number
+): Promise<{ voted: boolean; voteCount: number; petFriendly: boolean }> {
+  const { data } = await api.post(`/places/${osmType}/${osmId}/pet-friendly`)
+  return data
+}
+
+export async function listPetFriendlyIds(): Promise<{ osmId: number; osmType: string; voteCount: number }[]> {
+  const { data } = await api.get('/places/pet-friendly/ids')
+  return data
 }

@@ -55,6 +55,7 @@ import { PetCreationStepContent, FIXED_TAGS } from './Pets/components/PetCreatio
 import { AppModal } from '../components/ui/AppModal'
 import { ImagePickerSheet } from '../components/ui/ImagePickerSheet'
 import { SegmentedTabs } from '../components/ui/SegmentedTabs'
+import { exportPetData, ExportFormat } from '../api/petsExport.api'
 
 type PetsScreenNavigationProp = StackNavigationProp<AppStackParamList, 'Tabs'>;
 
@@ -165,6 +166,8 @@ export default function PetsScreen() {
   const [activeTab, setActiveTab] = useState<'details' | 'control'>('details')
   const [isSelectorVisible, setIsSelectorVisible] = useState(false)
   const [isFlowOpen, setIsFlowOpen] = useState(false)
+  const [exportModalVisible, setExportModalVisible] = useState(false)
+  const [exportingFormat, setExportingFormat] = useState<ExportFormat | null>(null)
   const [step, setStep] = useState(0)
   const [isEditing, setIsEditing] = useState(false)
   const [isImageExpanded, setIsImageExpanded] = useState(false)
@@ -655,6 +658,16 @@ export default function PetsScreen() {
               badge="Histórico"
               onPress={() => navigation.navigate('ActivityTimeline', { petId: activePet.id, petName: activePet.name })}
             />
+            <ControlCard
+              title="Exportar Dados"
+              subtitle="JSON, CSV ou PDF"
+              icon="download-outline"
+              color={withAlpha(colors.primary, 0.12)}
+              borderColor={colors.primary}
+              iconColor={colors.primary}
+              badge="Exportar"
+              onPress={() => setExportModalVisible(true)}
+            />
           </View>
         ) : (
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 }}>
@@ -1013,6 +1026,91 @@ export default function PetsScreen() {
         onCamera={handleCameraPick}
         onGallery={handleGalleryPick}
       />
+
+      {/* Export Format Modal */}
+      <AppModal
+        visible={exportModalVisible}
+        onClose={() => setExportModalVisible(false)}
+        title="Exportar Dados"
+        subtitle={`Escolha o formato para exportar os dados de ${activePet?.name ?? '—'}`}
+      >
+        <View style={{ gap: 12, paddingBottom: 16 }}>
+          <Pressable
+            onPress={async () => {
+              if (!activePet) return
+              setExportModalVisible(false)
+              setExportingFormat('json')
+              try {
+                await exportPetData(activePet.id, activePet.name, 'json')
+              } catch (err: any) {
+                dispatch(showToast({ message: err?.message ?? 'Erro ao exportar JSON', type: 'error' }))
+              } finally {
+                setExportingFormat(null)
+              }
+            }}
+            style={[stylesWeight.formatOption, { borderColor: withAlpha(colors.primary, 0.3), backgroundColor: withAlpha(colors.primary, 0.06) }]}
+          >
+            <View style={stylesWeight.formatIcon}>
+              <Ionicons name="code-outline" size={22} color={colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text weight="700" size="lg">JSON</Text>
+              <Text size="xs" color="mutedForeground">Estruturado e legível por máquina</Text>
+            </View>
+            {exportingFormat === 'json' && <Ionicons name="sync" size={18} color={colors.primary} />}
+          </Pressable>
+
+          <Pressable
+            onPress={async () => {
+              if (!activePet) return
+              setExportModalVisible(false)
+              setExportingFormat('csv')
+              try {
+                await exportPetData(activePet.id, activePet.name, 'csv')
+              } catch (err: any) {
+                dispatch(showToast({ message: err?.message ?? 'Erro ao exportar CSV', type: 'error' }))
+              } finally {
+                setExportingFormat(null)
+              }
+            }}
+            style={[stylesWeight.formatOption, { borderColor: withAlpha(colors.primary, 0.3), backgroundColor: withAlpha(colors.primary, 0.06) }]}
+          >
+            <View style={stylesWeight.formatIcon}>
+              <Ionicons name="grid-outline" size={22} color={colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text weight="700" size="lg">CSV</Text>
+              <Text size="xs" color="mutedForeground">Planilha compatível com Excel / Google Sheets</Text>
+            </View>
+            {exportingFormat === 'csv' && <Ionicons name="sync" size={18} color={colors.primary} />}
+          </Pressable>
+
+          <Pressable
+            onPress={async () => {
+              if (!activePet) return
+              setExportModalVisible(false)
+              setExportingFormat('pdf')
+              try {
+                await exportPetData(activePet.id, activePet.name, 'pdf')
+              } catch (err: any) {
+                dispatch(showToast({ message: err?.message ?? 'Erro ao exportar PDF', type: 'error' }))
+              } finally {
+                setExportingFormat(null)
+              }
+            }}
+            style={[stylesWeight.formatOption, { borderColor: withAlpha(colors.primary, 0.3), backgroundColor: withAlpha(colors.primary, 0.06) }]}
+          >
+            <View style={stylesWeight.formatIcon}>
+              <Ionicons name="document-text-outline" size={22} color={colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text weight="700" size="lg">PDF</Text>
+              <Text size="xs" color="mutedForeground">Documento formatado com todos os dados</Text>
+            </View>
+            {exportingFormat === 'pdf' && <Ionicons name="sync" size={18} color={colors.primary} />}
+          </Pressable>
+        </View>
+      </AppModal>
     </View>
   )
 }
@@ -1032,4 +1130,19 @@ const stylesWeight = StyleSheet.create({
   },
   sheetHandle: { alignItems: 'center', paddingBottom: 12 },
   handleBar: { width: 36, height: 4, borderRadius: 2 },
+  formatOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    padding: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  formatIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 })

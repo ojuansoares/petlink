@@ -3,7 +3,7 @@ import { supabaseAdmin } from '../../config/supabase'
 export type AppNotification = {
   id:       string
   user_id:  string
-  type:     'vaccine_due' | 'geofence' | 'social'
+  type:     'vaccine_due' | 'geofence' | 'social' | 'temperature_alert'
   title:    string
   body:     string | null
   data:     Record<string, unknown> | null
@@ -26,6 +26,7 @@ export type NotificationPreferences = {
   social_likes: boolean
   social_follows: boolean
   aniversario:  boolean
+  temperatura:  boolean
 }
 
 const DEFAULT_PREFERENCES: NotificationPreferences = {
@@ -35,6 +36,7 @@ const DEFAULT_PREFERENCES: NotificationPreferences = {
   social_likes: true,
   social_follows: true,
   aniversario: true,
+  temperatura: true,
 }
 
 export const notificationsRepository = {
@@ -86,6 +88,7 @@ export const notificationsRepository = {
       social_likes: data.social_likes ?? true,
       social_follows: data.social_follows ?? true,
       aniversario: data.aniversario ?? true,
+      temperatura: data.temperatura ?? true,
     }
   },
 
@@ -107,6 +110,7 @@ export const notificationsRepository = {
       social_likes: data.social_likes ?? true,
       social_follows: data.social_follows ?? true,
       aniversario: data.aniversario ?? true,
+      temperatura: data.temperatura ?? true,
     }
   },
 }

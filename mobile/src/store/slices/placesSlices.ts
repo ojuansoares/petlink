@@ -2,12 +2,6 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit'
 import type { RootState } from '..'
 import * as placesApi from '../../api/places.api'
 
-interface PlaceSearchFilters {
-  query: string
-  lat?: number
-  lng?: number
-}
-
 export interface SelectedPlace {
   osmId: number
   osmType: string
@@ -20,35 +14,46 @@ export interface SelectedPlace {
   icon: string | null
   avgRating: number
   reviewsCount: number
+  petFriendly?: boolean
+  petFriendlyVotes?: number
+  userVoted?: boolean
+}
+
+interface PetFriendlyIdEntry {
+  osmId: number
+  osmType: string
+  voteCount?: number
 }
 
 interface PlacesState {
   searchResults: placesApi.OsmPlaceResult[]
-  searchFilters: PlaceSearchFilters
   selectedPlace: SelectedPlace | null
   reviews: placesApi.PlaceReview[]
   isLoadingSearch: boolean
   isLoadingDetails: boolean
   isLoadingReviews: boolean
   error: string | null
+  petFriendlyIds: PetFriendlyIdEntry[]
+  togglingPetFriendly: boolean
 }
 
 const initialState: PlacesState = {
   searchResults: [],
-  searchFilters: { query: '' },
   selectedPlace: null,
   reviews: [],
   isLoadingSearch: false,
   isLoadingDetails: false,
   isLoadingReviews: false,
   error: null,
+  petFriendlyIds: [],
+  togglingPetFriendly: false,
 }
 
 export const searchPlacesThunk = createAsyncThunk(
   'places/search',
-  async (params: { q: string; lat?: number; lng?: number }, { rejectWithValue }) => {
+  async (params: { q: string; lat?: number; lng?: number; petFriendly?: boolean; category?: string }, { rejectWithValue }) => {
     try {
-      return await placesApi.searchPlaces(params.q, params.lat, params.lng)
+      return await placesApi.searchPlaces(params.q, params.lat, params.lng, 20, params.petFriendly ?? false, params.category)
     } catch (err: any) {
       return rejectWithValue(err?.response?.data?.error || 'Erro ao buscar lugares')
     }
@@ -110,13 +115,32 @@ export const deletePlaceReviewThunk = createAsyncThunk(
   }
 )
 
+export const togglePetFriendlyThunk = createAsyncThunk(
+  'places/togglePetFriendly',
+  async (params: { osmType: string; osmId: number }, { rejectWithValue }) => {
+    try {
+      return await placesApi.togglePetFriendly(params.osmType, params.osmId)
+    } catch (err: any) {
+      return rejectWithValue(err?.response?.data?.error || 'Erro ao alternar Pet Friendly')
+    }
+  }
+)
+
+export const fetchPetFriendlyIdsThunk = createAsyncThunk(
+  'places/fetchPetFriendlyIds',
+  async (_, { rejectWithValue }) => {
+    try {
+      return await placesApi.listPetFriendlyIds()
+    } catch (err: any) {
+      return rejectWithValue(err?.response?.data?.error || 'Erro ao buscar locais Pet Friendly')
+    }
+  }
+)
+
 const placesSlice = createSlice({
   name: 'places',
   initialState,
   reducers: {
-    setSearchFilters(state, action: PayloadAction<PlaceSearchFilters>) {
-      state.searchFilters = action.payload
-    },
     clearSearchResults(state) {
       state.searchResults = []
     },
@@ -156,6 +180,9 @@ const placesSlice = createSlice({
           icon: null,
           avgRating: d.avgRating,
           reviewsCount: d.reviewsCount,
+          petFriendly: d.petFriendly,
+          petFriendlyVotes: d.petFriendlyVotes,
+          userVoted: d.userVoted,
         }
         state.isLoadingDetails = false
       })
@@ -181,18 +208,46 @@ const placesSlice = createSlice({
       .addCase(deletePlaceReviewThunk.fulfilled, (state, action) => {
         state.reviews = state.reviews.filter((r) => r.id !== action.payload)
       })
+      .addCase(togglePetFriendlyThunk.pending, (state) => {
+        state.togglingPetFriendly = true
+      })
+      .addCase(togglePetFriendlyThunk.fulfilled, (state, action) => {
+        state.togglingPetFriendly = false
+        const { voted, voteCount, petFriendly } = action.payload
+        if (state.selectedPlace) {
+          state.selectedPlace.userVoted = voted
+          state.selectedPlace.petFriendlyVotes = voteCount
+          state.selectedPlace.petFriendly = petFriendly
+        }
+        const sel = state.selectedPlace
+        if (sel) {
+          state.petFriendlyIds = state.petFriendlyIds.filter(
+            p => !(p.osmId === sel.osmId && p.osmType === sel.osmType)
+          )
+          if (voted) {
+            state.petFriendlyIds.push({ osmId: sel.osmId, osmType: sel.osmType, voteCount })
+          }
+        }
+      })
+      .addCase(togglePetFriendlyThunk.rejected, (state) => {
+        state.togglingPetFriendly = false
+      })
+      .addCase(fetchPetFriendlyIdsThunk.fulfilled, (state, action) => {
+        state.petFriendlyIds = action.payload
+      })
   },
 })
 
-export const { setSearchFilters, clearSearchResults, clearSelectedPlace, clearError } = placesSlice.actions
+export const { clearSearchResults, clearSelectedPlace, clearError } = placesSlice.actions
 
 export const selectPlaceSearchResults = (state: RootState) => state.places.searchResults
-export const selectPlaceSearchFilters = (state: RootState) => state.places.searchFilters
 export const selectSelectedPlace = (state: RootState) => state.places.selectedPlace
 export const selectPlaceReviews = (state: RootState) => state.places.reviews
 export const selectPlacesLoadingSearch = (state: RootState) => state.places.isLoadingSearch
 export const selectPlacesLoadingDetails = (state: RootState) => state.places.isLoadingDetails
 export const selectPlacesLoadingReviews = (state: RootState) => state.places.isLoadingReviews
 export const selectPlacesError = (state: RootState) => state.places.error
+export const selectPetFriendlyIds = (state: RootState) => state.places.petFriendlyIds
+export const selectTogglingPetFriendly = (state: RootState) => state.places.togglingPetFriendly
 
 export default placesSlice.reducer

@@ -4,26 +4,28 @@ import { placesRepository } from './places.repository'
 const VALID_OSM_TYPES = ['node', 'way', 'relation']
 
 export const placesService = {
-  async search(query: string, lat?: number, lng?: number, limit = 20) {
+  async search(query: string, lat?: number, lng?: number, limit = 20, petFriendly = false, category?: string) {
     if (!query.trim()) throw new AppError('Termo de busca é obrigatório', 400)
-    return placesRepository.search(query, lat, lng, limit)
+    return placesRepository.search(query, lat, lng, limit, petFriendly, category)
   },
 
-  async getDetails(osmType: string, osmId: string) {
+  async getDetails(osmType: string, osmId: string, userId?: string) {
     if (!VALID_OSM_TYPES.includes(osmType)) {
       throw new AppError('osmType inválido. Use node, way ou relation', 400)
     }
     const id = parseInt(osmId, 10)
     if (isNaN(id)) throw new AppError('osmId inválido', 400)
 
-    const [osmData, reviewStats] = await Promise.all([
+    const [osmData, reviewStats, pfInfo, userVoted] = await Promise.all([
       placesRepository.fetchOsmDetails(osmType, id),
       placesRepository.getReviewStats(osmType, id),
+      placesRepository.getPetFriendlyInfo(osmType, id),
+      userId ? placesRepository.getUserVote(osmType, id, userId) : Promise.resolve(false),
     ])
 
     if (!osmData) return null
 
-    return { ...osmData, ...reviewStats }
+    return { ...osmData, ...reviewStats, petFriendly: pfInfo.petFriendly, petFriendlyVotes: pfInfo.voteCount, userVoted }
   },
 
   async listReviews(osmType: string, osmId: number) {
@@ -76,5 +78,16 @@ export const placesService = {
   async deleteReview(reviewId: string, userId: string) {
     if (!reviewId) throw new AppError('reviewId é obrigatório', 400)
     await placesRepository.deleteReview(reviewId, userId)
+  },
+
+  async togglePetFriendly(input: { osmType: string; osmId: number; userId: string }) {
+    if (!VALID_OSM_TYPES.includes(input.osmType)) {
+      throw new AppError('osmType inválido. Use node, way ou relation', 400)
+    }
+    return placesRepository.togglePetFriendly(input)
+  },
+
+  async listPetFriendlyIds() {
+    return placesRepository.listPetFriendlyIds()
   },
 }
