@@ -217,21 +217,28 @@ export default function SearchScreen() {
     park: 'parque',
     hotel: 'hotel pet',
     beach: 'praia',
-    other: 'lugar',
   }
 
   const executeLocaisSearch = useCallback((q: string, pf: boolean, cat: string | null, _rating: number) => {
-    let searchTerm = q && q.trim().length >= 2 ? q.trim() : ''
-    // When PF is active alone with no text and no category, use a broad search
-    if (!searchTerm && pf && !cat) {
+    const trimmed = q?.trim() ?? ''
+    let searchTerm = ''
+
+    if (cat) {
+      const defaultQuery = CATEGORY_DEFAULT_QUERY[cat] || cat
+      if (trimmed.length >= 2) {
+        // User text + category active — combine both so Nominatim finds by type and user term
+        searchTerm = `${trimmed} ${defaultQuery}`
+      } else {
+        // No user text but category active — use category default
+        searchTerm = defaultQuery
+      }
+    } else if (trimmed.length >= 2) {
+      // User text alone — use as-is
+      searchTerm = trimmed
+    } else if (pf) {
+      // Pet Friendly alone — fallback broad search; server filters to pet-friendly only
       searchTerm = 'pet friendly'
     }
-    // When a category is active but no user text, use the category default
-    if (!searchTerm && cat) {
-      searchTerm = CATEGORY_DEFAULT_QUERY[cat] || cat
-    }
-    // When both user text and category are present, use the text (server augments with category terms)
-    // No action needed — server-side augmentation handles it
 
     if (!searchTerm) return
     const { lat, lng } = userCoords.current ?? {}

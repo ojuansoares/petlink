@@ -186,16 +186,15 @@ export const petsRepository = {
     const weightRecordsPromise = supabaseAdmin.from('weight_records').select('*').eq('pet_id', petId).order('recorded_at', { ascending: false })
     const feedingPlansPromise = supabaseAdmin.from('feeding_plans').select('*').eq('pet_id', petId).eq('is_active', true).order('order_index')
     const feedingLogsPromise = supabaseAdmin.from('feeding_logs').select('*').eq('pet_id', petId).order('log_date', { ascending: false })
-    const calendarEventsPromise = supabaseAdmin.from('calendar_events').select('*').eq('pet_id', petId).order('event_date', { ascending: false })
 
     const [
       petResult, vaccinesResult, consultationsResult,
       walksResult, weightRecordsResult,
-      feedingPlansResult, feedingLogsResult, calendarEventsResult,
+      feedingPlansResult, feedingLogsResult,
     ] = await Promise.all([
       petPromise, vaccinesPromise, consultationsPromise,
       walksPromise, weightRecordsPromise,
-      feedingPlansPromise, feedingLogsPromise, calendarEventsPromise,
+      feedingPlansPromise, feedingLogsPromise,
     ])
 
     if (petResult.error) throw petResult.error
@@ -205,7 +204,6 @@ export const petsRepository = {
     if (weightRecordsResult.error) throw weightRecordsResult.error
     if (feedingPlansResult.error) throw feedingPlansResult.error
     if (feedingLogsResult.error) throw feedingLogsResult.error
-    if (calendarEventsResult.error) throw calendarEventsResult.error
 
     return {
       pet: petResult.data,
@@ -215,7 +213,6 @@ export const petsRepository = {
       weightRecords: weightRecordsResult.data ?? [],
       feedingPlans: feedingPlansResult.data ?? [],
       feedingLogs: feedingLogsResult.data ?? [],
-      calendarEvents: calendarEventsResult.data ?? [],
     }
   },
 
@@ -254,13 +251,6 @@ export const petsRepository = {
       .eq('pet_id', petId)
 
     if (consultationsDeleteError) throw consultationsDeleteError
-
-    const { error: calendarDeleteError } = await supabaseAdmin
-      .from('calendar_events')
-      .delete()
-      .eq('pet_id', petId)
-
-    if (calendarDeleteError) throw calendarDeleteError
 
     const { error: vaccinesDeleteError } = await supabaseAdmin
       .from('vaccines')

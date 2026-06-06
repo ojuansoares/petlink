@@ -251,18 +251,6 @@ export const petsService = {
           rows.push(`${f.log_date},${f.meal_name},${f.scheduled_time},${f.quantity ?? ''},${f.checked_at ?? ''}`)
         }
       }
-      rows.push('')
-
-      // Calendar events
-      rows.push('=== EVENTOS DE CALENDÁRIO ===')
-      if (data.calendarEvents.length === 0) {
-        rows.push('Nenhum registro')
-      } else {
-        rows.push('Título,Tipo,Data,Observações,Concluído')
-        for (const e of data.calendarEvents) {
-          rows.push(`${e.title},${e.type},${e.event_date ?? ''},${e.notes ?? ''},${e.completed ? 'Sim' : 'Não'}`)
-        }
-      }
 
       return { content: rows.join('\n'), filename: `${pet.name}-exportacao.csv`, contentType: 'text/csv; charset=utf-8' as const }
     }
@@ -334,13 +322,6 @@ export const petsService = {
         horario: f.scheduled_time,
         quantidade: f.quantity,
         marcadoEm: f.checked_at,
-      })),
-      eventosCalendario: data.calendarEvents.map(e => ({
-        titulo: e.title,
-        tipo: e.type,
-        data: e.event_date,
-        observacoes: e.notes,
-        concluido: e.completed,
       })),
     }
 
@@ -594,21 +575,7 @@ export const petsService = {
 
     // ═══════════ CALENDAR EVENTS ═══════════
     section('EVENTOS DE CALENDÁRIO')
-    if (data.calendarEvents.length === 0) { empty() } else {
-      const eCols = [
-        { label: 'Título', x: ML + 8, w: 100 },
-        { label: 'Tipo', x: ML + 115, w: 70 },
-        { label: 'Data', x: ML + 190, w: 70 },
-        { label: 'Concluído', x: ML + 265, w: 50 },
-      ]
-      tableHeader(eCols)
-      data.calendarEvents.forEach((e: any) => tableRow([
-        { text: e.title, x: ML + 8, w: 100 },
-        { text: e.type ?? '—', x: ML + 115, w: 70 },
-        { text: fmt(e.event_date), x: ML + 190, w: 70 },
-        { text: e.completed ? 'Sim' : 'Não', x: ML + 265, w: 50 },
-      ]))
-    }
+    empty()
 
     // Footer
     const FOOTER_Y = PH - 36

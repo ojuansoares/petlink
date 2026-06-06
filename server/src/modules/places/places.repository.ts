@@ -118,14 +118,6 @@ function normalizeCategory(type: string): string {
   return OSM_TYPE_TO_CATEGORY[type] || 'other'
 }
 
-const CATEGORY_SEARCH_AUGMENTS: Record<string, string> = {
-  vet: 'veterinaria animal clinica',
-  petshop: 'pet shop animais',
-  park: 'parque verde',
-  hotel: 'hotel pet animais',
-  beach: 'praia orla',
-}
-
 const OSM_TYPE_LABELS: Record<string, string> = {
   veterinary: 'Clínica Veterinária',
   vet: 'Veterinário',
@@ -230,13 +222,7 @@ export const placesRepository = {
     const cached = getCached(cacheKey)
     if (cached) return cached
 
-    // Augment query with category-specific terms so Nominatim finds places by OSM type, not just by name
-    let effectiveQuery = query
-    if (category && CATEGORY_SEARCH_AUGMENTS[category] && query.length < 15) {
-      effectiveQuery = `${query} ${CATEGORY_SEARCH_AUGMENTS[category]}`
-    }
-
-    let url = `${NOMINATIM_BASE}/search?q=${encodeURIComponent(effectiveQuery)}&format=json&addressdetails=1&limit=${limit}&countrycodes=br`
+    let url = `${NOMINATIM_BASE}/search?q=${encodeURIComponent(query)}&format=json&addressdetails=1&limit=${limit}&countrycodes=br`
     if (lat !== undefined && lng !== undefined) {
       url += `&lat=${lat}&lon=${lng}`
     }
