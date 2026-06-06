@@ -14,9 +14,9 @@ export const placesController = {
     const petFriendly = req.query.pet_friendly === 'true'
     const category = req.query.category as string | undefined
 
-    if (!q?.trim()) return res.status(400).json({ error: 'q é obrigatório' })
+    if (!q?.trim() && !petFriendly) return res.status(400).json({ error: 'q é obrigatório' })
 
-    const results = await placesService.search(q.trim(), lat, lng, limit, petFriendly, category)
+    const results = await placesService.search(q?.trim() || '', lat, lng, limit, petFriendly, category)
     return res.status(200).json(results)
   },
 

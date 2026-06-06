@@ -184,9 +184,6 @@ export function PlaceSearchInput({
                 <Text weight="700" size="sm">{item.name}</Text>
                 <Text size="xs" color="mutedForeground" numberOfLines={1}>{item.displayName}</Text>
               </View>
-              <Text size="xs" color="mutedForeground">
-                {item.type}
-              </Text>
             </Pressable>
           ))}
         </View>

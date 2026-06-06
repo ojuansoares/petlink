@@ -24,6 +24,7 @@ import { format, subMonths, addMonths, startOfMonth, endOfMonth } from 'date-fns
 import { scheduleWalkReminder, cancelWalkReminders } from '../services/NotificationService'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { formatWalkDistance } from '../utils/formatNumber'
+import { updatePreferencesThunk } from '../store/slices/notificationsSlice'
 
 type ScreenRoute = RouteProp<AppStackParamList, 'Walk'>
 
@@ -61,6 +62,7 @@ export default function WalkScreen() {
   const statsTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   useEffect(() => {
+    dispatch(fetchWalksThunk(petId))
     if (statsTimeoutRef.current) clearTimeout(statsTimeoutRef.current)
     statsTimeoutRef.current = setTimeout(() => {
       const start = startOfMonth(calendarDate).toISOString()
@@ -75,14 +77,27 @@ export default function WalkScreen() {
     }
   }, [dispatch, petId, calendarDate])
 
+  useEffect(() => {
+    if (!showTutorial) return
+    const loadFreq = async () => {
+      const stored = await AsyncStorage.getItem(`petlink.walk.frequency.${petId}`)
+      if (stored) setFrequency(stored as WalkFrequency)
+    }
+    loadFreq()
+  }, [showTutorial, petId])
+
   const handleFinishTutorial = async () => {
     await AsyncStorage.setItem(`petlink.walk.tutorial.${petId}`, 'true')
     if (frequency === 'skip') {
+      await cancelWalkReminders(petId)
+      await AsyncStorage.setItem('petlink.notifications.passeio', 'false')
+      dispatch(updatePreferencesThunk({ passeio: false }))
       setShowTutorial(false)
       return
     }
     await AsyncStorage.setItem(`petlink.walk.frequency.${petId}`, frequency)
     await AsyncStorage.setItem('petlink.notifications.passeio', 'true')
+    dispatch(updatePreferencesThunk({ passeio: true }))
     setShowTutorial(false)
     setFrequencySet(true)
 
@@ -93,7 +108,12 @@ export default function WalkScreen() {
   }
 
   const walkDays = new Set(
-    stats.map(s => format(new Date(s.started_at), 'yyyy-MM-dd'))
+    stats
+      .filter(s => {
+        const d = new Date(s.started_at)
+        return d.getFullYear() === calendarDate.getFullYear() && d.getMonth() === calendarDate.getMonth()
+      })
+      .map(s => format(new Date(s.started_at), 'yyyy-MM-dd'))
   )
 
   const totalDistance = walks.reduce((acc, w) => acc + w.distanceM, 0)
@@ -188,18 +208,16 @@ export default function WalkScreen() {
         </View>
       </Modal>
 
-      <View style={styles.header}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Heading size="xl" weight="800">Passeios</Heading>
-          <Pressable
-            onPress={() => setShowTutorial(true)}
-            hitSlop={8}
-            style={{ padding: 4 }}
-          >
-            <Ionicons name="ellipsis-vertical" size={20} color={colors.mutedForeground} />
-          </Pressable>
+      <View style={styles.headerRow}>
+        <View style={[styles.iconCircle, { backgroundColor: withAlpha(colors.primary, 0.1) }]}>
+          <Ionicons name="walk" size={28} color={colors.primary} />
         </View>
-        <Text color="mutedForeground">{petName}</Text>
+        <View style={{ flex: 1 }}>
+          <Heading size="lg" weight="800">Passeios de {petName}</Heading>
+        </View>
+        <Pressable onPress={() => setShowTutorial(true)} hitSlop={8} style={{ padding: 4 }}>
+          <Ionicons name="ellipsis-horizontal" size={22} color={colors.mutedForeground} />
+        </Pressable>
       </View>
 
       <Pressable
@@ -209,7 +227,7 @@ export default function WalkScreen() {
           { backgroundColor: colors.primary, opacity: pressed ? 0.8 : 1 },
         ])}
       >
-        <Ionicons name="walk" size={28} color="#fff" />
+        <Ionicons name="play" size={24} color="#fff" />
         <Text weight="800" size="lg" style={{ color: '#fff', marginLeft: 10 }}>
           Começar Passeio
         </Text>
@@ -247,7 +265,11 @@ export default function WalkScreen() {
 
           <View style={styles.sectionGap} />
 
-          {statsError && !statsLoading ? (
+          {statsLoading ? (
+            <View style={{ alignItems: 'center', paddingVertical: 24 }}>
+              <ActivityIndicator size="small" color={colors.primary} />
+            </View>
+          ) : statsError ? (
             <View style={{ alignItems: 'center', paddingVertical: 24 }}>
               <Text size="sm" color="mutedForeground" style={{ textAlign: 'center', marginBottom: 12 }}>
                 Não foi possível carregar os passeios deste mês
@@ -302,7 +324,7 @@ export default function WalkScreen() {
           renderItem={renderWalkItem}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ paddingTop: 8, paddingBottom: 40 }}
-          refreshing={refreshing}
+          refreshing={isLoading && !refreshing}
           onRefresh={onRefresh}
           ListEmptyComponent={
             isLoading ? (
@@ -325,12 +347,8 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 16,
   },
-  header: {
-    alignItems: 'center',
-    gap: 4,
-    paddingTop: Platform.OS === 'ios' ? 8 : 16,
-    paddingBottom: 16,
-  },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16, paddingTop: Platform.OS === 'ios' ? 8 : 16 },
+  iconCircle: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
   startButton: {
     flexDirection: 'row',
     alignItems: 'center',

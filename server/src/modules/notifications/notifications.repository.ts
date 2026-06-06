@@ -27,6 +27,7 @@ export type NotificationPreferences = {
   social_follows: boolean
   aniversario:  boolean
   temperatura:  boolean
+  passeio:      boolean
 }
 
 const DEFAULT_PREFERENCES: NotificationPreferences = {
@@ -37,6 +38,7 @@ const DEFAULT_PREFERENCES: NotificationPreferences = {
   social_follows: true,
   aniversario: true,
   temperatura: true,
+  passeio: true,
 }
 
 export const notificationsRepository = {
@@ -89,6 +91,7 @@ export const notificationsRepository = {
       social_follows: data.social_follows ?? true,
       aniversario: data.aniversario ?? true,
       temperatura: data.temperatura ?? true,
+      passeio: data.passeio ?? true,
     }
   },
 
@@ -111,6 +114,7 @@ export const notificationsRepository = {
       social_follows: data.social_follows ?? true,
       aniversario: data.aniversario ?? true,
       temperatura: data.temperatura ?? true,
+      passeio: data.passeio ?? true,
     }
   },
 }

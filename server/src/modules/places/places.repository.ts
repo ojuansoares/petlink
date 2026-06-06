@@ -218,6 +218,11 @@ function mapNominatimResult(r: NominatimResult) {
 
 export const placesRepository = {
   async search(query: string, lat?: number, lng?: number, limit = 20, petFriendly = false, category?: string) {
+    // When pet-friendly-only and no query, fetch from our DB instead of Nominatim
+    if (petFriendly && !query.trim()) {
+      return this.searchPetFriendlyOnly(category, lat, lng, limit)
+    }
+
     const cacheKey = `search:${query}:${lat ?? ''}:${lng ?? ''}:${limit}:pf${petFriendly}:cat${category ?? ''}`
     const cached = getCached(cacheKey)
     if (cached) return cached
@@ -270,6 +275,67 @@ export const placesRepository = {
     for (const r of results) {
       (r as any).petFriendly = (pfVoteMap.get(`${r.osmType}-${r.osmId}`) ?? 0) > 0
       const v = pfVoteMap.get(`${r.osmType}-${r.osmId}`) ?? 0; (r as any).petFriendlyVotes = v
+    }
+
+    setCache(cacheKey, results)
+    return results
+  },
+
+  async searchPetFriendlyOnly(category?: string, lat?: number, lng?: number, limit = 20) {
+    const cacheKey = `pfonly:cat${category ?? ''}:${lat ?? ''}:${lng ?? ''}:${limit}`
+    const cached = getCached(cacheKey)
+    if (cached) return cached
+
+    const match: any = {}
+    if (category) match.category = category
+
+    const pfAgg = await PetFriendlyPlace.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: { osmId: '$osmId', osmType: '$osmType' },
+          name: { $first: '$name' },
+          address: { $first: '$address' },
+          lat: { $first: '$lat' },
+          lng: { $first: '$lng' },
+          category: { $first: '$category' },
+          voteCount: { $sum: 1 },
+        },
+      },
+      { $sort: { voteCount: -1 } },
+      { $limit: limit },
+    ])
+
+    const results = pfAgg.map((entry: any) => {
+      const normalized = normalizeCategory(entry.category || '')
+      return {
+        osmId: entry._id.osmId,
+        osmType: entry._id.osmType,
+        name: entry.name,
+        displayName: entry.address,
+        lat: entry.lat,
+        lng: entry.lng,
+        category: entry.category || 'other',
+        type: entry.category || 'other',
+        typeLabel: getTypeLabel(entry.category || 'other'),
+        normalizedCategory: normalized,
+        icon: null,
+        importance: 0,
+        boundingbox: null,
+        petFriendly: true,
+        petFriendlyVotes: entry.voteCount,
+      }
+    })
+
+    // Sort by distance when coords are available
+    if (lat !== undefined && lng !== undefined) {
+      try {
+        results.sort((a: any, b: any) => {
+          const distA = haversineDistance(lat, lng, a.lat, a.lng)
+          const distB = haversineDistance(lat, lng, b.lat, b.lng)
+          return distA - distB
+        })
+      } catch {}
     }
 
     setCache(cacheKey, results)

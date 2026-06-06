@@ -346,19 +346,6 @@ export function Calendar({ petId, petName, birthDate }: CalendarProps) {
             <View style={[styles.detailColorBanner, { backgroundColor: media.value }]} />
           ) : null}
 
-          {media?.type === 'photo' && (
-            <Button
-              onPress={() => {
-                setPostConsultationData({ photoUrl: media.value, petId: c.pet_id })
-                setShowPostModal(true)
-              }}
-              label="Postar consulta"
-              variant="outline"
-              leftIcon={<Ionicons name="share-outline" size={16} color={colors.primary} />}
-              style={{ marginTop: 2, borderRadius: 10 }}
-            />
-          )}
-
           <View style={[styles.detailSection, { borderLeftColor: colors.info }]}>
             <Text size="xs" color="mutedForeground" weight="800">
               TIPO DE REGISTRO
@@ -446,11 +433,8 @@ export function Calendar({ petId, petName, birthDate }: CalendarProps) {
     return null
   }
 
-  // Weekday letters: Dom, Seg, Ter, Qua, Qui, Sex, Sab
-  const weekdays = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']
-
   return (
-    <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+    <View style={[styles.card, { backgroundColor: withAlpha(colors.primary, 0.06), borderColor: withAlpha(colors.primary, 0.4) }]}>
       {error && !loading && (
         <View style={[StyleSheet.absoluteFill, {
           backgroundColor: 'rgba(0,0,0,0.65)',
@@ -476,91 +460,94 @@ export function Calendar({ petId, petName, birthDate }: CalendarProps) {
       )}
 
       {/* Calendar Header */}
-      <View style={styles.header}>
-        <Heading size="base" weight="800" style={{ textTransform: 'capitalize' }}>
-          {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
-        </Heading>
-        
-        <View style={styles.navGroup}>
-          <Pressable onPress={handlePrevMonth} style={styles.navButton}>
-            <Ionicons name="chevron-back" size={20} color={colors.foreground} />
+      <View style={[styles.headerBg, { backgroundColor: withAlpha(colors.primary, 0.04) }]}>
+        <View style={styles.headerRow}>
+          <Pressable onPress={handlePrevMonth} hitSlop={12} style={styles.iconButton}>
+            <Ionicons name="chevron-back" size={20} color={colors.primary} />
           </Pressable>
-          <Pressable onPress={handleNextMonth} style={styles.navButton}>
-            <Ionicons name="chevron-forward" size={20} color={colors.foreground} />
+          <Text weight="700" size="base" style={[styles.monthTitle, { textTransform: 'capitalize' }]}>
+            {format(currentMonth, "MMMM 'de' yyyy", { locale: ptBR })}
+          </Text>
+          <Pressable onPress={handleNextMonth} hitSlop={12} style={styles.iconButton}>
+            <Ionicons name="chevron-forward" size={20} color={colors.primary} />
           </Pressable>
         </View>
       </View>
 
-      {/* Weekdays */}
-      <View style={styles.weekdaysRow}>
-        {weekdays.map((w, idx) => (
-          <Text key={idx} size="xs" color="mutedForeground" weight="700" style={styles.weekdayCell}>
-            {w}
-          </Text>
-        ))}
-      </View>
-
       {/* Grid Container with swipe trigger */}
-      <View
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-        style={styles.gridContainer}
-      >
-         {loading && (
-           <View style={[styles.loadingOverlay, { backgroundColor: withAlpha(colors.background, 0.7) }]}>
-             <ActivityIndicator size="small" color={colors.primary} />
-           </View>
-         )}
+      <View style={[styles.daysBg, { backgroundColor: withAlpha(colors.primary, 0.08) }]}>
+        <View
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+        >
+          {/* Weekdays */}
+          <View style={styles.weekRow}>
+            {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((d) => (
+              <View key={d} style={styles.weekCell}>
+                <Text size="xs" color="mutedForeground" weight="700">{d}</Text>
+              </View>
+            ))}
+          </View>
 
-        <View style={styles.daysGrid}>
-          {calendarDays.map((day) => {
-            const isSelected = isSameDay(day, selectedDate)
-            const isCurrentMonth = day.getMonth() === currentMonth.getMonth()
-            const isTodayDay = isToday(day)
+          {loading && (
+            <View style={{ alignItems: 'center', paddingVertical: 24 }}>
+              <ActivityIndicator size="small" color={colors.primary} />
+            </View>
+          )}
 
-            // Find events on this day
-            const dayEvents = events.filter((e) => isSameDay(e.date, day))
-            const hasVaccine = dayEvents.some((e) => e.type === 'vaccine')
-            const hasDewormer = dayEvents.some((e) => e.type === 'dewormer')
-            const hasConsultation = dayEvents.some((e) => e.type === 'consultation')
-            const hasBirthday = dayEvents.some((e) => e.type === 'birthday')
+          {!loading && (
+          <View style={styles.daysGrid}>
+            {calendarDays.map((day) => {
+              const isSelected = isSameDay(day, selectedDate)
+              const isCurrentMonth = day.getMonth() === currentMonth.getMonth()
+              const isTodayDay = isToday(day)
 
-            return (
-              <Pressable
-                key={day.toString()}
-                onPress={() => handleSelectDay(day)}
-                style={[
-                  styles.dayCell,
-                  isSelected && {
-                    borderColor: colors.primary,
-                    borderWidth: 1.5,
-                    borderRadius: 12,
-                    backgroundColor: withAlpha(colors.primary, 0.05),
-                  },
-                ]}
-              >
-                <Text
-                  size="sm"
-                  weight={isSelected || isTodayDay ? '800' : '400'}
-                  style={[
-                    !isCurrentMonth && { color: withAlpha(colors.mutedForeground, 0.4) },
-                    isTodayDay && !isSelected && { color: colors.primary, textDecorationLine: 'underline' },
-                    isCurrentMonth && !isTodayDay && !isSelected && { color: colors.foreground },
-                  ]}
+              // Find events on this day
+              const dayEvents = events.filter((e) => isSameDay(e.date, day))
+              const hasVaccine = dayEvents.some((e) => e.type === 'vaccine')
+              const hasDewormer = dayEvents.some((e) => e.type === 'dewormer')
+              const hasConsultation = dayEvents.some((e) => e.type === 'consultation')
+              const hasBirthday = dayEvents.some((e) => e.type === 'birthday')
+
+              const textColor = isTodayDay
+                ? colors.primary
+                : isCurrentMonth
+                  ? colors.foreground
+                  : withAlpha(colors.mutedForeground, 0.4)
+
+              return (
+                <Pressable
+                  key={day.toString()}
+                  onPress={() => handleSelectDay(day)}
+                  style={styles.dayCellContainer}
                 >
-                  {format(day, 'd')}
-                </Text>
+                  <View
+                    style={[
+                      styles.dayContent,
+                      isTodayDay && { borderWidth: 2, borderColor: colors.primary, borderRadius: 10 },
+                      isSelected && !isTodayDay && { borderWidth: 1.5, borderColor: withAlpha(colors.primary, 0.5), borderRadius: 10 },
+                    ]}
+                  >
+                    <Text
+                      size="sm"
+                      weight={isTodayDay ? '800' : '600'}
+                      style={{ color: textColor }}
+                    >
+                      {format(day, 'd')}
+                    </Text>
+                  </View>
 
-                {/* Event Dots */}
-                <View style={styles.dotsRow}>
-                  {hasVaccine && <View style={[styles.dot, { backgroundColor: colors.primary }]} />}
-                  {hasDewormer && <View style={[styles.dot, { backgroundColor: '#f97316' }]} />}
-                  {hasConsultation && <View style={[styles.dot, { backgroundColor: colors.info }]} />}
-                  {hasBirthday && <Ionicons name={'cake' as any} size={10} color="#EC4899" />}
-                </View>
-              </Pressable>
-            )
-          })}
+                  <View style={styles.indicatorContainer}>
+                    {hasVaccine && <View style={[styles.indicator, { backgroundColor: colors.primary }]} />}
+                    {hasDewormer && <View style={[styles.indicator, { backgroundColor: '#f97316' }]} />}
+                    {hasConsultation && <View style={[styles.indicator, { backgroundColor: colors.info }]} />}
+                    {hasBirthday && <Ionicons name={'cake' as any} size={9} color="#EC4899" />}
+                  </View>
+                </Pressable>
+              )
+            })}
+          </View>
+          )}
         </View>
       </View>
 
@@ -671,68 +658,71 @@ export function Calendar({ petId, petName, birthDate }: CalendarProps) {
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 24,
-    borderWidth: 1,
+    borderRadius: 16,
+    borderWidth: 2,
     padding: 16,
     marginBottom: 16,
     position: 'relative',
     overflow: 'hidden',
+    gap: 12,
   },
-  header: {
+  headerBg: {
+    borderRadius: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    marginBottom: 4,
+  },
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
   },
-  navGroup: {
-    flexDirection: 'row',
-    gap: 8,
+  iconButton: {
+    padding: 4,
   },
-  navButton: {
-    padding: 6,
-    borderRadius: 8,
-    backgroundColor: 'rgba(150, 150, 150, 0.08)',
-  },
-  weekdaysRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 8,
-  },
-  weekdayCell: {
-    width: 40,
+  monthTitle: {
+    flex: 1,
     textAlign: 'center',
   },
-  gridContainer: {
-    position: 'relative',
+  daysBg: {
+    borderRadius: 12,
+    padding: 8,
   },
-   loadingOverlay: {
-     ...StyleSheet.absoluteFillObject,
-     zIndex: 10,
-     justifyContent: 'center',
-     alignItems: 'center',
-   },
+  weekRow: {
+    flexDirection: 'row',
+    marginBottom: 8,
+  },
+  weekCell: {
+    width: '14.28%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   daysGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-around',
   },
-  dayCell: {
-    width: '13.5%', // Slightly less than 1/7th to support gap
+  dayCellContainer: {
+    width: '14.28%',
     height: 48,
     alignItems: 'center',
     justifyContent: 'center',
-    marginVertical: 2,
-    borderWidth: 1.5,
-    borderColor: 'transparent',
   },
-  dotsRow: {
+  dayContent: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  indicatorContainer: {
+    height: 10,
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'center',
     gap: 2,
-    marginTop: 4,
-    height: 4,
+    marginTop: 1,
   },
-  dot: {
+  indicator: {
     width: 4,
     height: 4,
     borderRadius: 2,

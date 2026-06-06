@@ -660,7 +660,7 @@ export default function PetsScreen() {
             />
             <ControlCard
               title="Exportar Dados"
-              subtitle="JSON, CSV ou PDF"
+              subtitle="Vacinas, consultas, peso e mais"
               icon="download-outline"
               color={withAlpha(colors.primary, 0.12)}
               borderColor={colors.primary}
@@ -1032,82 +1032,104 @@ export default function PetsScreen() {
         visible={exportModalVisible}
         onClose={() => setExportModalVisible(false)}
         title="Exportar Dados"
-        subtitle={`Escolha o formato para exportar os dados de ${activePet?.name ?? '—'}`}
+        subtitle={`Tenha um backup completo de ${activePet?.name ?? '—'} — dados, histórico e plano alimentar`}
       >
-        <View style={{ gap: 12, paddingBottom: 16 }}>
+        <View style={{ gap: 14, paddingBottom: 16 }}>
+          <Text size="sm" weight="700" style={{ textAlign: 'center', marginBottom: 2 }}>O que está incluso no arquivo:</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+            {[
+              { title: 'Informações do Pet', desc: 'Nome, espécie, raça, peso, alergias', icon: 'paw-outline', bg: '#E8F0FE', border: '#BBD6FB', iconColor: '#4285F4' },
+              { title: 'Vacinas', desc: 'Todas aplicadas e pendentes com datas', icon: 'shield-checkmark-outline', bg: '#E6F4EA', border: '#B7E1CD', iconColor: '#34A853' },
+              { title: 'Consultas', desc: 'Veterinário, clínica, diagnóstico e exames', icon: 'pulse-outline', bg: '#FEF3E8', border: '#FCD5B5', iconColor: '#F97316' },
+              { title: 'Registros de Peso', desc: 'Evolução do peso com datas', icon: 'scale-outline', bg: '#F3E8FF', border: '#D9B8F5', iconColor: '#8B5CF6' },
+              { title: 'Passeios', desc: 'Distância, duração, calorias e pace', icon: 'walk-outline', bg: '#FCE4EC', border: '#F8BBD0', iconColor: '#EC4899' },
+              { title: 'Plano Alimentar', desc: 'Refeições, horários e quantidades', icon: 'restaurant-outline', bg: '#E0F7FA', border: '#B2EBF2', iconColor: '#00ACC1' },
+            ].map((item) => (
+              <View key={item.title} style={{ width: '48%', backgroundColor: item.bg, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: item.border, gap: 8 }}>
+                <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: item.iconColor + '22', alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name={item.icon as any} size={16} color={item.iconColor} />
+                </View>
+                <Text size="sm" weight="700">{item.title}</Text>
+                <Text size="xs" color="mutedForeground">{item.desc}</Text>
+              </View>
+            ))}
+          </View>
+
+          <Text size="xs" color="mutedForeground" style={{ textAlign: 'center', marginBottom: 2 }}>Escolha abaixo o formato do arquivo:</Text>
+
           <Pressable
             onPress={async () => {
-              if (!activePet) return
-              setExportModalVisible(false)
+              if (!activePet || exportingFormat) return
               setExportingFormat('json')
               try {
                 await exportPetData(activePet.id, activePet.name, 'json')
+                setExportModalVisible(false)
               } catch (err: any) {
                 dispatch(showToast({ message: err?.message ?? 'Erro ao exportar JSON', type: 'error' }))
               } finally {
                 setExportingFormat(null)
               }
             }}
-            style={[stylesWeight.formatOption, { borderColor: withAlpha(colors.primary, 0.3), backgroundColor: withAlpha(colors.primary, 0.06) }]}
+            style={[stylesWeight.formatOption, { borderColor: withAlpha(colors.primary, 0.3), backgroundColor: exportingFormat === 'json' ? withAlpha(colors.primary, 0.15) : withAlpha(colors.primary, 0.06) }]}
           >
-            <View style={stylesWeight.formatIcon}>
+            <View style={[stylesWeight.formatIcon, { opacity: exportingFormat && exportingFormat !== 'json' ? 0.4 : 1 }]}>
               <Ionicons name="code-outline" size={22} color={colors.primary} />
             </View>
-            <View style={{ flex: 1 }}>
+            <View style={{ flex: 1, opacity: exportingFormat && exportingFormat !== 'json' ? 0.4 : 1 }}>
               <Text weight="700" size="lg">JSON</Text>
               <Text size="xs" color="mutedForeground">Estruturado e legível por máquina</Text>
             </View>
-            {exportingFormat === 'json' && <Ionicons name="sync" size={18} color={colors.primary} />}
+            {exportingFormat === 'json' ? <ActivityIndicator size="small" color={colors.primary} /> : exportingFormat ? null : <View style={{ width: 18 }} />}
           </Pressable>
 
           <Pressable
             onPress={async () => {
-              if (!activePet) return
-              setExportModalVisible(false)
+              if (!activePet || exportingFormat) return
               setExportingFormat('csv')
               try {
                 await exportPetData(activePet.id, activePet.name, 'csv')
+                setExportModalVisible(false)
               } catch (err: any) {
                 dispatch(showToast({ message: err?.message ?? 'Erro ao exportar CSV', type: 'error' }))
               } finally {
                 setExportingFormat(null)
               }
             }}
-            style={[stylesWeight.formatOption, { borderColor: withAlpha(colors.primary, 0.3), backgroundColor: withAlpha(colors.primary, 0.06) }]}
+            style={[stylesWeight.formatOption, { borderColor: withAlpha(colors.primary, 0.3), backgroundColor: exportingFormat === 'csv' ? withAlpha(colors.primary, 0.15) : withAlpha(colors.primary, 0.06) }]}
           >
-            <View style={stylesWeight.formatIcon}>
+            <View style={[stylesWeight.formatIcon, { opacity: exportingFormat && exportingFormat !== 'csv' ? 0.4 : 1 }]}>
               <Ionicons name="grid-outline" size={22} color={colors.primary} />
             </View>
-            <View style={{ flex: 1 }}>
+            <View style={{ flex: 1, opacity: exportingFormat && exportingFormat !== 'csv' ? 0.4 : 1 }}>
               <Text weight="700" size="lg">CSV</Text>
               <Text size="xs" color="mutedForeground">Planilha compatível com Excel / Google Sheets</Text>
             </View>
-            {exportingFormat === 'csv' && <Ionicons name="sync" size={18} color={colors.primary} />}
+            {exportingFormat === 'csv' ? <ActivityIndicator size="small" color={colors.primary} /> : exportingFormat ? null : <View style={{ width: 18 }} />}
           </Pressable>
 
           <Pressable
             onPress={async () => {
-              if (!activePet) return
-              setExportModalVisible(false)
+              if (!activePet || exportingFormat) return
               setExportingFormat('pdf')
               try {
                 await exportPetData(activePet.id, activePet.name, 'pdf')
+                setExportModalVisible(false)
               } catch (err: any) {
                 dispatch(showToast({ message: err?.message ?? 'Erro ao exportar PDF', type: 'error' }))
               } finally {
                 setExportingFormat(null)
               }
             }}
-            style={[stylesWeight.formatOption, { borderColor: withAlpha(colors.primary, 0.3), backgroundColor: withAlpha(colors.primary, 0.06) }]}
+            style={[stylesWeight.formatOption, { borderColor: withAlpha(colors.primary, 0.3), backgroundColor: exportingFormat === 'pdf' ? withAlpha(colors.primary, 0.15) : withAlpha(colors.primary, 0.06) }]}
           >
-            <View style={stylesWeight.formatIcon}>
+            <View style={[stylesWeight.formatIcon, { opacity: exportingFormat && exportingFormat !== 'pdf' ? 0.4 : 1 }]}>
               <Ionicons name="document-text-outline" size={22} color={colors.primary} />
             </View>
-            <View style={{ flex: 1 }}>
+            <View style={{ flex: 1, opacity: exportingFormat && exportingFormat !== 'pdf' ? 0.4 : 1 }}>
               <Text weight="700" size="lg">PDF</Text>
               <Text size="xs" color="mutedForeground">Documento formatado com todos os dados</Text>
             </View>
-            {exportingFormat === 'pdf' && <Ionicons name="sync" size={18} color={colors.primary} />}
+            {exportingFormat === 'pdf' ? <ActivityIndicator size="small" color={colors.primary} /> : exportingFormat ? null : <View style={{ width: 18 }} />}
           </Pressable>
         </View>
       </AppModal>

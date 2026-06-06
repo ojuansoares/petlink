@@ -154,9 +154,9 @@ export function WalkCalendar({ year, month, walkDays, onDayPress, onPrevMonth, o
               <View 
                 style={[
                   styles.dayContent,
-                  hasWalk && { backgroundColor: withAlpha(colors.primary, 0.12) },
-                  isTodayDate && { borderWidth: 2, borderColor: colors.primary },
-                  isSelected && !isTodayDate && { borderWidth: 1.5, borderColor: withAlpha(colors.primary, 0.5) },
+                  hasWalk && { backgroundColor: withAlpha(colors.primary, 0.12), borderRadius: 10 },
+                  isTodayDate && { borderWidth: 2, borderColor: colors.primary, borderRadius: 10 },
+                  isSelected && !isTodayDate && { borderWidth: 1.5, borderColor: withAlpha(colors.primary, 0.5), borderRadius: 10 },
                 ]}
               >
                 <Text

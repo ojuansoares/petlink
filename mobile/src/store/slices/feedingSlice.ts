@@ -175,7 +175,11 @@ const feedingSlice = createSlice({
       })
 
       .addCase(fetchFeedingScoreThunk.pending, (s) => { s.isLoadingScore = true })
-      .addCase(fetchFeedingScoreThunk.fulfilled, (s, a) => { s.isLoadingScore = false; s.score = a.payload })
+      .addCase(fetchFeedingScoreThunk.fulfilled, (s, a) => {
+        s.isLoadingScore = false
+        const incoming = new Set(a.payload.map(d => d.date))
+        s.score = [...s.score.filter(d => !incoming.has(d.date)), ...a.payload]
+      })
       .addCase(fetchFeedingScoreThunk.rejected, (s) => { s.isLoadingScore = false })
 
       .addCase(deactivateFeedingPlanThunk.fulfilled, (s) => {

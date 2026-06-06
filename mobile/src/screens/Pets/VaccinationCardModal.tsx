@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react'
-import { View, ScrollView, TouchableOpacity, StyleSheet } from 'react-native'
+import { View, ScrollView, TouchableOpacity, StyleSheet, Platform } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { File, Paths } from 'expo-file-system'
 import * as Sharing from 'expo-sharing'
@@ -61,6 +61,27 @@ export function VaccinationCardModal({
       const filename = `carteirinha-${petName.replace(/\s+/g, '-')}.pdf`
       const file = new File(Paths.cache, filename)
       file.write(new Uint8Array(pdfBuffer))
+
+      // Android: let user pick folder via SAF
+      if (Platform.OS === 'android') {
+        try {
+          const { StorageAccessFramework, readAsStringAsync } = require('expo-file-system/legacy')
+          const permissions = await StorageAccessFramework.requestDirectoryPermissionsAsync()
+          if (permissions.granted) {
+            const safFile = await StorageAccessFramework.createFileAsync(
+              permissions.directoryUri,
+              filename.replace(/\.[^.]+$/, ''),
+              'application/pdf'
+            )
+            const base64 = await readAsStringAsync(file.uri, { encoding: 'base64' })
+            await StorageAccessFramework.writeAsStringAsync(safFile, base64, { encoding: 'base64' })
+            onClose()
+            return
+          }
+        } catch {}
+      }
+
+      // Fallback: share sheet
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(file.uri, {
           mimeType: 'application/pdf',

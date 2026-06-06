@@ -102,7 +102,7 @@ export const usePetsStyles = makeStyles((theme) => ({
     alignItems: 'center',
     gap: 4,
     backgroundColor: theme.colors.card,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: theme.withAlpha(theme.colors.border, 0.5),
   },
   // Extra Section

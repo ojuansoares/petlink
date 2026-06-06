@@ -18,6 +18,7 @@ export interface NotificationPreferences {
   enabled:        boolean
   alimentacao:    boolean
   vacinas:       boolean
+  passeio:       boolean
   social_likes:   boolean
   social_follows: boolean
   aniversario:   boolean

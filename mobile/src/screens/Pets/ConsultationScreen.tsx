@@ -30,7 +30,6 @@ import { selectUser } from '../../store/slices/authSlice';
 import { selectIsOnline } from '../../store/slices/uiSlice';
 import { ActionOptionsModal } from '../../components/ui/ActionOptionsModal';
 import { ImagePickerSheet } from '../../components/ui/ImagePickerSheet';
-import { CreatePostModal } from '../../components/ui/CreatePostModal';
 import { PlaceSearchInput, PlaceSelection } from '../../components/places/PlaceSearchInput';
 
 const DateTimePickerComponent = (() => {
@@ -88,11 +87,6 @@ export function ConsultationScreen() {
   const [mediaType, setMediaType] = useState<'photo' | 'color' | null>(null);
   const [mediaValue, setMediaValue] = useState('');
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
-
-  const [showPostModal, setShowPostModal] = useState(false)
-  const [postFromConsultation, setPostFromConsultation] = useState<{ photoUrl: string; petId: string } | null>(null)
-
-  const [shouldPostAfterSave, setShouldPostAfterSave] = useState(false)
 
   const loadData = useCallback(async () => {
     try {
@@ -229,8 +223,11 @@ export function ConsultationScreen() {
     }
   }
 
+  const [isSaving, setIsSaving] = useState(false)
+
   const handleSave = async () => {
-    if (!user) return
+    if (!user || isSaving) return
+    setIsSaving(true)
 
     const consultationData = {
       pet_id: petId,
@@ -263,16 +260,13 @@ export function ConsultationScreen() {
         if (mediaType && mediaValue) {
           await saveMedia(created.id, mediaType, mediaValue)
         }
-        if (shouldPostAfterSave && mediaType === 'photo' && mediaValue) {
-          setPostFromConsultation({ photoUrl: mediaValue, petId })
-          setShowPostModal(true)
-        }
       }
       loadData()
       setModalVisible(false)
-      setShouldPostAfterSave(false)
     } catch (error) {
       console.error('Failed to save consultation:', error)
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -347,19 +341,6 @@ export function ConsultationScreen() {
           <View style={[styles.detailColorBanner, { backgroundColor: media.value }]} />
         ) : null}
 
-      {hasPhoto && (
-        <Button
-          onPress={() => {
-            setPostFromConsultation({ photoUrl: media!.value, petId: c.pet_id })
-            setShowPostModal(true)
-          }}
-          label="Postar consulta"
-          variant="outline"
-          leftIcon={<Ionicons name="share-outline" size={16} color={colors.primary} />}
-          style={{ marginTop: 2, borderRadius: 10 }}
-        />
-      )}
-
         <View style={styles.modalContent}>
           <View style={[styles.detailCard, { backgroundColor: withAlpha(colors.muted, 0.4), borderLeftColor: colors.info }]}>
             <Text size="xs" color="mutedForeground" weight="800">TIPO DE REGISTRO</Text>
@@ -383,7 +364,7 @@ export function ConsultationScreen() {
                   <Pressable
                     onPress={() => navigation.navigate('Search', {
                       tab: 'locais' as const,
-                      q: c.place_name || c.clinic,
+                      q: c.place_address || c.place_name || c.clinic,
                     })}
                   >
                     <Text weight="700" style={{ color: colors.primary, textDecorationLine: 'underline' }} numberOfLines={1}>{c.place_name || c.clinic}</Text>
@@ -486,30 +467,27 @@ export function ConsultationScreen() {
     )
   }
 
-  if (loading) {
-    return (
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={{ padding: 16 }}>
-          <SkeletonBlock style={{ width: 200, height: 22, borderRadius: 6, marginBottom: 16 }} />
-          <View style={{ flexDirection: 'row', gap: 12 }}>
-            <View style={{ flex: 1, gap: 12 }}>
+  return (
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={{ padding: 16, paddingBottom: 0 }}>
+        <Heading>Consultas de {petName}</Heading>
+      </View>
+      {loading ? (
+        <View style={{ padding: 16, gap: gridGap, flex: 1 }}>
+          <View style={{ flexDirection: 'row', gap: gridGap }}>
+            <View style={{ flex: 1, gap: gridGap }}>
               {[0, 1].map((i) => (
                 <SkeletonBlock key={i} style={{ height: 140, borderRadius: 14 }} />
               ))}
             </View>
-            <View style={{ flex: 1, gap: 12 }}>
+            <View style={{ flex: 1, gap: gridGap }}>
               {[0, 1].map((i) => (
                 <SkeletonBlock key={i} style={{ height: 140, borderRadius: 14 }} />
               ))}
             </View>
           </View>
         </View>
-      </View>
-    )
-  }
-
-  return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      ) : (
       <FlatList
         data={consultations}
         renderItem={renderGridItem}
@@ -517,11 +495,6 @@ export function ConsultationScreen() {
         numColumns={2}
         columnWrapperStyle={{ gap: gridGap }}
         contentContainerStyle={{ padding: 16, flexGrow: 1, gap: gridGap }}
-        ListHeaderComponent={
-          <View style={{ marginBottom: 4 }}>
-            <Heading>Consultas de {petName}</Heading>
-          </View>
-        }
         ListEmptyComponent={
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 60 }}>
             <Ionicons name="pulse-outline" size={48} color={colors.mutedForeground} style={{ opacity: 0.3, marginBottom: 12 }} />
@@ -529,6 +502,7 @@ export function ConsultationScreen() {
           </View>
         }
       />
+      )}
       <View style={[styles.footer, { borderTopColor: withAlpha(colors.border, 0.5) }]}>
         <Button onPress={handleAdd} label="Adicionar Consulta" />
       </View>
@@ -616,23 +590,7 @@ export function ConsultationScreen() {
             <Input label="Prescrição" value={prescription} onChangeText={setPrescription} multiline placeholder="Remédios e dosagens" leftIcon={<Ionicons name="medkit-outline" size={18} color={colors.mutedForeground} />} />
             <Input label="Notas" value={notes} onChangeText={setNotes} multiline placeholder="Observações extras" leftIcon={<Ionicons name="document-text-outline" size={18} color={colors.mutedForeground} />} />
 
-            {mediaType === 'photo' && mediaValue && (
-              <Pressable
-                onPress={() => setShouldPostAfterSave(prev => !prev)}
-                style={[styles.checkboxRow, { backgroundColor: withAlpha(colors.primary, 0.06), borderRadius: 12, padding: 12 }]}
-              >
-                <Ionicons
-                  name={shouldPostAfterSave ? 'checkbox' : 'square-outline'}
-                  size={22}
-                  color={shouldPostAfterSave ? colors.primary : colors.mutedForeground}
-                />
-                <Text size="sm" weight="600" style={{ marginLeft: 8, flex: 1 }}>
-                  Postar consulta após salvar
-                </Text>
-              </Pressable>
-            )}
-
-            <Button onPress={handleSave} style={{ marginTop: 8, marginBottom: 20 }} loading={isUploadingPhoto} label="Salvar" />
+            <Button onPress={handleSave} style={{ marginTop: 8, marginBottom: 20 }} loading={isSaving} label="Salvar" />
           </View>
         </ScrollView>
 
@@ -653,18 +611,6 @@ export function ConsultationScreen() {
       >
         {renderDetailContent()}
       </AppModal>
-
-      {postFromConsultation && (
-        <CreatePostModal
-          visible={showPostModal}
-          onClose={() => {
-            setShowPostModal(false)
-            setPostFromConsultation(null)
-          }}
-          initialPhotoUrl={postFromConsultation.photoUrl}
-          initialPetIds={[postFromConsultation.petId]}
-        />
-      )}
 
       <ImagePickerSheet
         visible={showImagePicker}

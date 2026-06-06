@@ -14,6 +14,27 @@ import { Ionicons } from '@expo/vector-icons'
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native'
 import MapView, { Marker } from 'react-native-maps'
 import { useTheme } from '../hooks/useTheme'
+
+const CATEGORY_COLORS: Record<string, string> = {
+  vet: '#3B82F6',
+  petshop: '#F59E0B',
+  park: '#10B981',
+  hotel: '#8B5CF6',
+  beach: '#06B6D4',
+  other: '#6B7280',
+}
+
+const CATEGORY_LABELS: Record<string, string> = {
+  vet: 'Vet',
+  petshop: 'PetShop',
+  park: 'Parque',
+  hotel: 'Hotel',
+  beach: 'Praia',
+  other: 'Outros',
+}
+
+const CATEGORY_KEYS = ['vet', 'petshop', 'park', 'hotel', 'beach'] as const
+type PlaceCategory = typeof CATEGORY_KEYS[number]
 import { useNetworkCheck } from '../hooks/useNetworkCheck'
 import { Text } from '../components/ui/Typography'
 import { Avatar } from '../components/ui/Avatar'
@@ -124,6 +145,7 @@ export default function SearchScreen() {
   const [petFriendlyFilter, setPetFriendlyFilter] = useState(false)
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null)
   const [minRatingFilter, setMinRatingFilter] = useState(0)
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false)
 
   const autoSearchRef = useRef(false)
 
@@ -221,28 +243,25 @@ export default function SearchScreen() {
 
   const executeLocaisSearch = useCallback((q: string, pf: boolean, cat: string | null, _rating: number) => {
     const trimmed = q?.trim() ?? ''
-    let searchTerm = ''
+    let searchTerm: string | undefined
 
     if (cat) {
       const defaultQuery = CATEGORY_DEFAULT_QUERY[cat] || cat
       if (trimmed.length >= 2) {
-        // User text + category active — combine both so Nominatim finds by type and user term
         searchTerm = `${trimmed} ${defaultQuery}`
       } else {
-        // No user text but category active — use category default
         searchTerm = defaultQuery
       }
     } else if (trimmed.length >= 2) {
-      // User text alone — use as-is
       searchTerm = trimmed
     } else if (pf) {
-      // Pet Friendly alone — fallback broad search; server filters to pet-friendly only
-      searchTerm = 'pet friendly'
+      // Pet Friendly alone — let server fetch from PetFriendlyPlace collection
+      searchTerm = undefined
     }
 
-    if (!searchTerm) return
+    if (!searchTerm && !pf) return
     const { lat, lng } = userCoords.current ?? {}
-    dispatch(searchPlacesThunk({ q: searchTerm, lat, lng, petFriendly: pf, category: cat ?? undefined }))
+    dispatch(searchPlacesThunk({ q: searchTerm ?? '', lat, lng, petFriendly: pf, category: cat ?? undefined }))
     setSearched(true)
   }, [dispatch])
 
@@ -448,7 +467,6 @@ export default function SearchScreen() {
           <View style={styles.resultInfo}>
             <Text weight="700">{item.name}</Text>
             <Text size="sm" color="mutedForeground" numberOfLines={1}>{item.displayName}</Text>
-            <Text size="xs" color="mutedForeground" style={{ marginTop: 2 }}>{item.typeLabel}</Text>
           </View>
           <Ionicons
             name={isExpanded ? 'chevron-up' : 'chevron-forward'}
@@ -740,75 +758,107 @@ export default function SearchScreen() {
       )}
 
       {activeTab === 'locais' && (
-        <View style={[styles.filterRow, { borderBottomColor: withAlpha(colors.border, 0.3) }]}>
-          <Pressable
-            onPress={() => {
-              const next = !petFriendlyFilter
-              setPetFriendlyFilter(next)
-              executeLocaisSearch(query, next, categoryFilter, minRatingFilter)
-            }}
-            style={[
-              styles.filterPill,
-              { backgroundColor: petFriendlyFilter ? colors.primary : withAlpha(colors.muted, 0.5) },
-            ]}
-          >
-            <Ionicons name="paw" size={14} color={petFriendlyFilter ? 'white' : colors.mutedForeground} />
-            <Text
-              size="xs"
-              weight="700"
-              style={{ color: petFriendlyFilter ? 'white' : colors.mutedForeground }}
+        <>
+          <View style={[styles.filterRow, { borderBottomColor: withAlpha(colors.border, 0.3) }]}>
+            <Pressable
+              onPress={() => {
+                const next = !petFriendlyFilter
+                setPetFriendlyFilter(next)
+                executeLocaisSearch(query, next, categoryFilter, minRatingFilter)
+              }}
+              style={[
+                styles.filterPill,
+                {
+                  backgroundColor: petFriendlyFilter ? colors.primary : withAlpha(colors.primary, 0.06),
+                  borderColor: petFriendlyFilter ? colors.primary : withAlpha(colors.primary, 0.15),
+                },
+              ]}
             >
-              Pet Friendly
-            </Text>
-          </Pressable>
-
-          <View style={styles.filterDivider} />
-
-          {(['vet', 'petshop', 'park', 'hotel', 'beach', 'other'] as const).map((cat) => {
-            const catColors: Record<string, string> = {
-              vet: '#3B82F6',
-              petshop: '#F59E0B',
-              park: '#10B981',
-              hotel: '#8B5CF6',
-              beach: '#06B6D4',
-              other: '#6B7280',
-            }
-            const catLabels: Record<string, string> = {
-              vet: 'Vet',
-              petshop: 'PetShop',
-              park: 'Parque',
-              hotel: 'Hotel',
-              beach: 'Praia',
-              other: 'Outros',
-            }
-            const isActive = categoryFilter === cat
-            return (
-              <Pressable
-                key={cat}
-                onPress={() => {
-                  const next = isActive ? null : cat
-                  setCategoryFilter(next)
-                  executeLocaisSearch(query, petFriendlyFilter, next, minRatingFilter)
-                }}
-                style={[
-                  styles.categoryPill,
-                  {
-                    backgroundColor: isActive ? catColors[cat] : withAlpha(colors.muted, 0.3),
-                    borderColor: isActive ? catColors[cat] : withAlpha(colors.border, 0.3),
-                  },
-                ]}
+              <Ionicons name="paw" size={14} color={petFriendlyFilter ? 'white' : colors.primary} />
+              <Text
+                size="xs"
+                weight="700"
+                style={{ color: petFriendlyFilter ? 'white' : colors.primary }}
               >
-                <Text
-                  size="xs"
-                  weight="700"
-                  style={{ color: isActive ? 'white' : colors.mutedForeground }}
-                >
-                  {catLabels[cat]}
+                Pet Friendly
+              </Text>
+            </Pressable>
+
+            <View style={styles.filterDivider} />
+
+            <Pressable
+              onPress={() => setShowCategoryDropdown(true)}
+              style={[
+                styles.categoryDropdownBtn,
+                {
+                  backgroundColor: categoryFilter ? withAlpha(CATEGORY_COLORS[categoryFilter], 0.1) : withAlpha(colors.muted, 0.3),
+                  borderColor: categoryFilter ? withAlpha(CATEGORY_COLORS[categoryFilter], 0.3) : withAlpha(colors.border, 0.3),
+                },
+              ]}
+            >
+              {categoryFilter && (
+                <View style={[styles.categoryDropdownDot, { backgroundColor: CATEGORY_COLORS[categoryFilter] }]} />
+              )}
+              <Text
+                size="xs"
+                weight="700"
+                style={{
+                  color: categoryFilter ? CATEGORY_COLORS[categoryFilter] : colors.mutedForeground,
+                  flex: 1,
+                }}
+                numberOfLines={1}
+              >
+                {categoryFilter ? CATEGORY_LABELS[categoryFilter] : 'Categoria'}
+              </Text>
+              <Ionicons name="chevron-down" size={14} color={categoryFilter ? CATEGORY_COLORS[categoryFilter] : colors.mutedForeground} />
+            </Pressable>
+          </View>
+
+          <Modal visible={showCategoryDropdown} transparent animationType="fade" onRequestClose={() => setShowCategoryDropdown(false)}>
+            <Pressable style={styles.categoryDropdownOverlay} onPress={() => setShowCategoryDropdown(false)}>
+              <View style={[styles.categoryDropdownSheet, { backgroundColor: colors.card }]}>
+                <Text size="xs" weight="800" color="mutedForeground" style={{ marginBottom: 12, marginLeft: 2 }}>
+                  FILTRAR POR CATEGORIA
                 </Text>
-              </Pressable>
-            )
-          })}
-        </View>
+                {CATEGORY_KEYS.map((cat) => {
+                  const isActive = categoryFilter === cat
+                  return (
+                    <Pressable
+                      key={cat}
+                      onPress={() => {
+                        const next = isActive ? null : cat
+                        setCategoryFilter(next)
+                        setShowCategoryDropdown(false)
+                        executeLocaisSearch(query, petFriendlyFilter, next, minRatingFilter)
+                      }}
+                      style={[
+                        styles.categoryOption,
+                        {
+                          backgroundColor: isActive ? withAlpha(CATEGORY_COLORS[cat], 0.1) : 'transparent',
+                        },
+                      ]}
+                    >
+                      <View style={[styles.categoryOptionDot, { backgroundColor: CATEGORY_COLORS[cat] }]} />
+                      <Text
+                        weight="600"
+                        size="sm"
+                        style={{
+                          flex: 1,
+                          color: isActive ? CATEGORY_COLORS[cat] : colors.foreground,
+                        }}
+                      >
+                        {CATEGORY_LABELS[cat]}
+                      </Text>
+                      {isActive && (
+                        <Ionicons name="checkmark-circle" size={20} color={CATEGORY_COLORS[cat]} />
+                      )}
+                    </Pressable>
+                  )
+                })}
+              </View>
+            </Pressable>
+          </Modal>
+        </>
       )}
 
       {isLoading && (
@@ -1204,7 +1254,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     paddingVertical: 6,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    overflow: 'scroll',
   },
   filterPill: {
     flexDirection: 'row',
@@ -1213,6 +1262,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 16,
+    borderWidth: 2,
   },
   filterDivider: {
     width: 1,
@@ -1224,7 +1274,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 16,
-    borderWidth: 1,
+    borderWidth: 2,
   },
   pfButton: {
     flexDirection: 'row',

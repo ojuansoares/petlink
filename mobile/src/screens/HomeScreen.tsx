@@ -66,6 +66,8 @@ export default function HomeScreen() {
 
   const [showCreatePost, setShowCreatePost] = useState(false)
   const [weather, setWeather] = useState<WeatherInfo | null>(null)
+  const [weatherLoading, setWeatherLoading] = useState(false)
+  const [weatherError, setWeatherError] = useState(false)
   const [bannerUrl, setBannerUrl] = useState<string | null>(null)
   const [webViewLoading, setWebViewLoading] = useState(false)
   const [petCarouselIndex, setPetCarouselIndex] = useState(0)
@@ -153,35 +155,41 @@ export default function HomeScreen() {
 
   // Fetch weather using profile location
   // ─── Weather ─────────────────────────────────────────────
-  useEffect(() => {
+  const doFetchWeather = useCallback(async () => {
     const loc = profile?.location
-    console.log('[Weather] profile?.location =', JSON.stringify(loc))
-    if (!loc || (typeof loc === 'string' && !loc.trim())) {
-      console.log('[Weather] profile sem location, pulando')
-      return
-    }
+    if (!loc || (typeof loc === 'string' && !loc.trim())) return
 
-    if (typeof loc === 'string' && loc.includes(',')) {
-      // Lat/lng pair — parse and send as coords
-      const parts = loc.split(',').map(Number)
-      if (parts.length === 2 && isFinite(parts[0]) && isFinite(parts[1])) {
-        console.log('[Weather] enviando coordenadas:', { lat: parts[0], lng: parts[1] })
-        fetchCurrentWeather(parts[0], parts[1])
-          .then(data => { if (data) setWeather(data) })
-        return
+    setWeatherLoading(true)
+    setWeatherError(false)
+
+    try {
+      let data: WeatherInfo | null = null
+
+      if (typeof loc === 'string' && loc.includes(',')) {
+        const parts = loc.split(',').map(Number)
+        if (parts.length === 2 && isFinite(parts[0]) && isFinite(parts[1])) {
+          data = await fetchCurrentWeather(parts[0], parts[1])
+        }
+      } else if (typeof loc === 'string' && loc.trim().length > 0) {
+        data = await fetchCurrentWeather(undefined, undefined, loc.trim())
       }
-    }
 
-    // Text location (state code like "SP") — send to server for geocoding
-    if (typeof loc === 'string' && loc.trim().length > 0) {
-      console.log('[Weather] enviando texto para geocodificar:', loc.trim())
-      fetchCurrentWeather(undefined, undefined, loc.trim())
-        .then(data => { if (data) setWeather(data) })
-      return
+      if (data) {
+        setWeather(data)
+        setWeatherError(false)
+      } else {
+        setWeatherError(true)
+      }
+    } catch {
+      setWeatherError(true)
+    } finally {
+      setWeatherLoading(false)
     }
-
-    console.log('[Weather] formato de location não reconhecido:', typeof loc, loc)
   }, [profile?.location])
+
+  useEffect(() => {
+    doFetchWeather()
+  }, [doFetchWeather])
 
   const [reminders, setReminders] = useState<ReminderItem[]>([])
   const [remindersLoading, setRemindersLoading] = useState(false)
@@ -633,96 +641,6 @@ export default function HomeScreen() {
         </View>
       )}
 
-      {/* TEMPERATURE WIDGET */}
-      {weather && (
-        <Pressable
-          onPress={() => {
-            const loc = profile?.location
-            if (!loc || (typeof loc === 'string' && !loc.trim())) return
-            if (typeof loc === 'string' && loc.includes(',')) {
-              const parts = loc.split(',').map(Number)
-              if (parts.length === 2 && isFinite(parts[0]) && isFinite(parts[1])) {
-                fetchCurrentWeather(parts[0], parts[1]).then(setWeather)
-                return
-              }
-            }
-            if (typeof loc === 'string' && loc.trim().length > 0) {
-              fetchCurrentWeather(undefined, undefined, loc.trim()).then(setWeather)
-            }
-          }}
-        >
-          <Card
-            variant="organic"
-            style={[
-              styles.weatherCard,
-              {
-                backgroundColor: colors.card,
-                borderColor: weather.status === 'danger'
-                  ? withAlpha('#EF4444', 0.4)
-                  : weather.status === 'caution'
-                    ? withAlpha('#F59E0B', 0.4)
-                    : withAlpha(colors.primary, 0.4),
-              },
-            ]}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <View
-                style={[
-                  styles.weatherIconWrap,
-                  {
-                    backgroundColor: weather.status === 'danger'
-                      ? withAlpha('#EF4444', 0.12)
-                      : weather.status === 'caution'
-                        ? withAlpha('#F59E0B', 0.12)
-                        : withAlpha(colors.primary, 0.1),
-                  },
-                ]}
-              >
-                <Ionicons
-                  name="thermometer-outline"
-                  size={28}
-                  color={weather.status === 'danger' ? '#EF4444' : weather.status === 'caution' ? '#D97706' : colors.primary}
-                />
-              </View>
-              <View style={styles.weatherInfo}>
-                <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
-                  <Heading size="3xl" weight="800">{Math.round(weather.temperature)}</Heading>
-                  <Heading size="lg" weight="600" style={{ color: colors.mutedForeground }}>°C</Heading>
-                </View>
-                <Text weight="700" size="sm" color="primary">{weather.label}</Text>
-                <Text
-                  size="xs"
-                  style={{
-                    marginTop: 4,
-                    color: weather.status === 'danger' ? '#EF4444' : weather.status === 'caution' ? '#B45309' : colors.mutedForeground,
-                  }}
-                >
-                  {weather.status === 'danger'
-                    ? 'Temperatura extrema — evite exposição prolongada do seu pet.'
-                    : weather.status === 'caution'
-                      ? 'Atenção — fique de olho no bem-estar do seu pet.'
-                      : 'Temperatura ideal para passear com seu pet!'}
-                </Text>
-              </View>
-              <View style={[styles.weatherStatus, { backgroundColor: weather.status === 'danger' ? withAlpha('#EF4444', 0.12) : weather.status === 'caution' ? withAlpha('#F59E0B', 0.12) : withAlpha(colors.primary, 0.1), borderRadius: 99, paddingHorizontal: 10, paddingVertical: 4 }]}>
-                <Ionicons
-                  name={weather.status === 'danger' ? 'warning' : weather.status === 'caution' ? 'alert-circle' : 'checkmark-circle'}
-                  size={14}
-                  color={weather.status === 'danger' ? '#EF4444' : weather.status === 'caution' ? '#D97706' : colors.primary}
-                />
-                <Text
-                  size="xs"
-                  weight="700"
-                  style={{ color: weather.status === 'danger' ? '#EF4444' : weather.status === 'caution' ? '#D97706' : colors.primary }}
-                >
-                  {weather.status === 'danger' ? 'Perigo' : weather.status === 'caution' ? 'Atenção' : 'Ideal'}
-                </Text>
-              </View>
-            </View>
-          </Card>
-        </Pressable>
-      )}
-
       {/* BANNER CAROUSEL */}
       <ScrollView
         ref={bannerScrollRef}
@@ -791,9 +709,118 @@ export default function HomeScreen() {
         ))}
       </View>
 
+      {/* TEMPERATURE WIDGET */}
+      {(weather || weatherLoading || weatherError) && (
+        <Pressable onPress={doFetchWeather}
+        >
+          <View
+            style={[
+              styles.weatherCard,
+              {
+                backgroundColor: weather && !weatherLoading && !weatherError
+                  ? (weather.status === 'danger'
+                    ? withAlpha('#EF4444', 0.08)
+                    : weather.status === 'caution'
+                      ? withAlpha('#F59E0B', 0.08)
+                      : withAlpha(colors.primary, 0.08))
+                  : withAlpha(colors.muted, 0.3),
+                borderColor: weather && !weatherLoading && !weatherError
+                  ? (weather.status === 'danger'
+                    ? withAlpha('#EF4444', 0.5)
+                    : weather.status === 'caution'
+                      ? withAlpha('#F59E0B', 0.5)
+                      : withAlpha(colors.primary, 0.5))
+                  : withAlpha(colors.border, 0.5),
+                borderWidth: 2,
+                shadowOpacity: 0,
+                elevation: 0,
+              },
+            ]}
+          >
+            {weatherLoading ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <SkeletonBlock style={{ width: 60, height: 60, borderRadius: 30, marginRight: 14 }} />
+                <View style={{ flex: 1, gap: 8 }}>
+                  <SkeletonBlock style={{ width: 100, height: 24, borderRadius: 6 }} />
+                  <SkeletonBlock style={{ width: 180, height: 14, borderRadius: 6 }} />
+                </View>
+              </View>
+            ) : weatherError ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View style={[styles.weatherIconWrap, { backgroundColor: withAlpha(colors.mutedForeground, 0.1) }]}>
+                  <Ionicons name="cloud-offline-outline" size={28} color={colors.mutedForeground} />
+                </View>
+                <View style={styles.weatherInfo}>
+                  <Text weight="700" size="sm" color="mutedForeground">Clima indisponível</Text>
+                  <Text size="xs" color="mutedForeground" style={{ marginTop: 2 }}>
+                    Toque para tentar novamente
+                  </Text>
+                </View>
+                <Ionicons name="refresh" size={18} color={colors.mutedForeground} />
+              </View>
+            ) : (
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View
+                  style={[
+                    styles.weatherIconWrap,
+                    {
+                      backgroundColor: weather!.status === 'danger'
+                        ? withAlpha('#EF4444', 0.12)
+                        : weather!.status === 'caution'
+                          ? withAlpha('#F59E0B', 0.12)
+                          : withAlpha(colors.primary, 0.1),
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name="thermometer-outline"
+                    size={28}
+                    color={weather!.status === 'danger' ? '#EF4444' : weather!.status === 'caution' ? '#D97706' : colors.primary}
+                  />
+                </View>
+                <View style={styles.weatherInfo}>
+                  <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
+                    <Heading size="3xl" weight="800">{Math.round(weather!.temperature)}</Heading>
+                    <Heading size="lg" weight="600" style={{ color: colors.mutedForeground }}>°C</Heading>
+                    <View style={[styles.weatherStatus, { backgroundColor: weather!.status === 'danger' ? withAlpha('#EF4444', 0.12) : weather!.status === 'caution' ? withAlpha('#F59E0B', 0.12) : withAlpha(colors.primary, 0.1), borderRadius: 99, paddingHorizontal: 8, paddingVertical: 3 }]}>
+                      <Ionicons
+                        name={weather!.status === 'danger' ? 'warning' : weather!.status === 'caution' ? 'alert-circle' : 'checkmark-circle'}
+                        size={12}
+                        color={weather!.status === 'danger' ? '#EF4444' : weather!.status === 'caution' ? '#D97706' : colors.primary}
+                      />
+                      <Text
+                        size="xs"
+                        weight="700"
+                        style={{ color: weather!.status === 'danger' ? '#EF4444' : weather!.status === 'caution' ? '#D97706' : colors.primary }}
+                      >
+                        {weather!.status === 'danger' ? 'Perigo' : weather!.status === 'caution' ? 'Atenção' : 'Ideal'}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text weight="700" size="sm" color="primary" style={{ marginTop: 2 }}>{weather!.label}</Text>
+                  <Text
+                    size="xs"
+                    style={{
+                      marginTop: 4,
+                      color: weather!.status === 'danger' ? '#EF4444' : weather!.status === 'caution' ? '#B45309' : colors.mutedForeground,
+                    }}
+                  >
+                    {weather!.status === 'danger'
+                      ? 'Temperatura extrema — evite exposição prolongada do seu pet.'
+                      : weather!.status === 'caution'
+                        ? 'Atenção — fique de olho no bem-estar do seu pet.'
+                        : 'Temperatura ideal para passear com seu pet!'}
+                  </Text>
+                </View>
+              </View>
+            )}
+          </View>
+        </Pressable>
+      )}
+
       {/* RESUMO DA SEMANA */}
       {pets.length > 0 && (
-        <View style={{ marginTop: 12 }}>
+        <View style={{ marginTop: 4 }}>
           <WeeklySummaryCard pets={pets} />
         </View>
       )}
@@ -1051,8 +1078,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   weatherCard: {
-    padding: 16,
-    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginTop: 16,
+    marginBottom: 10,
   },
   weatherIconWrap: {
     width: 60,

@@ -165,94 +165,85 @@ export const petsService = {
 
     const data = await petsRepository.exportPetData(petId)
 
+    const sep = ';'
+    const escCSV = (v: any) => {
+      const s = v == null || v === undefined ? '' : String(v)
+      if (s.includes(sep) || s.includes('"') || s.includes('\n') || s.includes('\r')) {
+        return `"${s.replace(/"/g, '""')}"`
+      }
+      return s
+    }
+
     if (format === 'csv') {
       const rows: string[] = []
 
       // Pet info
-      rows.push('=== PET ===')
-      rows.push('Campo,Valor')
-      rows.push(`Nome,${pet.name}`)
-      rows.push(`Espécie,${pet.species}`)
-      rows.push(`Raça,${pet.breed ?? ''}`)
-      rows.push(`Data de Nascimento,${pet.birth_date ?? ''}`)
-      rows.push(`Peso (kg),${pet.weight_kg ?? ''}`)
-      rows.push(`Alergias,${pet.allergies ?? ''}`)
-      rows.push(`Temperamento,${pet.temperament ?? ''}`)
-      rows.push(`Observações,${pet.observations ?? ''}`)
+      rows.push(['Campo', 'Valor'].join(sep))
+      rows.push(['Nome', escCSV(pet.name)].join(sep))
+      rows.push(['Espécie', escCSV(pet.species)].join(sep))
+      rows.push(['Raça', escCSV(pet.breed)].join(sep))
+      rows.push(['Data de Nascimento', escCSV(pet.birth_date)].join(sep))
+      rows.push(['Peso (kg)', escCSV(pet.weight_kg)].join(sep))
+      rows.push(['Alergias', escCSV(pet.allergies)].join(sep))
+      rows.push(['Temperamento', escCSV(pet.temperament)].join(sep))
+      rows.push(['Observações', escCSV(pet.observations)].join(sep))
       rows.push('')
 
       // Vaccines
-      rows.push('=== VACINAS ===')
       if (data.vaccines.length === 0) {
         rows.push('Nenhum registro')
       } else {
-        rows.push('Nome,Tipo,Aplicada em,Próxima dose,Laboratório,Lote,Veterinário,Observações')
+        rows.push(['Nome', 'Tipo', 'Aplicada em', 'Próxima dose', 'Laboratório', 'Lote', 'Veterinário', 'Observações'].join(sep))
         for (const v of data.vaccines) {
-          rows.push(`${v.name},${v.type ?? 'vacina'},${v.applied_at ?? ''},${v.next_dose_at ?? ''},${v.lab ?? ''},${v.batch ?? ''},${v.vet_name ?? ''},${v.notes ?? ''}`)
+          rows.push([escCSV(v.name), escCSV(v.type || 'vacina'), escCSV(v.applied_at), escCSV(v.next_dose_at), escCSV(v.lab), escCSV(v.batch), escCSV(v.vet_name), escCSV(v.notes)].join(sep))
         }
       }
       rows.push('')
 
       // Consultations
-      rows.push('=== CONSULTAS ===')
       if (data.consultations.length === 0) {
         rows.push('Nenhum registro')
       } else {
-        rows.push('Veterinário,Clínica,Data,Motivo,Diagnóstico,Exames,Prescrição,Observações')
+        rows.push(['Veterinário', 'Clínica', 'Data', 'Motivo', 'Diagnóstico', 'Exames', 'Prescrição', 'Observações'].join(sep))
         for (const c of data.consultations) {
-          rows.push(`${c.vet_name},${c.clinic ?? ''},${c.consulted_at ?? ''},${c.reason},${c.diagnosis ?? ''},${c.exams_requested ?? ''},${c.prescription ?? ''},${c.notes ?? ''}`)
+          rows.push([escCSV(c.vet_name), escCSV(c.clinic), escCSV(c.consulted_at), escCSV(c.reason), escCSV(c.diagnosis), escCSV(c.exams_requested), escCSV(c.prescription), escCSV(c.notes)].join(sep))
         }
       }
       rows.push('')
 
       // Weight records
-      rows.push('=== REGISTROS DE PESO ===')
       if (data.weightRecords.length === 0) {
         rows.push('Nenhum registro')
       } else {
-        rows.push('Data,Peso (kg),Observações')
+        rows.push(['Data', 'Peso (kg)'].join(sep))
         for (const w of data.weightRecords) {
-          rows.push(`${w.recorded_at ?? ''},${w.weight_kg},${w.notes ?? ''}`)
+          rows.push([escCSV(w.recorded_at), escCSV(w.weight_kg)].join(sep))
         }
       }
       rows.push('')
 
       // Walks
-      rows.push('=== PASSEIOS ===')
       if (data.walks.length === 0) {
         rows.push('Nenhum registro')
       } else {
-        rows.push('Início,Fim,Distância (m),Duração (s),Passos,Velocidade Média (km/h),Calorias,Pace (min/km),Observações')
+        rows.push(['Início', 'Fim', 'Distância (m)', 'Duração (s)', 'Passos', 'Velocidade Média (km/h)', 'Calorias', 'Pace (min/km)', 'Observações'].join(sep))
         for (const w of data.walks) {
-          rows.push(`${w.started_at ?? ''},${w.ended_at ?? ''},${w.distance_m ?? ''},${w.duration_s ?? ''},${w.steps_count ?? ''},${w.avg_speed_kmh ?? ''},${w.calories ?? ''},${w.avg_pace_min_km ?? ''},${w.notes ?? ''}`)
+          rows.push([escCSV(w.started_at), escCSV(w.ended_at), escCSV(w.distance_m), escCSV(w.duration_s), escCSV(w.steps_count), escCSV(w.avg_speed_kmh), escCSV(w.calories), escCSV(w.avg_pace_min_km), escCSV(w.notes)].join(sep))
         }
       }
       rows.push('')
 
       // Feeding plans
-      rows.push('=== PLANO ALIMENTAR ===')
       if (data.feedingPlans.length === 0) {
         rows.push('Nenhum registro')
       } else {
-        rows.push('Refeição,Horário,Quantidade,Ordem')
+        rows.push(['Refeição', 'Horário', 'Quantidade', 'Ordem'].join(sep))
         for (const f of data.feedingPlans) {
-          rows.push(`${f.meal_name},${f.meal_time},${f.quantity ?? ''},${f.order_index}`)
-        }
-      }
-      rows.push('')
-
-      // Feeding logs
-      rows.push('=== REGISTROS DE ALIMENTAÇÃO ===')
-      if (data.feedingLogs.length === 0) {
-        rows.push('Nenhum registro')
-      } else {
-        rows.push('Data,Refeição,Horário,Quantidade,Marcado em')
-        for (const f of data.feedingLogs) {
-          rows.push(`${f.log_date},${f.meal_name},${f.scheduled_time},${f.quantity ?? ''},${f.checked_at ?? ''}`)
+          rows.push([escCSV(f.meal_name), escCSV(f.meal_time), escCSV(f.quantity), escCSV(f.order_index)].join(sep))
         }
       }
 
-      return { content: rows.join('\n'), filename: `${pet.name}-exportacao.csv`, contentType: 'text/csv; charset=utf-8' as const }
+      return { content: '\uFEFFsep=' + sep + '\n' + rows.join('\n'), filename: `${pet.name}-exportacao.csv`, contentType: 'text/csv; charset=utf-8' as const }
     }
 
     if (format === 'pdf') {
@@ -297,7 +288,6 @@ export const petsService = {
       registrosDePeso: data.weightRecords.map(w => ({
         data: w.recorded_at,
         pesoKg: w.weight_kg,
-        observacoes: w.notes,
       })),
       passeios: data.walks.map(w => ({
         inicio: w.started_at,
@@ -315,13 +305,6 @@ export const petsService = {
         horario: f.meal_time,
         quantidade: f.quantity,
         ordem: f.order_index,
-      })),
-      registrosAlimentacao: data.feedingLogs.map(f => ({
-        data: f.log_date,
-        refeicao: f.meal_name,
-        horario: f.scheduled_time,
-        quantidade: f.quantity,
-        marcadoEm: f.checked_at,
       })),
     }
 
@@ -431,19 +414,20 @@ export const petsService = {
     section('INFORMAÇÕES DO PET')
     const infoData: [string, string][] = [
       ['Nome', pet.name],
-      ['Espécie', pet.species],
-      ['Raça', pet.breed ?? '—'],
-      ['Data de Nascimento', fmt(pet.birth_date)],
+      ['Espécie', pet.species || '—'],
+      ['Raça', pet.breed || '—'],
+      ['Data de Nascimento', pet.birth_date ? fmt(pet.birth_date) : '—'],
       ['Peso', pet.weight_kg ? `${pet.weight_kg} kg` : '—'],
-      ['Alergias', pet.allergies ?? '—'],
-      ['Temperamento', pet.temperament ?? '—'],
-      ['Observações', pet.observations ?? '—'],
+      ['Alergias', pet.allergies || '—'],
+      ['Temperamento', pet.temperament || '—'],
+      ['Observações', pet.observations || '—'],
     ]
     infoData.forEach(([label, value], i) => {
-      const bgColor = i % 2 === 0 ? white : 'transparent'
+      const bgColor = i % 2 === 0 ? white : bg
       doc.rect(ML, y - 2, CW, 18).fill(bgColor)
       doc.fillColor(muted).font('Helvetica').fontSize(8).text(label, ML + 8, y + 1, { width: 120 })
-      doc.fillColor(dark).font('Helvetica-Bold').fontSize(8.5).text(value, ML + 140, y + 1, { width: CW - 160 })
+      const valColor = value === '—' ? '#B0B0A8' : dark
+      doc.fillColor(valColor).font('Helvetica-Bold').fontSize(8.5).text(value, ML + 140, y + 1, { width: CW - 160 })
       y += 18
     })
     y += 8
@@ -451,13 +435,14 @@ export const petsService = {
     // ═══════════ VACCINES ═══════════
     section('VACINAS')
     if (data.vaccines.length === 0) { empty() } else {
+      const hasVet = data.vaccines.some((v: any) => v.vet_name)
       const vCols = [
         { label: 'Vacina', x: ML + 8, w: 90 },
         { label: 'Tipo', x: ML + 100, w: 50 },
         { label: 'Aplicada em', x: ML + 150, w: 70 },
         { label: 'Próxima dose', x: ML + 220, w: 70 },
         { label: 'Laboratório', x: ML + 290, w: 80 },
-        { label: 'Veterinário', x: ML + 370, w: 80 },
+        ...(hasVet ? [{ label: 'Veterinário', x: ML + 370, w: 80 }] : []),
       ]
       tableHeader(vCols)
       data.vaccines.forEach((v: any) => tableRow([
@@ -466,7 +451,7 @@ export const petsService = {
         { text: fmt(v.applied_at), x: ML + 150, w: 70 },
         { text: fmt(v.next_dose_at), x: ML + 220, w: 70 },
         { text: v.lab ?? '—', x: ML + 290, w: 80 },
-        { text: v.vet_name ?? '—', x: ML + 370, w: 80 },
+        ...(hasVet ? [{ text: v.vet_name ?? '—', x: ML + 370, w: 80 }] : []),
       ]))
     }
     y += 8
@@ -498,13 +483,11 @@ export const petsService = {
       const wCols = [
         { label: 'Data', x: ML + 8, w: 80 },
         { label: 'Peso (kg)', x: ML + 100, w: 70 },
-        { label: 'Observações', x: ML + 180, w: 250 },
       ]
       tableHeader(wCols)
       data.weightRecords.forEach((w: any) => tableRow([
         { text: fmt(w.recorded_at), x: ML + 8, w: 80 },
         { text: String(w.weight_kg), x: ML + 100, w: 70 },
-        { text: w.notes ?? '—', x: ML + 180, w: 250 },
       ]))
     }
     y += 8
@@ -548,27 +531,6 @@ export const petsService = {
         { text: f.meal_name, x: ML + 8, w: 100 },
         { text: f.meal_time ?? '—', x: ML + 120, w: 60 },
         { text: f.quantity ?? '—', x: ML + 190, w: 80 },
-      ]))
-    }
-    y += 8
-
-    // ═══════════ FEEDING LOGS ═══════════
-    section('REGISTROS DE ALIMENTAÇÃO')
-    if (data.feedingLogs.length === 0) { empty() } else {
-      const flCols = [
-        { label: 'Data', x: ML + 8, w: 70 },
-        { label: 'Refeição', x: ML + 85, w: 80 },
-        { label: 'Horário', x: ML + 170, w: 55 },
-        { label: 'Quantidade', x: ML + 230, w: 60 },
-        { label: 'Marcado', x: ML + 295, w: 80 },
-      ]
-      tableHeader(flCols)
-      data.feedingLogs.forEach((f: any) => tableRow([
-        { text: f.log_date ?? '—', x: ML + 8, w: 70 },
-        { text: f.meal_name, x: ML + 85, w: 80 },
-        { text: f.scheduled_time ?? '—', x: ML + 170, w: 55 },
-        { text: f.quantity ?? '—', x: ML + 230, w: 60 },
-        { text: f.checked_at ? 'Sim' : '—', x: ML + 295, w: 80 },
       ]))
     }
     y += 8

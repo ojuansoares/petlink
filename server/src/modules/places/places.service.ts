@@ -5,7 +5,7 @@ const VALID_OSM_TYPES = ['node', 'way', 'relation']
 
 export const placesService = {
   async search(query: string, lat?: number, lng?: number, limit = 20, petFriendly = false, category?: string) {
-    if (!query.trim()) throw new AppError('Termo de busca é obrigatório', 400)
+    if (!query.trim() && !petFriendly) throw new AppError('Termo de busca é obrigatório', 400)
     return placesRepository.search(query, lat, lng, limit, petFriendly, category)
   },
 

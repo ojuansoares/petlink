@@ -38,7 +38,7 @@ type ScreenRoute = RouteProp<AppStackParamList, 'WalkRecording'>
 type Phase = 'preparing' | 'walking'
 
 export default function WalkRecordingScreen() {
-  const { colors, withAlpha } = useTheme()
+  const { colors, withAlpha, isDark } = useTheme()
   const route = useRoute<ScreenRoute>()
   const navigation = useNavigation()
   const { petId, petName } = route.params
@@ -472,59 +472,87 @@ export default function WalkRecordingScreen() {
       {/* PHASE: walking — stats overlay + controls */}
       {phase === 'walking' && (
         <>
-          <View style={[styles.infoOverlay, { backgroundColor: withAlpha('#000', 0.6) }]}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-              <Ionicons name="moon-outline" size={12} color="rgba(255,255,255,0.5)" />
-              <Text size="xs" style={{ color: 'rgba(255,255,255,0.5)' }}>Funciona com a tela desligada</Text>
-            </View>
-            <Text weight="800" size="3xl" style={{ color: '#fff' }}>{formatTime(elapsedS)}</Text>
-            <View style={styles.infoRow}>
-              <View style={styles.infoItem}>
-                <Text size="xs" style={{ color: 'rgba(255,255,255,0.7)' }}>Distância</Text>
-                <Text weight="700" size="lg" style={{ color: '#fff' }}>{distanceText}</Text>
-              </View>
-              <View style={styles.infoItem}>
-                <Text size="xs" style={{ color: 'rgba(255,255,255,0.7)' }}>Ritmo</Text>
-                <Text weight="700" size="lg" style={{ color: '#fff' }}>
-                  {activeWalk && activeWalk.distanceM > 0
-                    ? `${formatTime(Math.round(elapsedS / (activeWalk.distanceM / 1000)))}/km`
-                    : '—'}
-                </Text>
-              </View>
-            </View>
-            {gpsError && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
-                <Ionicons name="alert-circle" size={14} color="#FBBF24" />
-                <Text size="xs" style={{ color: '#FBBF24' }}>GPS sem sinal — mova-se para uma área aberta</Text>
-              </View>
-            )}
-            {!isOnline && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
-                <Ionicons name="cloud-offline-outline" size={14} color="#94A3B8" />
-                <Text size="xs" style={{ color: '#94A3B8' }}>Sem conexão — o mapa pode não exibir todos os detalhes</Text>
-              </View>
-            )}
-          </View>
+          {(() => {
+            const infoBg = isDark ? withAlpha(colors.background, 0.65) : withAlpha(colors.background, 0.7)
+            const infoText = isDark ? '#fff' : colors.foreground
+            const infoSubtle = isDark ? 'rgba(255,255,255,0.5)' : withAlpha(colors.foreground, 0.55)
+            const infoMuted = isDark ? 'rgba(255,255,255,0.35)' : withAlpha(colors.foreground, 0.35)
+            const dividerBg = isDark ? 'rgba(255,255,255,0.12)' : withAlpha(colors.border, 0.3)
+            const ctrlBg = isDark ? withAlpha(colors.background, 0.92) : withAlpha(colors.card, 0.92)
+            const ctrlBorder = isDark ? withAlpha('#fff', 0.12) : withAlpha(colors.foreground, 0.12)
+            const labelMuted = isDark ? withAlpha('#fff', 0.5) : withAlpha(colors.foreground, 0.55)
 
-          <View style={styles.controls}>
-            {isPaused ? (
-              <Pressable onPress={handleResume} style={[styles.controlBtn, { backgroundColor: '#22C55E' }]}>
-                <Ionicons name="play" size={32} color="#fff" />
-              </Pressable>
-            ) : (
-              <Pressable onPress={handlePause} style={[styles.controlBtn, { backgroundColor: '#F59E0B' }]}>
-                <Ionicons name="pause" size={32} color="#fff" />
-              </Pressable>
-            )}
+            return (
+              <>
+                <View style={[styles.infoOverlay, { backgroundColor: infoBg }]}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                    <Ionicons name="moon-outline" size={10} color={infoMuted} />
+                    <Text size="xs" style={{ color: infoMuted }}>Funciona com a tela desligada</Text>
+                  </View>
+                  <Text weight="800" size="3xl" style={{ color: infoText, letterSpacing: 1 }}>{formatTime(elapsedS)}</Text>
+                  <View style={[styles.infoRow, { marginTop: 2 }]}>
+                    <View style={styles.infoItem}>
+                      <Text size="xs" weight="600" style={{ color: infoSubtle }}>Distância</Text>
+                      <Text weight="700" size="lg" style={{ color: infoText }}>{distanceText}</Text>
+                    </View>
+                    <View style={[styles.infoDivider, { backgroundColor: dividerBg }]} />
+                    <View style={styles.infoItem}>
+                      <Text size="xs" weight="600" style={{ color: infoSubtle }}>Ritmo</Text>
+                      <Text weight="700" size="lg" style={{ color: infoText }}>
+                        {activeWalk && activeWalk.distanceM > 0
+                          ? `${formatTime(Math.round(elapsedS / (activeWalk.distanceM / 1000)))}/km`
+                          : '—'}
+                      </Text>
+                    </View>
+                  </View>
+                  {gpsError && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8, backgroundColor: withAlpha('#FBBF24', 0.1), paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 }}>
+                      <Ionicons name="alert-circle" size={14} color="#FBBF24" />
+                      <Text size="xs" style={{ color: '#FBBF24' }}>GPS sem sinal — mova-se para uma área aberta</Text>
+                    </View>
+                  )}
+                  {!isOnline && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8, backgroundColor: withAlpha('#94A3B8', 0.1), paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 }}>
+                      <Ionicons name="cloud-offline-outline" size={14} color="#94A3B8" />
+                      <Text size="xs" style={{ color: '#94A3B8' }}>Sem conexão — o mapa pode não exibir todos os detalhes</Text>
+                    </View>
+                  )}
+                </View>
 
-            <Pressable onPress={handleStop} style={[styles.stopBtn, { backgroundColor: '#EF4444' }]}>
-              <Ionicons name="stop" size={28} color="#fff" />
-            </Pressable>
+                <View style={[styles.controls, { backgroundColor: ctrlBg, borderTopColor: ctrlBorder }]}>
+                  {isPaused ? (
+                    <Pressable onPress={handleResume} style={styles.controlBtn}>
+                      <View style={[styles.controlBtnInner, { backgroundColor: colors.primary }]}>
+                        <Ionicons name="play" size={28} color="#fff" />
+                      </View>
+                      <Text size="xs" weight="700" style={{ color: labelMuted, marginTop: 4 }}>Retomar</Text>
+                    </Pressable>
+                  ) : (
+                    <Pressable onPress={handlePause} style={styles.controlBtn}>
+                      <View style={[styles.controlBtnInner, { backgroundColor: colors.primary }]}>
+                        <Ionicons name="pause" size={28} color="#fff" />
+                      </View>
+                      <Text size="xs" weight="700" style={{ color: labelMuted, marginTop: 4 }}>Pausar</Text>
+                    </Pressable>
+                  )}
 
-            <Pressable onPress={handleDiscard} style={[styles.controlBtn, { backgroundColor: withAlpha('#EF4444', 0.3) }]}>
-              <Ionicons name="trash-outline" size={24} color="#EF4444" />
-            </Pressable>
-          </View>
+                  <Pressable onPress={handleStop} style={styles.controlBtn}>
+                    <View style={[styles.controlBtnInner, { backgroundColor: colors.primary }]}>
+                      <Ionicons name="stop" size={28} color="#fff" />
+                    </View>
+                    <Text size="xs" weight="700" style={{ color: labelMuted, marginTop: 4 }}>Finalizar</Text>
+                  </Pressable>
+
+                  <Pressable onPress={handleDiscard} style={styles.controlBtn}>
+                    <View style={[styles.controlBtnInner, { backgroundColor: colors.primary }]}>
+                      <Ionicons name="trash-outline" size={24} color="#fff" />
+                    </View>
+                    <Text size="xs" weight="700" style={{ color: labelMuted, marginTop: 4 }}>Descartar</Text>
+                  </Pressable>
+                </View>
+              </>
+            )
+          })()}
         </>
       )}
 
@@ -761,7 +789,7 @@ const styles = StyleSheet.create({
     padding: 20,
     borderRadius: 20,
     alignItems: 'center',
-    gap: 12,
+    gap: 8,
   },
   infoRow: {
     flexDirection: 'row',
@@ -770,29 +798,36 @@ const styles = StyleSheet.create({
   infoItem: {
     alignItems: 'center',
     gap: 4,
+    flex: 1,
+  },
+  infoDivider: {
+    width: 1,
+    height: 36,
   },
   controls: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 32,
-    paddingVertical: 32,
-    paddingBottom: Platform.OS === 'ios' ? 48 : 32,
-    backgroundColor: '#1C1C16',
+    justifyContent: 'space-evenly',
+    paddingVertical: 36,
+    paddingHorizontal: 16,
+    paddingBottom: Platform.OS === 'ios' ? 52 : 36,
+    borderTopWidth: 2,
   },
   controlBtn: {
+    alignItems: 'center',
+    gap: 2,
+  },
+  controlBtnInner: {
     width: 60,
     height: 60,
     borderRadius: 30,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  stopBtn: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
   },
   finishOverlay: {
     flex: 1,

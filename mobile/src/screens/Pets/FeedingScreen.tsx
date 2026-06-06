@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import {
-  View, StyleSheet, ScrollView, Pressable, TextInput, Alert, Animated, Modal, ActivityIndicator, RefreshControl,
+  View, StyleSheet, ScrollView, Pressable, TextInput, Animated, Modal, ActivityIndicator, RefreshControl,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker'
@@ -19,6 +19,8 @@ import { Heading, Text } from '../../components/ui/Typography'
 import { Button } from '../../components/ui/Button'
 import { showToast } from '../../store/slices/uiSlice'
 import { AppToast } from '../../components/ui/AppToast'
+import { ConfirmModal } from '../../components/ui/ConfirmModal'
+import { ActionOptionsModal } from '../../components/ui/ActionOptionsModal'
 import { FeedingScoreCalendar } from '../../components/FeedingScoreCalendar'
 import { scheduleFeedingNotifications } from '../../services/NotificationService'
 
@@ -46,6 +48,8 @@ export default function FeedingScreen({ route }: any) {
   const [mode, setMode] = useState<'loading' | 'create' | 'check'>('loading')
   const [showCelebration, setShowCelebration] = useState(false)
   const [checkingId, setCheckingId] = useState<string | null>(null)
+  const [showPlanMenu, setShowPlanMenu] = useState(false)
+  const [alertDialog, setAlertDialog] = useState<{ title: string; message: string; onConfirm?: () => void; destructive?: boolean; confirmLabel?: string; cancelLabel?: string } | null>(null)
   const [loadingPlan, setLoadingPlan] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [scoreViewMode, setScoreViewMode] = useState<'weekly' | 'monthly'>('weekly')
@@ -152,12 +156,12 @@ export default function FeedingScreen({ route }: any) {
   }, [meals])
 
   const handleSave = async () => {
-    if (meals.length === 0) { Alert.alert('Atenção', 'Adicione pelo menos uma refeição.'); return }
+    if (meals.length === 0) { setAlertDialog({ title: 'Atenção', message: 'Adicione pelo menos uma refeição.', confirmLabel: 'OK', cancelLabel: '', onConfirm: () => setAlertDialog(null) }); return }
 
     for (let i = 1; i < meals.length; i++) {
       const err = validateTimeProgression(i, meals[i].meal_time, meals)
       if (err) {
-        Alert.alert('Horários fora de ordem', err)
+        setAlertDialog({ title: 'Horários fora de ordem', message: err, confirmLabel: 'OK', cancelLabel: '', onConfirm: () => setAlertDialog(null) })
         return
       }
     }
@@ -188,7 +192,7 @@ export default function FeedingScreen({ route }: any) {
         (l) => l.order_index < log.order_index && !l.checked_at
       )
       if (prevUnchecked) {
-        Alert.alert('Ordem obrigatória', `Marque "${prevUnchecked.meal_name}" primeiro.`)
+        setAlertDialog({ title: 'Ordem obrigatória', message: `Marque "${prevUnchecked.meal_name}" primeiro.`, confirmLabel: 'OK', cancelLabel: '', onConfirm: () => setAlertDialog(null) })
         return
       }
     }
@@ -282,15 +286,20 @@ export default function FeedingScreen({ route }: any) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={[styles.scroll, { paddingTop: 60 }]}>
-          <View style={styles.header}>
+          <View style={styles.headerRow}>
             <View style={[styles.iconCircle, { backgroundColor: withAlpha('#F97316', 0.15) }]}>
               <Ionicons name="restaurant-outline" size={28} color="#F97316" />
             </View>
-            <Heading size="xl" weight="800">Alimentação de Hoje</Heading>
-            <Text color="mutedForeground">{petName}</Text>
+            <View style={{ flex: 1 }}>
+              <Heading size="lg" weight="800">Alimentação de Hoje</Heading>
+              <Text color="mutedForeground">{petName}</Text>
+            </View>
+            <SkeletonBlock style={{ width: 22, height: 22, borderRadius: 11 }} />
           </View>
+          <SkeletonBlock style={{ height: 6, borderRadius: 3, marginVertical: 4 }} />
+          <SkeletonBlock style={{ height: 180, borderRadius: 16 }} />
           {[0, 1, 2].map((i) => (
-            <SkeletonBlock key={i} style={{ height: 100, borderRadius: 16 }} />
+            <SkeletonBlock key={i} style={{ height: 64, borderRadius: 14 }} />
           ))}
         </View>
       </View>
@@ -347,7 +356,7 @@ export default function FeedingScreen({ route }: any) {
                   if (!date) return
                   const error = validateTimeProgression(index, date, meals)
                   if (error) {
-                    Alert.alert('Horário inválido', error)
+                    setAlertDialog({ title: 'Horário inválido', message: error, confirmLabel: 'OK', cancelLabel: '', onConfirm: () => setAlertDialog(null) })
                     return
                   }
                   updateMeal(index, 'meal_time', date)
@@ -375,12 +384,17 @@ export default function FeedingScreen({ route }: any) {
         contentContainerStyle={styles.scroll}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />}
       >
-        <View style={styles.header}>
+        <View style={styles.headerRow}>
           <View style={[styles.iconCircle, { backgroundColor: withAlpha('#F97316', 0.15) }]}>
             <Ionicons name="restaurant-outline" size={28} color="#F97316" />
           </View>
-          <Heading size="xl" weight="800">Alimentação de Hoje</Heading>
-          <Text color="mutedForeground">{petName} • {checkedCount}/{logs.length}</Text>
+          <View style={{ flex: 1 }}>
+            <Heading size="lg" weight="800">Alimentação de Hoje</Heading>
+            <Text color="mutedForeground">{petName} • {checkedCount}/{logs.length}</Text>
+          </View>
+          <Pressable onPress={() => setShowPlanMenu(true)} hitSlop={8} style={{ padding: 4 }}>
+            <Ionicons name="ellipsis-horizontal" size={22} color={colors.mutedForeground} />
+          </Pressable>
         </View>
 
         <View style={styles.progressContainer}>
@@ -436,39 +450,6 @@ export default function FeedingScreen({ route }: any) {
           })
         )}
 
-        <Pressable style={[styles.editPlanButton, { borderColor: colors.border }]} onPress={() => {
-          setMeals(plan.map((m: FeedingPlan) => ({ id: m.id, meal_name: m.meal_name, meal_time: parseTime(m.meal_time), quantity: m.quantity ?? '' })))
-          setMode('create')
-        }}>
-          <Ionicons name="pencil-outline" size={16} color={colors.mutedForeground} />
-          <Text size="sm" color="mutedForeground">Editar plano</Text>
-        </Pressable>
-
-        <Pressable
-          style={[styles.editPlanButton, { borderColor: '#EF4444' }]}
-          onPress={() => {
-            Alert.alert(
-              'Desativar plano alimentar',
-              'Todas as refeições e notificações de alimentação do ' + petName + ' serão removidas. Deseja continuar?',
-              [
-                { text: 'Cancelar', style: 'cancel' },
-                {
-                  text: 'Desativar',
-                  style: 'destructive',
-                  onPress: async () => {
-                    await dispatch(deactivateFeedingPlanThunk(petId))
-                    const { cancelFeedingNotifications } = await import('../../services/NotificationService')
-                    await cancelFeedingNotifications(petId)
-                    dispatch(showToast({ type: 'success', title: 'Plano desativado', message: 'O plano alimentar foi removido.' }))
-                  },
-                },
-              ]
-            )
-          }}
-        >
-          <Ionicons name="trash-outline" size={16} color="#EF4444" />
-          <Text size="sm" style={{ color: '#EF4444' }}>Desativar plano</Text>
-        </Pressable>
       </ScrollView>
 
       <Modal visible={showCelebration} transparent animationType="fade">
@@ -487,6 +468,50 @@ export default function FeedingScreen({ route }: any) {
           </Animated.View>
         </View>
       </Modal>
+
+      <ActionOptionsModal
+        visible={showPlanMenu}
+        onClose={() => setShowPlanMenu(false)}
+        title="Plano Alimentar"
+        options={[
+          {
+            label: 'Editar plano',
+            icon: 'pencil-outline',
+            onPress: () => {
+              setMeals(plan.map((m: FeedingPlan) => ({ id: m.id, meal_name: m.meal_name, meal_time: parseTime(m.meal_time), quantity: m.quantity ?? '' })))
+              setMode('create')
+            },
+          },
+          {
+            label: 'Desativar plano',
+            icon: 'trash-outline',
+            variant: 'destructive',
+            onPress: () => {},
+          },
+        ]}
+        confirmDeleteTitle="Desativar plano alimentar?"
+        confirmDeleteDesc={'Todas as refeições e notificações de alimentação do ' + petName + ' serão removidas. Deseja continuar?'}
+        onDelete={async () => {
+          await dispatch(deactivateFeedingPlanThunk(petId))
+          const { cancelFeedingNotifications } = await import('../../services/NotificationService')
+          await cancelFeedingNotifications(petId)
+          dispatch(showToast({ type: 'success', title: 'Plano desativado', message: 'O plano alimentar foi removido.' }))
+        }}
+      />
+
+      <ConfirmModal
+        visible={!!alertDialog}
+        title={alertDialog?.title ?? ''}
+        message={alertDialog?.message ?? ''}
+        confirmLabel={alertDialog?.confirmLabel}
+        cancelLabel={alertDialog?.cancelLabel}
+        destructive={alertDialog?.destructive}
+        onConfirm={() => {
+          if (alertDialog?.onConfirm) alertDialog.onConfirm()
+          else setAlertDialog(null)
+        }}
+        onCancel={() => setAlertDialog(null)}
+      />
     </View>
   )
 }
@@ -495,6 +520,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   center: { justifyContent: 'center', alignItems: 'center' },
   scroll: { padding: 16, gap: 12, paddingBottom: 40 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
   header: { alignItems: 'center', gap: 8, marginBottom: 8 },
   iconCircle: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
   mealCard: { borderRadius: 16, borderWidth: 1, padding: 14, gap: 12 },
@@ -510,7 +536,7 @@ const styles = StyleSheet.create({
   logCard: { borderRadius: 14, borderWidth: 1, padding: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   logLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
   checkedBadge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
-  editPlanButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderRadius: 12, paddingVertical: 10, marginTop: 8 },
+
   celebrationOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 32 },
   celebrationCard: { borderRadius: 24, padding: 32, alignItems: 'center', gap: 12, width: '100%', maxWidth: 320 },
   celebrationEmoji: { fontSize: 64 },

@@ -451,26 +451,6 @@ export function VaccineScreen() {
     )
   }
 
-  if (loading) {
-    return (
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={{ paddingHorizontal: 16, paddingTop: 8, gap: 12 }}>
-          <SkeletonBlock style={{ height: 44, borderRadius: 12 }} />
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            <SkeletonBlock style={{ flex: 1, height: 36, borderRadius: 8 }} />
-            <SkeletonBlock style={{ flex: 1, height: 36, borderRadius: 8 }} />
-          </View>
-          <SkeletonBlock style={{ width: 160, height: 16, borderRadius: 6 }} />
-        </View>
-        <View style={{ padding: 16, gap: 12 }}>
-          {[0, 1, 2, 3].map((i) => (
-            <SkeletonBlock key={i} style={{ height: 80, borderRadius: 14 }} />
-          ))}
-        </View>
-      </View>
-    );
-  }
-
   return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={{ paddingHorizontal: 16, paddingTop: 8 }}>
@@ -493,6 +473,13 @@ export function VaccineScreen() {
         <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
            <Text size="sm" weight="700" color="mutedForeground">Histórico de {petName}</Text>
         </View>
+      {loading ? (
+        <View style={{ padding: 16, gap: 12, flex: 1 }}>
+          {[0, 1, 2, 3].map((i) => (
+            <SkeletonBlock key={i} style={{ height: 80, borderRadius: 14 }} />
+          ))}
+        </View>
+      ) : (
       <FlatList
         data={items}
         renderItem={renderItem}
@@ -500,6 +487,7 @@ export function VaccineScreen() {
         contentContainerStyle={{ padding: 16, flexGrow: 1 }}
         ListEmptyComponent={<View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}><Text style={{textAlign: 'center', color: colors.mutedForeground}}>Nenhum item encontrado.</Text></View>}
       />
+      )}
         <View style={styles.footer}>
           <Button onPress={handleAddItem} label={`Adicionar ${activeTab === 'vaccine' ? 'Vacina' : 'Vermífugo'}`} />
         </View>
