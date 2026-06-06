@@ -217,10 +217,22 @@ export default function SearchScreen() {
     park: 'parque',
     hotel: 'hotel pet',
     beach: 'praia',
+    other: 'lugar',
   }
 
   const executeLocaisSearch = useCallback((q: string, pf: boolean, cat: string | null, _rating: number) => {
-    const searchTerm = q.length >= 2 ? q : (cat ? (CATEGORY_DEFAULT_QUERY[cat] || cat) : '')
+    let searchTerm = q && q.trim().length >= 2 ? q.trim() : ''
+    // When PF is active alone with no text and no category, use a broad search
+    if (!searchTerm && pf && !cat) {
+      searchTerm = 'pet friendly'
+    }
+    // When a category is active but no user text, use the category default
+    if (!searchTerm && cat) {
+      searchTerm = CATEGORY_DEFAULT_QUERY[cat] || cat
+    }
+    // When both user text and category are present, use the text (server augments with category terms)
+    // No action needed — server-side augmentation handles it
+
     if (!searchTerm) return
     const { lat, lng } = userCoords.current ?? {}
     dispatch(searchPlacesThunk({ q: searchTerm, lat, lng, petFriendly: pf, category: cat ?? undefined }))

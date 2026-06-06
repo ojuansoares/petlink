@@ -152,8 +152,10 @@ export default function HomeScreen() {
   }, [activePet?.id, petCarouselIndex])
 
   // Fetch weather using profile location
+  // ─── Weather ─────────────────────────────────────────────
   useEffect(() => {
-    if (!profile?.location) {
+    console.log('[Weather] profile?.location =', JSON.stringify(profile?.location))
+    if (!profile?.location || (typeof profile.location === 'string' && !profile.location.trim())) {
       console.log('[Weather] profile sem location, pulando')
       return
     }
@@ -172,6 +174,10 @@ export default function HomeScreen() {
         console.log('[Weather] location object inválido:', loc)
         return
       }
+    } else if (typeof loc === 'string' && loc.length > 0) {
+      // Might be a single coord or non-comma format — try parsing as plain text
+      console.log('[Weather] formato de location não reconhecido:', typeof loc, loc)
+      return
     } else {
       console.log('[Weather] formato de location não reconhecido:', typeof loc, loc)
       return
