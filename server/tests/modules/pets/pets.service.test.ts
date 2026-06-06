@@ -4,6 +4,17 @@ import { uploadsService } from '../../../src/modules/uploads/uploads.service'
 
 jest.mock('../../../src/modules/pets/pets.repository')
 jest.mock('../../../src/modules/uploads/uploads.service')
+jest.mock('../../../src/models/Post', () => ({
+  Post: {
+    updateMany: jest.fn().mockResolvedValue({ modifiedCount: 0 }),
+    deleteMany: jest.fn().mockResolvedValue({ deletedCount: 0 }),
+  },
+}))
+jest.mock('../../../src/models/Checkin', () => ({
+  Checkin: {
+    deleteMany: jest.fn().mockResolvedValue({ deletedCount: 0 }),
+  },
+}))
 
 const mockedRepo = jest.mocked(petsRepository)
 const mockedUploads = jest.mocked(uploadsService)
