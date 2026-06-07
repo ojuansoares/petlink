@@ -25,7 +25,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
-  vet: 'Vet',
+  vet: 'Veterinária',
   petshop: 'PetShop',
   park: 'Parque',
   hotel: 'Hotel',
@@ -144,8 +144,7 @@ export default function SearchScreen() {
 
   const [petFriendlyFilter, setPetFriendlyFilter] = useState(false)
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null)
-  const [minRatingFilter, setMinRatingFilter] = useState(0)
-  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false)
+  const [showAllFiltersModal, setShowAllFiltersModal] = useState(false)
 
   const autoSearchRef = useRef(false)
 
@@ -267,7 +266,7 @@ export default function SearchScreen() {
 
   const handleSearchSubmit = useCallback(() => {
     if (activeTab === 'locais') {
-      executeLocaisSearch(query, petFriendlyFilter, categoryFilter, minRatingFilter)
+      executeLocaisSearch(query, petFriendlyFilter, categoryFilter, 0)
       return
     }
     if (query.length >= 2) {
@@ -276,7 +275,7 @@ export default function SearchScreen() {
         groupsApi.listPendingInvites().then(setPendingInvites).catch(() => {})
       }
     }
-  }, [query, activeTab, doSearch, dispatch, executeLocaisSearch, petFriendlyFilter, categoryFilter, minRatingFilter])
+  }, [query, activeTab, doSearch, dispatch, executeLocaisSearch, petFriendlyFilter, categoryFilter])
 
   const handleTabChange = useCallback((tab: Tab) => {
     setActiveTab(tab)
@@ -286,7 +285,6 @@ export default function SearchScreen() {
     setPlaceDetail(null)
     setPetFriendlyFilter(false)
     setCategoryFilter(null)
-    setMinRatingFilter(0)
     if (tab !== 'locais') userCoords.current = null
     dispatch(clearSelectedPlace())
     dispatch(clearSearchResults())
@@ -764,7 +762,7 @@ export default function SearchScreen() {
               onPress={() => {
                 const next = !petFriendlyFilter
                 setPetFriendlyFilter(next)
-                executeLocaisSearch(query, next, categoryFilter, minRatingFilter)
+                executeLocaisSearch(query, next, categoryFilter, 0)
               }}
               style={[
                 styles.filterPill,
@@ -784,78 +782,104 @@ export default function SearchScreen() {
               </Text>
             </Pressable>
 
-            <View style={styles.filterDivider} />
-
             <Pressable
-              onPress={() => setShowCategoryDropdown(true)}
+              onPress={() => setShowAllFiltersModal(true)}
               style={[
-                styles.categoryDropdownBtn,
+                styles.filtersButton,
                 {
-                  backgroundColor: categoryFilter ? withAlpha(CATEGORY_COLORS[categoryFilter], 0.1) : withAlpha(colors.muted, 0.3),
-                  borderColor: categoryFilter ? withAlpha(CATEGORY_COLORS[categoryFilter], 0.3) : withAlpha(colors.border, 0.3),
+                  backgroundColor: categoryFilter 
+                    ? withAlpha(colors.primary, 0.15) 
+                    : withAlpha(colors.muted, 0.3),
+                  borderColor: categoryFilter 
+                    ? colors.primary 
+                    : withAlpha(colors.border, 0.3),
                 },
               ]}
             >
-              {categoryFilter && (
-                <View style={[styles.categoryDropdownDot, { backgroundColor: CATEGORY_COLORS[categoryFilter] }]} />
-              )}
+              <Ionicons 
+                name="filter" 
+                size={14} 
+                color={categoryFilter ? colors.primary : colors.mutedForeground} 
+              />
               <Text
                 size="xs"
                 weight="700"
-                style={{
-                  color: categoryFilter ? CATEGORY_COLORS[categoryFilter] : colors.mutedForeground,
-                  flex: 1,
+                style={{ 
+                  color: categoryFilter ? colors.primary : colors.mutedForeground,
+                  marginLeft: 4,
                 }}
-                numberOfLines={1}
               >
-                {categoryFilter ? CATEGORY_LABELS[categoryFilter] : 'Categoria'}
+                Filtros
               </Text>
-              <Ionicons name="chevron-down" size={14} color={categoryFilter ? CATEGORY_COLORS[categoryFilter] : colors.mutedForeground} />
             </Pressable>
           </View>
 
-          <Modal visible={showCategoryDropdown} transparent animationType="fade" onRequestClose={() => setShowCategoryDropdown(false)}>
-            <Pressable style={styles.categoryDropdownOverlay} onPress={() => setShowCategoryDropdown(false)}>
-              <View style={[styles.categoryDropdownSheet, { backgroundColor: colors.card }]}>
-                <Text size="xs" weight="800" color="mutedForeground" style={{ marginBottom: 12, marginLeft: 2 }}>
-                  FILTRAR POR CATEGORIA
-                </Text>
-                {CATEGORY_KEYS.map((cat) => {
-                  const isActive = categoryFilter === cat
-                  return (
-                    <Pressable
-                      key={cat}
-                      onPress={() => {
-                        const next = isActive ? null : cat
-                        setCategoryFilter(next)
-                        setShowCategoryDropdown(false)
-                        executeLocaisSearch(query, petFriendlyFilter, next, minRatingFilter)
-                      }}
-                      style={[
-                        styles.categoryOption,
-                        {
-                          backgroundColor: isActive ? withAlpha(CATEGORY_COLORS[cat], 0.1) : 'transparent',
-                        },
-                      ]}
-                    >
-                      <View style={[styles.categoryOptionDot, { backgroundColor: CATEGORY_COLORS[cat] }]} />
-                      <Text
-                        weight="600"
-                        size="sm"
-                        style={{
-                          flex: 1,
-                          color: isActive ? CATEGORY_COLORS[cat] : colors.foreground,
-                        }}
-                      >
-                        {CATEGORY_LABELS[cat]}
-                      </Text>
-                      {isActive && (
-                        <Ionicons name="checkmark-circle" size={20} color={CATEGORY_COLORS[cat]} />
-                      )}
-                    </Pressable>
-                  )
-                })}
-              </View>
+          <Modal visible={showAllFiltersModal} transparent animationType="fade" onRequestClose={() => setShowAllFiltersModal(false)}>
+            <Pressable style={styles.categoryDropdownOverlay} onPress={() => setShowAllFiltersModal(false)}>
+              <Pressable onPress={(e) => e.stopPropagation()} style={[styles.filtersSheet, { backgroundColor: colors.card }]}>
+                <View style={{ alignItems: 'center', marginBottom: 20 }}>
+                  <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: withAlpha(colors.border, 0.5), marginBottom: 16 }} />
+                  <Text weight="800" style={{ fontSize: 18 }}>Filtros de busca</Text>
+                </View>
+                
+                <View style={{ marginBottom: 8 }}>
+                  <Text weight="700" size="sm" style={{ marginBottom: 10 }}>Categoria</Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+                    {CATEGORY_KEYS.map((cat) => {
+                      const isActive = categoryFilter === cat
+                      return (
+                        <Pressable
+                          key={cat}
+                          onPress={() => setCategoryFilter(isActive ? null : cat)}
+                          style={[
+                            styles.categoryPill,
+                            {
+                              backgroundColor: isActive ? CATEGORY_COLORS[cat] : 'transparent',
+                              borderColor: CATEGORY_COLORS[cat],
+                              borderWidth: isActive ? 0 : 1.5,
+                              paddingHorizontal: 14,
+                              paddingVertical: 8,
+                              borderRadius: 20,
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              gap: 6,
+                            },
+                          ]}
+                        >
+                          <View style={[styles.categoryOptionDot, { backgroundColor: isActive ? 'white' : CATEGORY_COLORS[cat], width: 10, height: 10, borderRadius: 5 }]} />
+                          <Text
+                            weight="600"
+                            size="sm"
+                            style={{ color: isActive ? 'white' : colors.foreground }}
+                          >
+                            {CATEGORY_LABELS[cat]}
+                          </Text>
+                        </Pressable>
+                      )
+                    })}
+                  </View>
+                </View>
+
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 20 }}>
+                  <Button
+                    label="Limpar"
+                    variant="outline"
+                    onPress={() => {
+                      setPetFriendlyFilter(false)
+                      setCategoryFilter(null)
+                    }}
+                    style={{ flex: 1, borderRadius: 12 }}
+                  />
+                  <Button
+                    label="Aplicar"
+                    onPress={() => {
+                      setShowAllFiltersModal(false)
+                      executeLocaisSearch(query, petFriendlyFilter, categoryFilter, 0)
+                    }}
+                    style={{ flex: 1, borderRadius: 12 }}
+                  />
+                </View>
+              </Pressable>
             </Pressable>
           </Modal>
         </>
@@ -878,7 +902,7 @@ export default function SearchScreen() {
             style={{ marginTop: 16 }}
             onPress={() => {
               dispatch(clearError())
-              executeLocaisSearch(query, petFriendlyFilter, categoryFilter, minRatingFilter)
+              executeLocaisSearch(query, petFriendlyFilter, categoryFilter, 0)
             }}
           />
         </View>
@@ -1249,20 +1273,20 @@ const styles = StyleSheet.create({
   filterRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 10,
     marginHorizontal: 16,
     marginBottom: 8,
-    paddingVertical: 6,
+    paddingVertical: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   filterPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 16,
-    borderWidth: 2,
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1.5,
   },
   filterDivider: {
     width: 1,
@@ -1285,5 +1309,53 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: 10,
     borderWidth: 1,
+  },
+  filtersButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1.5,
+  },
+  filterBadge: {
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    marginLeft: 4,
+  },
+  filtersSheet: {
+    marginHorizontal: 20,
+    borderRadius: 24,
+    borderWidth: 1,
+    padding: 24,
+    paddingBottom: 32,
+    gap: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 24,
+    elevation: 12,
+  },
+  categoryOptionDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  categoryDropdownOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'stretch',
+    paddingHorizontal: 16,
+  },
+  categoryDropdownDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
 })
