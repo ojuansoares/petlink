@@ -305,7 +305,15 @@ export default function WalkRecordingScreen() {
     }))
 
     setShowFinishModal(false)
-    navigation.goBack()
+    ;(navigation as any).replace('WalkSaved', {
+      petId: activeWalk.petId,
+      petName: activeWalk.petName,
+      distanceM: Math.round(activeWalk.distanceM),
+      durationS: Math.round(durationS),
+      avgSpeedKmh: Math.round(avgSpeed * 10) / 10,
+      avgPaceMinKm: avgPace ? Math.round(avgPace * 100) / 100 : null,
+      maxSpeedKmh: Math.round(activeWalk.maxSpeedKmh * 10) / 10,
+    })
   }
 
   const handlePickWalkPhoto = async (source: 'camera' | 'gallery') => {

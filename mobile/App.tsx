@@ -31,6 +31,7 @@ import { api, setApiOnlineStatus } from './src/api/axios'
 import { supabase } from './src/config/supabase'
 import { initSentry } from './src/config/sentry'
 import RootNavigator from './src/navigation/RootNavigator'
+import { Ionicons } from '@expo/vector-icons'
 import { tokens, withAlpha } from './src/theme'
 import OnboardingScreen, { OnboardingStep } from './src/screens/OnboardingScreen'
 import { AppLoadingOverlay } from './src/components/ui/AppLoadingOverlay'
@@ -80,18 +81,22 @@ const ONBOARDING_STEPS: readonly OnboardingStep[] = [
   {
     title: 'Bem-vindo ao PetLink',
     description: 'Aqui voce organiza o cuidado dos seus pets de forma simples e rapida.',
+    illustration: require('./assets/onboarding/welcome.png'),
   },
   {
     title: 'Cadastre seu perfil',
     description: 'No primeiro acesso, crie sua conta e confirme o email para liberar o uso completo.',
+    illustration: require('./assets/onboarding/profile.png'),
   },
   {
     title: 'Registre seus pets',
     description: 'Adicione cada pet e mantenha as informacoes principais sempre acessiveis.',
+    illustration: require('./assets/onboarding/pets.png'),
   },
   {
     title: 'Ative recursos do app',
     description: 'Use notificacoes, localizacao e outras funcoes para acompanhar melhor a rotina.',
+    illustration: require('./assets/onboarding/features.png'),
   },
 ]
 

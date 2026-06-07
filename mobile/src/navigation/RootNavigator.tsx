@@ -24,6 +24,7 @@ import ActivityTimelineScreen from '../screens/ActivityTimelineScreen';
 import WalkScreen from '../screens/WalkScreen';
 import WalkRecordingScreen from '../screens/WalkRecordingScreen';
 import WalkDetailScreen from '../screens/WalkDetailScreen';
+import WalkSavedScreen from '../screens/WalkSavedScreen';
 import ResetPasswordScreen from '../screens/ResetPasswordScreen';
 
 const linking: LinkingOptions<AppStackParamList> = {
@@ -216,6 +217,14 @@ function AuthenticatedNavigator() {
         options={{
           title: 'Detalhes do Passeio',
           headerLeft: SettingsBackButton,
+        }}
+      />
+      <AppStack.Screen
+        name="WalkSaved"
+        component={WalkSavedScreen}
+        options={{
+          headerShown: false,
+          animation: 'fade',
         }}
       />
       <AppStack.Screen

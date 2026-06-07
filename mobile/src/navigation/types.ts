@@ -26,4 +26,13 @@ export type AppStackParamList = {
   Walk: { petId: string; petName: string }
   WalkRecording: { petId: string; petName: string }
   WalkDetail: { walk: any }
+  WalkSaved: {
+    petId: string
+    petName: string
+    distanceM: number
+    durationS: number
+    avgSpeedKmh: number
+    avgPaceMinKm: number | null
+    maxSpeedKmh: number
+  }
 }
