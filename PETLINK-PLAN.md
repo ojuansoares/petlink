@@ -1733,6 +1733,48 @@ RF22 (Geofencing) foi pulado por decisão do usuário. Ordem de implementação 
 | `src/api/petsExport.api.ts` | **Novo** — `exportPetData(petId, petName, format)` baixa usando `File.downloadFileAsync` e abre share sheet via `expo-sharing` |
 | `src/screens/PetsScreen.tsx` | + `ControlCard` "Exportar Dados" na aba Controle (ícone `download-outline`, cor verde do tema) |
 
+## Arquivos alterados nesta sessão (07/06/2026) — Correções finais + WalkSaved + Prefetch
+
+### Mobile
+
+| Arquivo | Mudança |
+|---------|---------|
+| `src/screens/WalkSavedScreen.tsx` | **Reescrito** — confetti animado, checkmark com escala, título + subtítulo, stats em grid vertical (depois 2×2), botões fixos no final com safe area. Corrigido `Dimensions.get` dentro de worklet Reanimated (era `undefined`). |
+| `src/screens/WalkRecordingScreen.tsx` | Validação de título obrigatório com toast + `*` no label; navegação para `WalkSaved` após salvar |
+| `src/screens/WalkScreen.tsx` | `WalkStatsSkeleton` com shimmer blocks substitui `ActivityIndicator` no loading de stats; label "CALENDÁRIO" |
+| `src/screens/WalkDetailScreen.tsx` | Overlay da foto: `top: 0` (em vez de `topInset`) + `0.30` opacidade; modal de editar com `backgroundColor: 'rgba(0,0,0,0.45)'` no fundo |
+| `src/components/walks/WalkCard.tsx` | `source={walk.photoUrl}` → `source={{ uri: walk.photoUrl }}` (expo-image formatação); `{walk.calories &&` → `{walk.calories != null && walk.calories > 0 &&` (evita renderizar `0` fora de `<Text>`) |
+| `src/screens/Pets/VaccineScreen.tsx` | Validação de nome obrigatório com toast |
+| `src/screens/Pets/ConsultationScreen.tsx` | Validação de veterinário + motivo obrigatórios com toast; adicionado `useDispatch` |
+| `src/screens/ProfileScreen.tsx` | Validação de nome obrigatório no perfil; prefetch de imagens dos posts via `Image.prefetch()` 600ms após carregar (cache offline para filtro por pet) |
+
+### Bugs corrigidos
+
+| # | Problema | Causa raiz | Solução |
+|---|----------|------------|---------|
+| 1 | `Dimensions.get is not a function` no WalkSavedScreen | Reanimated worklet não serializa `Dimensions` (objeto complexo) — `undefined` na UI thread | Extrair `SCREEN_HEIGHT` fora do worklet como constante |
+| 2 | WalkSaved stats cards vazios | `entering={FadeInDown}` falhava silenciosamente | Substituído por animação de opacidade via `useSharedValue` (ou removido) |
+| 3 | `Text strings` no WalkCard ao renderizar passeios com `calories = 0` | `{walk.calories && <Text>...</Text>}` → `0 && ...` retorna `0`, renderizado como número fora de `<Text>` | `walk.calories != null && walk.calories > 0 &&` |
+| 4 | `Text strings` no WalkCard com `<Image source={string}>` | `expo-image` em certas versões não trata string pura como source válida | `source={{ uri: walk.photoUrl }}` |
+
+### Melhorias
+
+| # | Melhoria | Detalhes |
+|---|----------|----------|
+| 1 | WalkSaved layout responsivo | `justifyContent: 'space-between'` entre conteúdo e botões; stats em grid 2×2 com `flex: 1`; botões com `maxWidth` + safe area bottom |
+| 2 | Prefetch de fotos dos posts | `Image.prefetch()` 600ms após carregar posts → cache de disco para filtro offline por pet |
+| 3 | Fundo escuro no modal de editar passeio | `backgroundColor: 'rgba(0,0,0,0.45)'` no `editOverlay` |
+| 4 | Validações de campo obrigatório | VaccineScreen (nome), ConsultationScreen (veterinário + motivo), ProfileScreen (nome) |
+
+### Status TS/Testes
+
+| Projeto | TypeScript | Testes |
+|---------|-----------|--------|
+| Frontend (mobile) | ✅ Zero erros | ✅ 7 suites, 75/75 |
+| Backend (server) | ✅ Zero erros | ✅ 13 suites, 155/155 |
+
+---
+
 ## Princípios
 
 1. **KISS** — cada feature resolve um problema real.
