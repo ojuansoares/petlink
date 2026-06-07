@@ -42,12 +42,19 @@ export const commentsService = {
         .eq('id', authorId)
         .maybeSingle()
 
+      const data: Record<string, unknown> = {
+        screen: 'Post',
+        postId,
+        userId: post.authorId,
+      }
+      if (post.groupId) data.groupId = post.groupId
+
       sendPush(
         post.authorId,
         'social',
         'Novo comentário',
         `${profile?.name ?? 'Alguém'} comentou no seu post`,
-        { screen: 'Post', postId, userId: post.authorId },
+        data,
       )
     }
 

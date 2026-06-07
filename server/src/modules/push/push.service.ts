@@ -142,6 +142,7 @@ export async function sendPush(
     const screen = data?.screen as string | undefined
     if (screen === 'PublicProfile' && prefs.social_follows === false) return
     if (screen === 'Post' && prefs.social_likes === false) return
+    if (screen === 'Group' && prefs.social_likes === false) return
   }
 
   const fcmToken = await getFcmToken(userId)

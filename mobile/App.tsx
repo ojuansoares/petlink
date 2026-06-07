@@ -446,6 +446,11 @@ function AppContent() {
         if (userId) {
           navigateFromNotification('PublicProfile', { userId })
         }
+      } else if (screen === 'Group' || screen === 'Groups') {
+        const groupId = navData.groupId as string | undefined
+        if (groupId) {
+          navigateFromNotification('GroupDetail', { groupId })
+        }
       }
     })
 

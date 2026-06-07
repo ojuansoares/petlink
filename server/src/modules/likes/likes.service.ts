@@ -17,12 +17,19 @@ export const likesService = {
           .eq('id', userId)
           .maybeSingle()
 
+        const data: Record<string, unknown> = {
+          screen: 'Post',
+          postId,
+          userId: post.authorId,
+        }
+        if (post.groupId) data.groupId = post.groupId
+
         sendPush(
           post.authorId,
           'social',
           'Nova curtida',
           `${profile?.name ?? 'Alguém'} curtiu seu post`,
-          { screen: 'Post', postId, userId: post.authorId },
+          data,
         )
       }
     }

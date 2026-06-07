@@ -1,5 +1,6 @@
 import { commentLikesRepository } from './commentLikes.repository'
 import { Comment } from '../../models/Comment'
+import { Post } from '../../models/Post'
 import { supabaseAdmin } from '../../config/supabase'
 import { sendPush } from '../push/push.service'
 
@@ -16,12 +17,22 @@ export const commentLikesService = {
           .eq('id', userId)
           .maybeSingle()
 
+        const data: Record<string, unknown> = {
+          screen: 'Post',
+          postId: comment.postId,
+          userId: comment.authorId,
+        }
+        try {
+          const post = await Post.findById(comment.postId).lean()
+          if (post?.groupId) data.groupId = post.groupId
+        } catch {} // groupId é opcional no payload
+
         sendPush(
           comment.authorId,
           'social',
           'Nova curtida no comentário',
           `${profile?.name ?? 'Alguém'} curtiu seu comentário`,
-          { screen: 'Post', postId: comment.postId, userId: comment.authorId },
+          data,
         )
       }
     }
