@@ -2,6 +2,7 @@ import { Request, Response } from 'express'
 import { AuthRequest } from '../../middlewares/auth.middleware'
 import { AppError } from '../../shared/AppError'
 import { notificationsService } from './notifications.service'
+import { sendPush } from '../push/push.service'
 
 export const notificationsController = {
   async list(req: Request, res: Response) {
@@ -55,5 +56,24 @@ export const notificationsController = {
 
     const prefs = await notificationsService.updatePreferences(authReq.user.id, updates)
     return res.status(200).json(prefs)
+  },
+
+  async sendTest(req: Request, res: Response) {
+    const authReq = req as AuthRequest
+    if (!authReq.user) return res.status(401).json({ error: 'Não autenticado' })
+
+    const { title, body, type, data } = req.body
+    if (!title) {
+      return res.status(400).json({ error: 'title é obrigatório' })
+    }
+
+    const pushType = type === 'temperature_alert' ? 'temperature_alert' : 'social'
+
+    try {
+      await sendPush(authReq.user.id, pushType, title, body || null, data || null)
+      return res.status(200).json({ sent: true, userId: authReq.user.id, title })
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message || 'Erro ao enviar push' })
+    }
   },
 }
