@@ -14,7 +14,6 @@ import { useRoute, RouteProp, useNavigation } from '@react-navigation/native'
 import { StackNavigationProp } from '@react-navigation/stack'
 import { AppStackParamList } from '../navigation/types'
 import { Ionicons } from '@expo/vector-icons'
-import { OptionSelect } from '../components/ui/OptionSelect'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Heading, Text } from '../components/ui/Typography'
 import { Avatar } from '../components/ui/Avatar'
@@ -315,17 +314,29 @@ export default function PublicProfileScreen() {
     if (pets.length <= 1 || posts.length === 0) return null
     return (
       <View style={styles.filterContainer}>
-        <OptionSelect
-          placeholder="Filtrar por Pet"
-          value={selectedPetFilter}
-          onChange={setSelectedPetFilter}
-          options={[
-            { label: 'Todos os posts', value: '' },
-            ...pets.map(p => ({ label: p.name, value: p.id, photoUrl: p.photo_url }))
-          ]}
-          leftIconName="paw-outline"
-          showPhotos
-        />
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 4, paddingHorizontal: 16 }}>
+          <Pressable
+            onPress={() => setSelectedPetFilter('')}
+            style={[styles.petChip, !selectedPetFilter && styles.petChipActive]}
+          >
+            <Ionicons name="grid-outline" size={16} color={!selectedPetFilter ? colors.primary : colors.mutedForeground} />
+            <Text size="xs" weight="600" color={!selectedPetFilter ? 'primary' : 'mutedForeground'}>Todos</Text>
+          </Pressable>
+          {pets.map(pet => (
+            <Pressable
+              key={pet.id}
+              onPress={() => setSelectedPetFilter(selectedPetFilter === pet.id ? '' : pet.id)}
+              style={[styles.petChip, selectedPetFilter === pet.id && styles.petChipActive]}
+            >
+              <Avatar
+                name={pet.name}
+                source={pet.photo_url ?? undefined}
+                size={28}
+              />
+              <Text size="xs" weight="600" color={selectedPetFilter === pet.id ? 'primary' : 'mutedForeground'}>{pet.name}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
       </View>
     )
   }
@@ -395,7 +406,7 @@ export default function PublicProfileScreen() {
   }
 
   const filteredPosts = selectedPetFilter
-    ? posts.filter(p => p.pet_id === selectedPetFilter)
+    ? posts.filter(p => p.pet_id === selectedPetFilter || p.pet_ids?.includes(selectedPetFilter))
     : posts
 
   if (isProfileLoading && !profile) {
