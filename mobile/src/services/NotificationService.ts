@@ -13,15 +13,39 @@ function getLocalDateString(date: Date = new Date()): string {
 }
 
 // ─── Config inicial (chamar no app root) ──────────────────────
+let _feedingCheckCache: { key: string; done: boolean } | null = null
+
 export function configureNotifications() {
   Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldShowBanner: true,
-      shouldShowList: true,
-      shouldPlaySound: true,
-      shouldSetBadge: true,
-    }),
+    handleNotification: async (event) => {
+      const data = event.request.content.data as Record<string, unknown> | undefined
+
+      if (data?.type === 'feeding') {
+        const petId = data.petId as string | undefined
+        const mealName = data.mealName as string | undefined
+        if (petId && mealName) {
+          try {
+            const cacheKey = `${petId}|${mealName}|${getLocalDateString()}`
+            let done = false
+
+            if (_feedingCheckCache?.key === cacheKey) {
+              done = _feedingCheckCache.done
+            } else {
+              const res = await api.get(`/pets/${petId}/feeding/logs`, { params: { date: getLocalDateString() } })
+              const logs: any[] = Array.isArray(res.data) ? res.data : []
+              const log = logs.find((l: any) => l.meal_name === mealName)
+              done = !!log?.checked_at
+              _feedingCheckCache = { key: cacheKey, done }
+            }
+
+            if (done) return { shouldShowAlert: false, shouldShowBanner: false, shouldShowList: false, shouldPlaySound: false, shouldSetBadge: false }
+          } catch {
+          }
+        }
+      }
+
+      return { shouldShowAlert: true, shouldShowBanner: true, shouldShowList: true, shouldPlaySound: true, shouldSetBadge: true }
+    },
   })
 }
 
