@@ -441,7 +441,7 @@ export default function WalkRecordingScreen() {
             {!isOnline && (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 }}>
                 <Ionicons name="cloud-offline-outline" size={14} color="#94A3B8" />
-                <Text size="xs" color="mutedForeground">Sem conexão — o passeio será salvo offline e enviado quando houver internet</Text>
+                <Text size="xs" style={{ color: colors.foreground }}>Sem conexão — o passeio será salvo offline e enviado quando houver internet</Text>
               </View>
             )}
 
@@ -512,9 +512,9 @@ export default function WalkRecordingScreen() {
                     </View>
                   )}
                   {!isOnline && (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8, backgroundColor: withAlpha('#94A3B8', 0.1), paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 }}>
-                      <Ionicons name="cloud-offline-outline" size={14} color="#94A3B8" />
-                      <Text size="xs" style={{ color: '#94A3B8' }}>Sem conexão — o mapa pode não exibir todos os detalhes</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8, backgroundColor: withAlpha(colors.mutedForeground, 0.08), paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 }}>
+                      <Ionicons name="cloud-offline-outline" size={14} color={colors.mutedForeground} />
+                      <Text size="xs" style={{ color: colors.foreground }}>Sem conexão — o mapa pode não exibir todos os detalhes</Text>
                     </View>
                   )}
                 </View>

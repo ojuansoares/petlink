@@ -333,6 +333,13 @@ function AppContent() {
       if (lastConnectionRef.current === null) {
         lastConnectionRef.current = isOnline
         showConnectivityBanner(isOnline ? 'online' : 'offline')
+        if (isOnline) {
+          const { feedingQueueRepository } = require('./src/data/repositories/FeedingQueueRepository')
+          feedingQueueRepository.processQueue()
+          const { vaccineCacheRepository } = require('./src/data/repositories/VaccineCacheRepository')
+          vaccineCacheRepository.processQueue()
+          dispatch(require('./src/store/slices/walksSlices').processWalkQueueThunk())
+        }
         return
       }
 
