@@ -72,7 +72,7 @@ export function WalkCard({ walk, onPress }: WalkCardProps) {
     >
       {walk.photoUrl ? (
         <View style={styles.photoWrap}>
-          <Image source={walk.photoUrl} style={styles.photoImage} contentFit="cover" />
+          <Image source={{ uri: walk.photoUrl }} style={styles.photoImage} contentFit="cover" />
           <LinearGradient
             colors={['transparent', colors.card]}
             start={{ x: 0.2, y: 0.5 }}
@@ -104,7 +104,7 @@ export function WalkCard({ walk, onPress }: WalkCardProps) {
             <Text size="xs" color="mutedForeground">{pace}</Text>
           </View>
         </View>
-        {walk.calories && (
+        {walk.calories != null && walk.calories > 0 && (
           <Text size="xs" color="mutedForeground">
             <Ionicons name="flame-outline" size={10} color={colors.mutedForeground} /> {walk.calories} kcal
           </Text>

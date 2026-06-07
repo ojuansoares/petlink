@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import {
-  View, FlatList, Pressable, StyleSheet, ActivityIndicator,
+  View, FlatList, Pressable, StyleSheet, ActivityIndicator, Animated,
   Platform, Modal, ScrollView, RefreshControl,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
@@ -125,6 +125,42 @@ export default function WalkScreen() {
   const formatHours = (s: number) => {
     const h = Math.floor(s / 3600)
     return h > 0 ? `${h}h` : `${Math.floor(s / 60)}min`
+  }
+
+  function SkeletonBlock({ style }: { style?: any }) {
+    const opacity = useRef(new Animated.Value(0.15)).current
+
+    useEffect(() => {
+      const anim = Animated.loop(
+        Animated.sequence([
+          Animated.timing(opacity, { toValue: 0.4, duration: 800, useNativeDriver: true }),
+          Animated.timing(opacity, { toValue: 0.15, duration: 800, useNativeDriver: true }),
+        ])
+      )
+      anim.start()
+      return () => anim.stop()
+    }, [])
+
+    return (
+      <Animated.View style={[{ backgroundColor: colors.mutedForeground, borderRadius: 8, opacity }, style]} />
+    )
+  }
+
+  function WalkStatsSkeleton() {
+    return (
+      <View style={{ gap: 10, paddingHorizontal: 16, marginTop: 4 }}>
+        <SkeletonBlock style={{ width: 80, height: 12, borderRadius: 6 }} />
+        <View style={{ flexDirection: 'row', gap: 10 }}>
+          <SkeletonBlock style={{ flex: 1, height: 72, borderRadius: 14 }} />
+          <SkeletonBlock style={{ flex: 1, height: 72, borderRadius: 14 }} />
+        </View>
+        <SkeletonBlock style={{ width: 60, height: 12, borderRadius: 6, marginTop: 4 }} />
+        <View style={{ flexDirection: 'row', gap: 10 }}>
+          <SkeletonBlock style={{ flex: 1, height: 72, borderRadius: 14 }} />
+          <SkeletonBlock style={{ flex: 1, height: 72, borderRadius: 14 }} />
+        </View>
+      </View>
+    )
   }
 
   const handleStartWalk = useCallback(() => {
@@ -255,6 +291,9 @@ export default function WalkScreen() {
           contentContainerStyle={{ paddingBottom: 32 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
         >
+          <Text size="xs" weight="800" color="mutedForeground" style={[styles.topicLabel, { marginBottom: 8 }]}>
+            CALENDÁRIO
+          </Text>
           <WalkCalendar
             year={calendarDate.getFullYear()}
             month={calendarDate.getMonth()}
@@ -266,9 +305,7 @@ export default function WalkScreen() {
           <View style={styles.sectionGap} />
 
           {statsLoading ? (
-            <View style={{ alignItems: 'center', paddingVertical: 24 }}>
-              <ActivityIndicator size="small" color={colors.primary} />
-            </View>
+            <WalkStatsSkeleton />
           ) : statsError ? (
             <View style={{ alignItems: 'center', paddingVertical: 24 }}>
               <Text size="sm" color="mutedForeground" style={{ textAlign: 'center', marginBottom: 12 }}>

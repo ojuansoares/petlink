@@ -123,6 +123,18 @@ export default function ProfileScreen() {
     }
   }, [dispatch, currentUser?.id, isOnline])
 
+  // Prefetch all post images in background after UI renders,
+  // so filtering by pet works instantly and offline cache is warm.
+  useEffect(() => {
+    if (!posts.length || isPostsLoading) return
+    const timeout = setTimeout(() => {
+      const urls = posts.map(p => p.image_url).filter(Boolean) as string[]
+      const unique = [...new Set(urls)]
+      if (unique.length > 0) Image.prefetch(unique)
+    }, 600)
+    return () => clearTimeout(timeout)
+  }, [posts, isPostsLoading])
+
   const onRefresh = useCallback(async () => {
     if (!currentUser?.id) return
     setIsRefreshing(true)
@@ -143,6 +155,10 @@ export default function ProfileScreen() {
   }
 
   const handleUpdateProfile = async () => {
+    if (!name.trim()) {
+      dispatch(showToast({ type: 'error', title: 'Nome obrigatório', message: 'O nome do perfil não pode ficar vazio' }))
+      return
+    }
     setIsUpdating(true)
     try {
       await dispatch(updateProfileThunk({

@@ -25,9 +25,9 @@ import {
 import { uploadImageWithRetry } from '../../api/uploadWithRetry';
 import { format, parseISO } from 'date-fns';
 import { DateInput } from '../../components/ui/DateInput';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { selectUser } from '../../store/slices/authSlice';
-import { selectIsOnline } from '../../store/slices/uiSlice';
+import { selectIsOnline, showToast } from '../../store/slices/uiSlice';
 import { ActionOptionsModal } from '../../components/ui/ActionOptionsModal';
 import { ImagePickerSheet } from '../../components/ui/ImagePickerSheet';
 import { PlaceSearchInput, PlaceSelection } from '../../components/places/PlaceSearchInput';
@@ -51,6 +51,7 @@ type ConsultationScreenRouteProp = RouteProp<AppStackParamList, 'Consultation'>;
 export function ConsultationScreen() {
   const { colors, withAlpha } = useTheme();
   const user = useSelector(selectUser);
+  const dispatch = useDispatch();
   const route = useRoute<ConsultationScreenRouteProp>();
   const navigation = useNavigation<StackNavigationProp<AppStackParamList>>();
   const { petId, petName, autoOpenModal } = route.params;
@@ -227,6 +228,14 @@ export function ConsultationScreen() {
 
   const handleSave = async () => {
     if (!user || isSaving) return
+    if (!vetName.trim()) {
+      dispatch(showToast({ type: 'error', title: 'Campo obrigatório', message: 'Informe o nome do veterinário' }))
+      return
+    }
+    if (!reason.trim()) {
+      dispatch(showToast({ type: 'error', title: 'Campo obrigatório', message: 'Informe o motivo da consulta' }))
+      return
+    }
     setIsSaving(true)
 
     const consultationData = {

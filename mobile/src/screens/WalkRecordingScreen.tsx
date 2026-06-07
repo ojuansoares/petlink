@@ -18,7 +18,7 @@ import {
   pauseWalk, resumeWalk, cancelWalk, saveWalkThunk,
   selectActiveWalk, selectIsWalking,
 } from '../store/slices/walksSlices'
-import { selectIsOnline } from '../store/slices/uiSlice'
+import { selectIsOnline, showToast } from '../store/slices/uiSlice'
 import {
   watchPosition, requestLocationPermission,
   requestBackgroundLocationPermission, getCurrentPosition,
@@ -55,6 +55,7 @@ export default function WalkRecordingScreen() {
   const watchRef = useRef<any>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const lastPointRef = useRef<{ lat: number; lng: number } | null>(null)
+  const lastDispatchedRef = useRef<{ lat: number; lng: number } | null>(null)
   const insets = useSafeAreaInsets()
   const { getCurrentLocation, isLoadingLocation } = useLocation()
 
@@ -97,16 +98,21 @@ export default function WalkRecordingScreen() {
           }
 
           const ts = new Date().toISOString()
-          const last = lastPointRef.current
-          let distanceDelta = 0
-          if (last) {
-            distanceDelta = haversineDistance(last.lat, last.lng, lat, lng)
-          }
           lastPointRef.current = { lat, lng }
+
+          const lastDispatched = lastDispatchedRef.current
+          let distanceDelta = 0
+          if (lastDispatched) {
+            distanceDelta = haversineDistance(lastDispatched.lat, lastDispatched.lng, lat, lng)
+          }
+
+          if (lastDispatched && distanceDelta < 3) return
+
+          lastDispatchedRef.current = { lat, lng }
           dispatch(addRoutePoint({ lat, lng, timestamp: ts, distanceDelta }))
 
           if (distanceDelta > 0) {
-            const speedMs = distanceDelta / 5
+            const speedMs = distanceDelta / 3
             const speedKmh = speedMs * 3.6
             dispatch(updateMaxSpeed(speedKmh))
           }
@@ -278,6 +284,11 @@ export default function WalkRecordingScreen() {
 
   const handleFinishWalk = async () => {
     if (!activeWalk || saving) return
+    if (!walkTitle?.trim()) {
+      setSaving(false)
+      dispatch(showToast({ type: 'error', title: 'Título obrigatório', message: 'Dê um título ao passeio antes de salvar' }))
+      return
+    }
     setSaving(true)
     const now = new Date().toISOString()
     const durationS = Math.floor((Date.now() - new Date(activeWalk.startedAt).getTime()) / 1000) - Math.round(activeWalk.totalPausedS)
@@ -581,9 +592,12 @@ export default function WalkRecordingScreen() {
                 Finalizar Passeio
               </Heading>
 
-              <Text size="xs" weight="700" color="mutedForeground" style={{ marginBottom: 6, marginLeft: 2 }}>
-                Título
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6, marginLeft: 2 }}>
+                <Text size="xs" weight="700" color="mutedForeground">
+                  Título
+                </Text>
+                <Text size="xs" color="destructive" style={{ marginLeft: 4 }}>*</Text>
+              </View>
               <TextInput
                 style={[styles.finishInput, { backgroundColor: colors.muted, color: colors.foreground, borderColor: colors.border }]}
                 placeholder="Ex: Passeio matinal no parque"

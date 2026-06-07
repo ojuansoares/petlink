@@ -17,7 +17,7 @@ import { format, parseISO, startOfDay, addDays, isBefore } from 'date-fns';
 import { DateInput } from '../../components/ui/DateInput';
 import { useSelector } from 'react-redux';
 import { selectUser } from '../../store/slices/authSlice';
-import { selectIsOnline } from '../../store/slices/uiSlice';
+import { selectIsOnline, showToast } from '../../store/slices/uiSlice';
 import { useAppDispatch } from '../../store';
 import { fetchGamificationThunk } from '../../store/slices/gamificationSlice';
 import { ActionOptionsModal } from '../../components/ui/ActionOptionsModal';
@@ -144,6 +144,10 @@ export function VaccineScreen() {
   };
 
   const handleSaveItem = async () => {
+    if (!name.trim()) {
+      dispatch(showToast({ type: 'error', title: 'Nome obrigatório', message: 'Informe o nome da vacina ou vermífugo' }))
+      return
+    }
     if (doses.length === 0) return
 
     const type = activeTab as 'vaccine' | 'dewormer';

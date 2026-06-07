@@ -83,14 +83,14 @@ function RouteLine({ route, width, height, topInset = 0 }: { route: WalkPoint[];
 
   return (
     <View style={StyleSheet.absoluteFill}>
-      {/* Photo darkening overlay for contrast (below topInset only) */}
+      {/* Photo darkening overlay for contrast (full background) */}
       <View style={{
         position: 'absolute',
-        top: topInset,
+        top: 0,
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: 'rgba(0,0,0,0.25)',
+        backgroundColor: 'rgba(0,0,0,0.30)',
       }} />
       {/* Green line */}
       {segments.map(s => (
@@ -761,6 +761,7 @@ const styles = StyleSheet.create({
   editOverlay: {
     flex: 1,
     justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.45)',
   },
   editSheet: {
     borderTopLeftRadius: 24,
