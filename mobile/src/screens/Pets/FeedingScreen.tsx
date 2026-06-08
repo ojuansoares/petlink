@@ -169,6 +169,7 @@ export default function FeedingScreen({ route }: any) {
 
     const result = await dispatch(saveFeedingPlanThunk({
       petId,
+      today,
       meals: meals.map((m) => ({
         id: m.id, meal_name: m.meal_name, meal_time: formatTime(m.meal_time), quantity: m.quantity || null, order_index: 0,
       })),

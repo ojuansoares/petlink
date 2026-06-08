@@ -38,6 +38,7 @@ export type UpsertPlanInput = {
     quantity?: string | null
     order_index: number
   }[]
+  today?: string
 }
 
 export const feedingRepository = {
@@ -62,7 +63,7 @@ export const feedingRepository = {
     return (data ?? []) as FeedingPlan[]
   },
 
-  async upsertPlan(petId: string, meals: UpsertPlanInput['meals']): Promise<FeedingPlan[]> {
+  async upsertPlan(petId: string, meals: UpsertPlanInput['meals'], today?: string): Promise<FeedingPlan[]> {
     const { data: existing } = await supabaseAdmin
       .from('feeding_plans')
       .select('id')
@@ -90,7 +91,7 @@ export const feedingRepository = {
       if (meal.id && existingIds.has(meal.id)) {
         await supabaseAdmin.from('feeding_plans').update(record).eq('id', meal.id)
 
-        // sync all logs with updated plan data
+        // sync today+future logs (keep past checked times unchanged)
         await supabaseAdmin
           .from('feeding_logs')
           .update({
@@ -100,6 +101,7 @@ export const feedingRepository = {
             order_index: i,
           })
           .eq('meal_plan_id', meal.id)
+          .gte('log_date', today || getLocalDateString())
       } else {
         await supabaseAdmin.from('feeding_plans').insert(record)
       }

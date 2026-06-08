@@ -73,11 +73,11 @@ export const fetchFeedingPlanThunk = createAsyncThunk(
 export const saveFeedingPlanThunk = createAsyncThunk(
   'feeding/savePlan',
   async (
-    { petId, meals }: { petId: string; meals: { id?: string; meal_name: string; meal_time: string; quantity?: string | null; order_index: number }[] },
+    { petId, meals, today }: { petId: string; meals: { id?: string; meal_name: string; meal_time: string; quantity?: string | null; order_index: number }[]; today?: string },
     { rejectWithValue }
   ) => {
     try {
-      const { data } = await api.post(`/pets/${petId}/feeding/plan`, { meals })
+      const { data } = await api.post(`/pets/${petId}/feeding/plan`, { meals, today })
       await AsyncStorage.setItem(`${CACHE_PREFIX}.plan.${petId}`, JSON.stringify(data))
       return data as FeedingPlan[]
     } catch (err: any) {

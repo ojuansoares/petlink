@@ -16,7 +16,7 @@ export const feedingService = {
   async savePlan(petId: string, userId: string, input: UpsertPlanInput) {
     await this.verifyOwnership(petId, userId)
     if (!input.meals?.length) throw new AppError('Adicione pelo menos uma refeição', 400)
-    return feedingRepository.upsertPlan(petId, input.meals)
+    return feedingRepository.upsertPlan(petId, input.meals, input.today)
   },
 
   async getLogs(petId: string, userId: string, date: string) {
