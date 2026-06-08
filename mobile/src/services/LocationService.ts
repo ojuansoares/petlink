@@ -78,18 +78,18 @@ export async function getCurrentPositionHighAccuracy(): Promise<{ lat: number; l
 
 // ─── Watch position (para walks) ──────────────────────────────
 export function watchPosition(
-  onPosition: (lat: number, lng: number) => void,
+  onPosition: (lat: number, lng: number, accuracy: number, timestamp: number) => void,
   onError?: (err: any) => void,
   options?: { timeInterval?: number; distanceInterval?: number }
 ) {
   const sub = Location.watchPositionAsync(
     {
       accuracy: Location.Accuracy.High,
-      timeInterval: options?.timeInterval ?? 5000,
+      timeInterval: options?.timeInterval ?? 10000,
       distanceInterval: options?.distanceInterval ?? 5,
     },
     (loc) => {
-      onPosition(loc.coords.latitude, loc.coords.longitude)
+      onPosition(loc.coords.latitude, loc.coords.longitude, loc.coords.accuracy ?? 999, loc.timestamp)
     }
   )
   sub.catch((err) => {
@@ -131,8 +131,8 @@ export async function startBackgroundWalkTracking(): Promise<boolean> {
   try {
     await Location.startLocationUpdatesAsync(BACKGROUND_WALK_TASK, {
       accuracy: Location.Accuracy.High,
-      timeInterval: 3000,
-      distanceInterval: 0,
+      timeInterval: 10000,
+      distanceInterval: 5,
       showsBackgroundLocationIndicator: true,
       foregroundService: {
         notificationTitle: 'Passeio em andamento',

@@ -56,6 +56,7 @@ export default function WalkRecordingScreen() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const lastPointRef = useRef<{ lat: number; lng: number } | null>(null)
   const lastDispatchedRef = useRef<{ lat: number; lng: number } | null>(null)
+  const lastGpsTimestampRef = useRef(0)
   const insets = useSafeAreaInsets()
   const { getCurrentLocation, isLoadingLocation } = useLocation()
 
@@ -90,12 +91,14 @@ export default function WalkRecordingScreen() {
 
     try {
       const sub = await watchPosition(
-        (lat, lng) => {
+        (lat, lng, accuracy, gpsTimestamp) => {
           setGpsError(false)
           if (gpsTimeoutRef.current) {
             clearTimeout(gpsTimeoutRef.current)
             gpsTimeoutRef.current = null
           }
+
+          if (accuracy > 50) return
 
           const ts = new Date().toISOString()
           lastPointRef.current = { lat, lng }
@@ -111,14 +114,17 @@ export default function WalkRecordingScreen() {
           lastDispatchedRef.current = { lat, lng }
           dispatch(addRoutePoint({ lat, lng, timestamp: ts, distanceDelta }))
 
-          if (distanceDelta > 0) {
-            const speedMs = distanceDelta / 3
-            const speedKmh = speedMs * 3.6
-            dispatch(updateMaxSpeed(speedKmh))
+          if (distanceDelta > 0 && lastGpsTimestampRef.current > 0) {
+            const dtSec = (gpsTimestamp - lastGpsTimestampRef.current) / 1000
+            if (dtSec > 0) {
+              const speedMs = distanceDelta / dtSec
+              const speedKmh = speedMs * 3.6
+              dispatch(updateMaxSpeed(speedKmh))
+            }
           }
+          lastGpsTimestampRef.current = gpsTimestamp
         },
         () => setGpsError(true),
-        { timeInterval: 3000, distanceInterval: 0 },
       )
       watchRef.current = sub
     } catch {
