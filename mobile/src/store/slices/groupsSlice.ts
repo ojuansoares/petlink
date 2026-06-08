@@ -145,6 +145,18 @@ export const createGroupPostThunk = createAsyncThunk(
   }
 )
 
+export const updateGroupPostThunk = createAsyncThunk(
+  'groups/updatePost',
+  async (payload: { groupId: string; postId: string; patch: { caption?: string | null; location?: string | null } }, { rejectWithValue }) => {
+    try {
+      const post = await groupsApi.updatePost(payload.postId, payload.patch)
+      return { groupId: payload.groupId, post }
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.error ?? 'Erro ao editar post')
+    }
+  }
+)
+
 export const deleteGroupPostThunk = createAsyncThunk(
   'groups/deletePost',
   async (payload: { groupId: string; postId: string }, { rejectWithValue }) => {
@@ -350,6 +362,15 @@ const groupsSlice = createSlice({
       .addCase(createGroupPostThunk.fulfilled, (s, a) => {
         const { groupId, post } = a.payload
         s.groupPosts[groupId] = [post, ...(s.groupPosts[groupId] ?? [])]
+      })
+
+      .addCase(updateGroupPostThunk.fulfilled, (s, a) => {
+        const { groupId, post } = a.payload
+        if (s.groupPosts[groupId]) {
+          s.groupPosts[groupId] = s.groupPosts[groupId].map((p) =>
+            p.id === post.id ? post : p
+          )
+        }
       })
 
       .addCase(deleteGroupPostThunk.fulfilled, (s, a) => {

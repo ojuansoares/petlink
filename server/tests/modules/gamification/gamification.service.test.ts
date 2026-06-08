@@ -36,7 +36,6 @@ describe('gamificationService', () => {
       countConsultations: 0,
       countGroupsJoined: 0,
       countGroupsCreated: 0,
-      countCheckins: 0,
       countFeedingStreak: 0,
       countWalks: 0,
       sumWalkDistance: 0,
@@ -49,7 +48,6 @@ describe('gamificationService', () => {
       mockedRepo.countConsultations.mockResolvedValue(counts.countConsultations)
       mockedRepo.countGroupsJoined.mockResolvedValue(counts.countGroupsJoined)
       mockedRepo.countGroupsCreated.mockResolvedValue(counts.countGroupsCreated)
-      mockedRepo.countCheckins.mockResolvedValue(counts.countCheckins)
       mockedRepo.countFeedingStreak.mockResolvedValue(counts.countFeedingStreak)
       mockedRepo.countWalks.mockResolvedValue(counts.countWalks)
       mockedRepo.sumWalkDistance.mockResolvedValue(counts.sumWalkDistance)
@@ -190,7 +188,6 @@ describe('gamificationService', () => {
       mockedRepo.countConsultations.mockResolvedValue(0)
       mockedRepo.countGroupsJoined.mockResolvedValue(0)
       mockedRepo.countGroupsCreated.mockResolvedValue(0)
-      mockedRepo.countCheckins.mockResolvedValue(0)
       mockedRepo.countFeedingStreak.mockResolvedValue(0)
 
       const result = await gamificationService.getPublicStats('user-2')

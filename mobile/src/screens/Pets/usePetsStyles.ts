@@ -105,10 +105,30 @@ export const usePetsStyles = makeStyles((theme) => ({
     borderWidth: 2,
     borderColor: theme.withAlpha(theme.colors.border, 0.5),
   },
-  // Extra Section
-  extraSection: {
+  // Obs & Allergies
+  obsAllergySection: {
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+    gap: 10,
+    alignItems: 'center',
+  },
+  observationsBubble: {
     padding: 16,
-    gap: 12,
+    borderRadius: 16,
+    borderWidth: 3,
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.withAlpha(theme.colors.primary, 0.08),
+    width: '100%',
+  },
+  observationsText: {
+    textAlign: 'center',
+  },
+  allergyBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: theme.withAlpha(theme.colors.destructive, 0.1),
+    alignSelf: 'center',
   },
   tagList: {
     flexDirection: 'row',

@@ -574,6 +574,22 @@ export default function PetsScreen() {
                 calculateAge={calculateAge}
                 speciesTranslation={SPECIES_TRANSLATION}
               />
+
+              {(activePet.observations || activePet.allergies) && (
+                <View style={styles.obsAllergySection}>
+                  {activePet.observations && (
+                    <View style={styles.observationsBubble}>
+                      <Text style={styles.observationsText}>{activePet.observations}</Text>
+                    </View>
+                  )}
+                  {activePet.allergies && (
+                    <View style={[styles.allergyBadge]}>
+                      <Text size="xs" weight="700" style={{ color: colors.destructive }}>Alergias: {activePet.allergies}</Text>
+                    </View>
+                  )}
+                </View>
+              )}
+
               <WeightChart
                 weightHistory={activePet.weight_history || []}
                 petName={activePet.name}
@@ -588,22 +604,6 @@ export default function PetsScreen() {
               />
 
                 <Calendar petId={activePet.id} petName={activePet.name} birthDate={activePet.birth_date} />
-
-              {(activePet.observations || activePet.allergies) && (
-                <View style={styles.extraSection}>
-                  <Heading size="sm" weight="800">Sobre {activePet.name}</Heading>
-                  {activePet.observations && (
-                    <View style={styles.observationsBox}>
-                      <Text size="sm" color="mutedForeground">"{activePet.observations}"</Text>
-                    </View>
-                  )}
-                  {activePet.allergies && (
-                    <View style={[styles.tag, { backgroundColor: withAlpha(colors.destructive, 0.1), alignSelf: 'flex-start' }]}>
-                      <Text size="xs" weight="700" style={{ color: colors.destructive }}>Alergias: {activePet.allergies}</Text>
-                    </View>
-                  )}
-                </View>
-              )}
             </View>
           )
         ) : activePet ? (

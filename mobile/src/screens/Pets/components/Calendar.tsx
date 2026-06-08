@@ -122,18 +122,21 @@ export function Calendar({ petId, petName, birthDate }: CalendarProps) {
         }
       })
 
-      // Map Birthday
+      // Map Birthday — only from 1st year onwards
       if (birthDate) {
         const birth = parseISO(birthDate)
         if (!isNaN(birth.getTime())) {
-          mappedEvents.push({
-            type: 'birthday' as any,
-            id: 'birthday',
-            date: new Date(new Date().getFullYear(), birth.getMonth(), birth.getDate()),
-            name: `🎂 Aniversário do ${petName}`,
-            original: null as any,
-            doseIndex: 0,
-          })
+          const birthdayDate = new Date(new Date().getFullYear(), birth.getMonth(), birth.getDate())
+          if (birthdayDate.getFullYear() > birth.getFullYear()) {
+            mappedEvents.push({
+              type: 'birthday' as any,
+              id: 'birthday',
+              date: birthdayDate,
+              name: `🎂 Aniversário do ${petName}`,
+              original: null as any,
+              doseIndex: 0,
+            })
+          }
         }
       }
 
@@ -430,6 +433,44 @@ export function Calendar({ petId, petName, birthDate }: CalendarProps) {
       )
     }
 
+    if (selectedEvent.type === 'birthday') {
+      const birth = birthDate ? parseISO(birthDate) : null
+      const years = birth && !isNaN(birth.getTime()) ? new Date().getFullYear() - birth.getFullYear() : 0
+
+      return (
+        <View style={styles.modalContent}>
+          <View style={[styles.detailSection, { borderLeftColor: '#EC4899' }]}>
+            <Text size="xs" color="mutedForeground" weight="800">
+              TIPO DE REGISTRO
+            </Text>
+            <Text size="lg" weight="800" style={{ color: '#EC4899' }}>
+              ANIVERSÁRIO
+            </Text>
+          </View>
+
+          {birth && !isNaN(birth.getTime()) && (
+            <View style={styles.detailSection}>
+              <Text size="xs" color="mutedForeground" weight="800">
+                DATA DE NASCIMENTO
+              </Text>
+              <Text weight="700">
+                {format(birth, 'dd/MM/yyyy')}
+              </Text>
+            </View>
+          )}
+
+          <View style={[styles.detailSection, { backgroundColor: withAlpha('#EC4899', 0.08), padding: 20, borderRadius: 12, alignItems: 'center' }]}>
+            <Heading size="2xl" weight="800" style={{ color: '#EC4899', textAlign: 'center' }}>
+              🎂 {years} {years === 1 ? 'ano' : 'anos'}
+            </Heading>
+            <Text size="sm" color="mutedForeground" style={{ textAlign: 'center', marginTop: 4 }}>
+              {petName} está fazendo aniversário!
+            </Text>
+          </View>
+        </View>
+      )
+    }
+
     return null
   }
 
@@ -541,7 +582,7 @@ export function Calendar({ petId, petName, birthDate }: CalendarProps) {
                     {hasVaccine && <View style={[styles.indicator, { backgroundColor: colors.primary }]} />}
                     {hasDewormer && <View style={[styles.indicator, { backgroundColor: '#f97316' }]} />}
                     {hasConsultation && <View style={[styles.indicator, { backgroundColor: colors.info }]} />}
-                    {hasBirthday && <Ionicons name={'cake' as any} size={9} color="#EC4899" />}
+                    {hasBirthday && <View style={[styles.indicator, { backgroundColor: '#EC4899' }]} />}
                   </View>
                 </Pressable>
               )
@@ -590,10 +631,11 @@ export function Calendar({ petId, petName, birthDate }: CalendarProps) {
                 color = colors.info
                 subtitle = 'Consulta Veterinária'
               } else if (item.type === 'birthday') {
-                iconName = 'cake' as any
+                iconName = 'gift' as any
                 color = '#EC4899'
-                subtitle = 'Aniversário do pet'
-                isDone = true
+                const birth = birthDate ? parseISO(birthDate) : null
+                const years = birth && !isNaN(birth.getTime()) ? new Date().getFullYear() - birth.getFullYear() : 0
+                subtitle = `${years} ${years === 1 ? 'ano' : 'anos'}`
               }
               
               const itemColor = isPastDue ? colors.destructive : color

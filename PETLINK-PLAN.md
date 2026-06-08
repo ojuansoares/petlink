@@ -550,7 +550,6 @@ O header do perfil (foto, nome, stats) permanece igual. Abaixo dele, um `Segment
 | 👥 Social | Entrar em 3 grupos | 100 |
 | 🌟 Líder | Criar um grupo | 150 |
 | 🔥 Sequência | 7 dias seguidos de check-in alimentar | 200 |
-| 📍 Explorador | Fazer check-in em 3 locais | 100 |
 | 🏆 Veterano | Acumular 1.000 XP | 500 |
 
 #### Servidor (Express + Supabase)

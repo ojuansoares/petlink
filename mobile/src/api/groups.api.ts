@@ -112,6 +112,11 @@ export const groupsApi = {
     await api.delete(`/groups/${groupId}/posts/${postId}`)
   },
 
+  async updatePost(postId: string, patch: { caption?: string | null; location?: string | null }): Promise<GroupPost> {
+    const { data } = await api.put(`/posts/${postId}`, patch)
+    return data.post as GroupPost
+  },
+
   async togglePinPost(groupId: string, postId: string): Promise<{ post: GroupPost }> {
     const { data } = await api.patch(`/groups/${groupId}/posts/${postId}/pin`)
     return data

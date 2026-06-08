@@ -40,7 +40,6 @@ function getThresholdValue(criteriaType: string, counts: Record<string, number>)
     case 'feeding_streak': return counts.feedingStreak
     case 'groups_joined': return counts.groupsJoined
     case 'groups_created': return counts.groupsCreated
-    case 'checkin_count': return counts.checkinCount
     case 'consultation_count': return counts.consultationCount
     case 'walk_count': return counts.walkCount
     case 'walk_distance': return counts.walkDistance
@@ -68,7 +67,6 @@ export const gamificationService = {
       consultationCount,
       groupsJoined,
       groupsCreated,
-      checkinCount,
       feedingStreak,
       walkCount,
       walkDistance,
@@ -79,7 +77,6 @@ export const gamificationService = {
       gamificationRepository.countConsultations(userId),
       gamificationRepository.countGroupsJoined(userId),
       gamificationRepository.countGroupsCreated(userId),
-      gamificationRepository.countCheckins(userId),
       gamificationRepository.countFeedingStreak(petIds),
       gamificationRepository.countWalks(userId),
       gamificationRepository.sumWalkDistance(userId),
@@ -105,7 +102,6 @@ export const gamificationService = {
       consultationCount,
       groupsJoined,
       groupsCreated,
-      checkinCount,
       feedingStreak,
       walkCount,
       walkDistance,

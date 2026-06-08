@@ -1,5 +1,4 @@
 import { supabaseAdmin } from '../../config/supabase'
-import { Checkin } from '../../models/Checkin'
 
 export type Achievement = {
   id: string
@@ -119,10 +118,6 @@ export const gamificationRepository = {
 
     if (error) throw error
     return count ?? 0
-  },
-
-  async countCheckins(userId: string): Promise<number> {
-    return Checkin.countDocuments({ userId })
   },
 
   async countFeedingStreak(petIds: string[]): Promise<number> {

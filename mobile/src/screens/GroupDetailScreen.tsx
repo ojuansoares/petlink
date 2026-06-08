@@ -29,6 +29,7 @@ import {
   fetchGroupPostsThunk,
   fetchMoreGroupPostsThunk,
   deleteGroupPostThunk,
+  updateGroupPostThunk,
   pinGroupPostThunk,
   changeMemberRoleThunk,
   removeMemberThunk,
@@ -588,6 +589,7 @@ export default function GroupDetailScreen() {
   const [joining, setJoining] = useState(false)
   const [menuPostId, setMenuPostId] = useState<string | null>(null)
   const [deletePostId, setDeletePostId] = useState<string | null>(null)
+  const [editPost, setEditPost] = useState<{ id: string; caption: string } | null>(null)
 
   const isOwner = myRole === 'owner'
   const isAdmin = isOwner || myRole === 'admin'
@@ -617,6 +619,13 @@ export default function GroupDetailScreen() {
       setDeletePostId(null)
     }
   }, [dispatch, groupId, deletePostId])
+
+  const handleSaveEditPost = useCallback(() => {
+    if (editPost) {
+      dispatch(updateGroupPostThunk({ groupId, postId: editPost.id, patch: { caption: editPost.caption || null } }))
+      setEditPost(null)
+    }
+  }, [dispatch, groupId, editPost])
 
   const handleLeave = useCallback(() => {
     dispatch(leaveGroupThunk(groupId))
@@ -689,6 +698,15 @@ export default function GroupDetailScreen() {
                     >
                       <Ionicons name={item.is_pinned ? 'pin' : 'pin-outline'} size={16} color={colors.foreground} />
                       <Text size="sm">{item.is_pinned ? 'Desfixar' : 'Fixar'}</Text>
+                    </Pressable>
+                  )}
+                  {isOwnPost && (
+                    <Pressable
+                      onPress={() => { setMenuPostId(null); setEditPost({ id: item.id, caption: item.caption || '' }) }}
+                      style={s.menuItem}
+                    >
+                      <Ionicons name="create-outline" size={16} color={colors.foreground} />
+                      <Text size="sm">Editar</Text>
                     </Pressable>
                   )}
                   {(isAdmin || isOwnPost) && (
@@ -1049,6 +1067,50 @@ export default function GroupDetailScreen() {
         onConfirm={() => setShowReportConfirm(false)}
         onCancel={() => setShowReportConfirm(false)}
       />
+
+      {/* Edit post modal */}
+      <Modal visible={!!editPost} transparent animationType="fade" onRequestClose={() => setEditPost(null)}>
+        <Pressable style={s.backdrop} onPress={() => setEditPost(null)}>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <Pressable
+              onPress={() => {}}
+              style={[s.menuOverlay, { backgroundColor: colors.card, borderColor: colors.border, padding: 20, minWidth: 300 }]}
+            >
+              <Heading size="lg" weight="800" style={{ marginBottom: 16 }}>Editar post</Heading>
+              <TextInput
+                value={editPost?.caption ?? ''}
+                onChangeText={(text) => setEditPost(prev => prev ? { ...prev, caption: text } : null)}
+                placeholder="Escreva uma legenda..."
+                placeholderTextColor={colors.mutedForeground}
+                multiline
+                style={{
+                  backgroundColor: colors.muted,
+                  color: colors.foreground,
+                  borderRadius: 12,
+                  padding: 12,
+                  fontSize: 15,
+                  minHeight: 80,
+                  textAlignVertical: 'top',
+                  marginBottom: 16,
+                }}
+              />
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <Button
+                  label="Cancelar"
+                  variant="ghost"
+                  onPress={() => setEditPost(null)}
+                  style={{ flex: 1 }}
+                />
+                <Button
+                  label="Salvar"
+                  onPress={handleSaveEditPost}
+                  style={{ flex: 1 }}
+                />
+              </View>
+            </Pressable>
+          </KeyboardAvoidingView>
+        </Pressable>
+      </Modal>
     </View>
   )
 }
