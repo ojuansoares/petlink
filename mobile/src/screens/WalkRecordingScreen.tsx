@@ -146,20 +146,31 @@ export default function WalkRecordingScreen() {
       walk.route.map(p => new Date(p.timestamp).getTime()),
     )
 
-    let last = lastPointRef.current
-    if (!last && walk.route.length > 0) {
+    // Get a fresh high-accuracy GPS fix to anchor the merge
+    const freshFix = await getCurrentPosition()
+    let lastPos = freshFix ?? lastPointRef.current
+    let lastTs = Date.now()
+    if (!lastPos && walk.route.length > 0) {
       const r = walk.route[walk.route.length - 1]
-      last = { lat: r.lat, lng: r.lng }
+      lastPos = { lat: r.lat, lng: r.lng }
+      lastTs = new Date(r.timestamp).getTime()
     }
 
     for (const p of sorted) {
       const ts = new Date(p.timestamp).getTime()
       if (existingTimestamps.has(ts)) continue
 
-      const distanceDelta = last ? haversineDistance(last.lat, last.lng, p.lat, p.lng) : 0
-      if (distanceDelta > 0 && distanceDelta < 3) continue
+      const distanceDelta = lastPos ? haversineDistance(lastPos.lat, lastPos.lng, p.lat, p.lng) : 0
+      if (distanceDelta > 0 && distanceDelta < 10) continue
 
-      last = { lat: p.lat, lng: p.lng }
+      // sanity: skip if speed > 20 km/h (impossible walking)
+      if (lastPos && distanceDelta > 0) {
+        const dtSec = (ts - lastTs) / 1000
+        if (dtSec > 0 && (distanceDelta / 1000) / (dtSec / 3600) > 20) continue
+      }
+
+      lastPos = { lat: p.lat, lng: p.lng }
+      lastTs = ts
       dispatch(addRoutePoint({ lat: p.lat, lng: p.lng, timestamp: p.timestamp, distanceDelta }))
     }
 

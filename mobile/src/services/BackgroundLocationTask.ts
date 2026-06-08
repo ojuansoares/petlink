@@ -13,8 +13,9 @@ export interface BgRoutePoint {
   distanceDelta: number
 }
 
-const MAX_ACCURACY = 50
-const MIN_DISTANCE = 3
+const MAX_ACCURACY = 30
+const MIN_DISTANCE = 10
+const MAX_SPEED_KMH = 20
 
 TaskManager.defineTask(BACKGROUND_WALK_TASK, async ({ data, error }) => {
   if (error) return
@@ -28,21 +29,26 @@ TaskManager.defineTask(BACKGROUND_WALK_TASK, async ({ data, error }) => {
     const lastPoint = existing.length > 0 ? existing[existing.length - 1] : null
 
     let prev = lastPoint
+    let prevTimestamp = prev ? new Date(prev.timestamp).getTime() : 0
     for (const loc of locations) {
       if (loc.coords.accuracy > MAX_ACCURACY) continue
 
       const lat = loc.coords.latitude
       const lng = loc.coords.longitude
       const timestamp = new Date(loc.timestamp).toISOString()
+      const tsMs = loc.timestamp
 
       if (prev) {
         const dist = haversineDistance(prev.lat, prev.lng, lat, lng)
         if (dist < MIN_DISTANCE) continue
+        const dtSec = (tsMs - prevTimestamp) / 1000
+        if (dtSec > 0 && (dist / 1000) / (dtSec / 3600) > MAX_SPEED_KMH) continue
       }
 
       const point: BgRoutePoint = { lat, lng, timestamp, distanceDelta: 0 }
       existing.push(point)
       prev = point
+      prevTimestamp = tsMs
     }
 
     const trimmed = existing.slice(-20000)
