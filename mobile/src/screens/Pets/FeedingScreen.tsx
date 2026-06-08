@@ -58,7 +58,8 @@ export default function FeedingScreen({ route }: any) {
   const fetchedMonthsRef = useRef<Set<string>>(new Set())
   const celebrationScale = useRef(new Animated.Value(0)).current
   const celebrationOpacity = useRef(new Animated.Value(0)).current
-  const today = format(new Date(), 'yyyy-MM-dd')
+  const todayRef = useRef(format(new Date(), 'yyyy-MM-dd'))
+  const today = todayRef.current
   const checkedCount = logs.filter((l) => l.checked_at).length
   const allChecked = logs.length > 0 && checkedCount === logs.length
 
