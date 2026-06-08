@@ -410,7 +410,8 @@ function AppContent() {
     initPushNotifications()
 
     const sub = addNotificationResponseReceivedListener((data, actionId, notificationId) => {
-      if (actionId) {
+      const isDefaultTap = actionId === 'expo.modules.notifications.actions.DEFAULT'
+      if (actionId && !isDefaultTap) {
         if (data.type === 'vaccine') {
           handleVaccineNotificationAction(actionId, data as Record<string, unknown>, notificationId)
         } else if (data.type === 'feeding') {

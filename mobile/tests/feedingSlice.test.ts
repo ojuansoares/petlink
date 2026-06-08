@@ -111,6 +111,22 @@ describe('feedingSlice', () => {
       expect(s.isSaving).toBe(false)
       expect(s.plan).toEqual(mockPlan)
     })
+
+    it('should send today parameter when provided', async () => {
+      api.post.mockResolvedValue({ data: mockPlan })
+
+      const store = createStore()
+      await store.dispatch(saveFeedingPlanThunk({
+        petId: 'p1',
+        today: '2026-06-07',
+        meals: [{ meal_name: 'Café', meal_time: '08:00', order_index: 0 }],
+      }))
+
+      expect(api.post).toHaveBeenCalledWith('/pets/p1/feeding/plan', {
+        meals: [{ meal_name: 'Café', meal_time: '08:00', order_index: 0 }],
+        today: '2026-06-07',
+      })
+    })
   })
 
   describe('fetchFeedingLogsThunk', () => {

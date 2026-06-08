@@ -25,6 +25,7 @@ import { Button } from './Button'
 import { Input } from './Input'
 import { OptionSelect } from './OptionSelect'
 import { Heading, Text } from './Typography'
+import { isNetworkError } from '../../api/errorUtils'
 import { BRAZIL_STATES } from '../../constants/brazilStates'
 
 interface PostOptionsModalProps {
@@ -70,8 +71,8 @@ export function PostOptionsModal({ post, visible, onClose, isOwnPost, context = 
       const petName = getPetNames(post.pets) || 'um pet'
       await Share.share({ message: `Olha esse post de ${petName}: ${post.image_url}` })
       onClose()
-    } catch {
-      dispatch(showToast({ type: 'error', title: 'Compartilhar', message: 'Erro ao compartilhar' }))
+    } catch (err) {
+      if (!isNetworkError(err)) dispatch(showToast({ type: 'error', title: 'Compartilhar', message: 'Erro ao compartilhar' }))
     }
   }
 
@@ -91,8 +92,10 @@ export function PostOptionsModal({ post, visible, onClose, isOwnPost, context = 
       dispatch(showToast({ type: 'success', title: 'Download', message: 'Imagem salva na galeria!' }))
       onClose()
     } catch (error: any) {
-      console.error('[handleDownload] Error:', error)
-      dispatch(showToast({ type: 'error', title: 'Download', message: 'Erro ao baixar imagem' }))
+      if (!isNetworkError(error)) {
+        console.error('[handleDownload] Error:', error)
+        dispatch(showToast({ type: 'error', title: 'Download', message: 'Erro ao baixar imagem' }))
+      }
     } finally {
       setIsDownloading(false)
     }
@@ -105,12 +108,14 @@ export function PostOptionsModal({ post, visible, onClose, isOwnPost, context = 
         await dispatch(togglePinThunk(post.id)).unwrap()
         dispatch(showToast({ type: 'success', title: 'Fixar', message: post.is_pinned ? 'Post desfixado' : 'Post fixado com sucesso' }))
         onClose()
-      } catch (error: any) {
+    } catch (error: any) {
+      if (!isNetworkError(error)) {
         console.error('[handleTogglePin] Error:', error)
         dispatch(showToast({ type: 'error', title: 'Fixar', message: 'Não foi possível fixar o post no momento' }))
-      } finally {
-        setIsPinning(false)
       }
+    } finally {
+      setIsPinning(false)
+    }
     })
   }
 
@@ -123,12 +128,14 @@ export function PostOptionsModal({ post, visible, onClose, isOwnPost, context = 
         dispatch(showToast({ type: 'success', title: 'Exclusão', message: 'Post excluído' }))
         setDeleteConfirmOpen(false)
         onClose()
-      } catch (error: any) {
+    } catch (error: any) {
+      if (!isNetworkError(error)) {
         console.error('[handleDelete] Error:', error)
         dispatch(showToast({ type: 'error', title: 'Exclusão', message: 'Erro ao excluir publicação' }))
-      } finally {
-        deletingRef.current = false
       }
+    } finally {
+      deletingRef.current = false
+    }
     })
   }
 
@@ -140,12 +147,14 @@ export function PostOptionsModal({ post, visible, onClose, isOwnPost, context = 
         dispatch(showToast({ type: 'success', title: 'Edição', message: 'Post atualizado' }))
         setEditOpen(false)
         onClose()
-      } catch (error: any) {
+    } catch (error: any) {
+      if (!isNetworkError(error)) {
         console.error('[handleUpdate] Error:', error)
         dispatch(showToast({ type: 'error', title: 'Edição', message: 'Não foi possível atualizar a publicação' }))
-      } finally {
-        setIsUpdating(false)
       }
+    } finally {
+      setIsUpdating(false)
+    }
     })
   }
 

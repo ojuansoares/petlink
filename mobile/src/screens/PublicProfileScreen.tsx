@@ -127,6 +127,7 @@ export default function PublicProfileScreen() {
   const [refreshing, setRefreshing] = useState(false)
   const [gamification, setGamification] = useState<PublicGamificationStats | null>(null)
   const [showGamificationModal, setShowGamificationModal] = useState(false)
+  const [badgePage, setBadgePage] = useState(0)
 
   useEffect(() => {
     if (pets.length <= 1) setSelectedPetFilter('')
@@ -633,10 +634,18 @@ export default function PublicProfileScreen() {
                 {gamification.unlockedAchievements.length > 0 && (
                   <>
                     <View style={{ width: '100%', height: 1, backgroundColor: withAlpha(colors.border, 0.5), marginVertical: 16 }} />
-                    <Text weight="700" size="sm" style={{ marginBottom: 12, alignSelf: 'flex-start' }}>
+                    <Text weight="700" size="sm" style={{ marginBottom: 8, alignSelf: 'flex-start' }}>
                       Conquistas ({gamification.unlockedAchievements.length})
                     </Text>
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'center' }}>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={{ gap: 12, paddingHorizontal: 4 }}
+                      onMomentumScrollEnd={(e) => {
+                        const page = Math.round(e.nativeEvent.contentOffset.x / (76 + 12))
+                        setBadgePage(page)
+                      }}
+                    >
                       {gamification.unlockedAchievements.map((ach) => {
                         const badgeColor = getBadgeColor(ach.xp_reward)
                         return (
@@ -650,7 +659,22 @@ export default function PublicProfileScreen() {
                           </View>
                         )
                       })}
-                    </View>
+                    </ScrollView>
+                    {gamification.unlockedAchievements.length > 4 && (
+                      <View style={{ flexDirection: 'row', gap: 6, marginTop: 8 }}>
+                        {Array.from({ length: Math.ceil(gamification.unlockedAchievements.length / 3) }).map((_, idx) => (
+                          <View
+                            key={idx}
+                            style={{
+                              width: idx === badgePage ? 8 : 6,
+                              height: idx === badgePage ? 8 : 6,
+                              borderRadius: idx === badgePage ? 4 : 3,
+                              backgroundColor: idx === badgePage ? colors.primary : withAlpha(colors.mutedForeground, 0.35),
+                            }}
+                          />
+                        ))}
+                      </View>
+                    )}
                   </>
                 )}
 

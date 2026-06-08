@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
 import * as ExpoLocation from 'expo-location'
 import { useAppDispatch } from '../store'
+import { isNetworkError } from '../api/errorUtils'
 import { showToast } from '../store/slices/uiSlice'
 
 interface LocationResult {
@@ -74,13 +75,9 @@ export function useLocation() {
         cityAndState,
       }
     } catch (error) {
-      const isNetworkError = error instanceof TypeError && error.message.includes('Network')
-      dispatch(showToast({
-        type: 'error', title: 'Localização',
-        message: isNetworkError
-          ? 'Sem conexão para buscar localização.'
-          : 'Erro ao buscar localização.',
-      }))
+      if (!isNetworkError(error)) {
+        dispatch(showToast({ type: 'error', title: 'Localização', message: 'Erro ao buscar localização.' }))
+      }
       return null
     } finally {
       setIsLoadingLocation(false)

@@ -54,6 +54,7 @@ import { getRelativeTime } from '../utils/dateUtils'
 import { formatCount } from '../utils/formatNumber'
 import { shareGroup } from '../utils/shareLink'
 import { showToast } from '../store/slices/uiSlice'
+import { isNetworkError } from '../api/errorUtils'
 
 type DetailRouteProp = RouteProp<AppStackParamList, 'GroupDetail'>
 type NavigationProp = StackNavigationProp<AppStackParamList>
@@ -189,8 +190,10 @@ function AddMemberModal({
       }))
       setResults((prev) => prev.filter((u) => u.id !== userId))
     } catch (err: any) {
-      const msg = err?.response?.data?.error || err?.message || 'Erro ao enviar convite'
-      dispatch(showToast({ type: 'error', title: 'Erro', message: msg }))
+      if (!isNetworkError(err)) {
+        const msg = err?.response?.data?.error || err?.message || 'Erro ao enviar convite'
+        dispatch(showToast({ type: 'error', title: 'Erro', message: msg }))
+      }
     }
     setSending((p) => ({ ...p, [userId]: false }))
   }
@@ -384,8 +387,8 @@ function EditGroupModal({
       const data = await uploadImageWithRetry({ formData, maxRetries: 3, baseTimeoutMs: 30000 })
       const uploadedUrl = data?.url as string | undefined
       if (uploadedUrl) setPhotoUrl(uploadedUrl)
-    } catch {
-      dispatch(showToast({ type: 'error', title: 'Upload', message: 'Erro ao enviar imagem' }))
+    } catch (err) {
+      if (!isNetworkError(err)) dispatch(showToast({ type: 'error', title: 'Upload', message: 'Erro ao enviar imagem' }))
     } finally {
       setIsUploadingPhoto(false)
     }

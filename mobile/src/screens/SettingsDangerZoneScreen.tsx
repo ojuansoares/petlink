@@ -13,6 +13,7 @@ import { setBiometricEnabled, setBiometricSessionLocked } from '../services/Biom
 import { clearAuthTokens } from '../utils/authStorage'
 import { ProfileOfflineRepository } from '../data/repositories/ProfileOfflineRepository'
 import { AppToast } from '../components/ui/AppToast'
+import { isNetworkError } from '../api/errorUtils'
 
 export default function SettingsDangerZoneScreen() {
   const dispatch = useAppDispatch()
@@ -37,8 +38,8 @@ export default function SettingsDangerZoneScreen() {
       dispatch(logout())
       dispatch(showToast({ type: 'success', title: 'Exclusão', message: 'Conta excluida com sucesso.' }))
       setShowDeleteConfirm(false)
-    } catch {
-      dispatch(showToast({ type: 'error', title: 'Exclusão', message: 'Nao foi possivel excluir sua conta.' }))
+    } catch (err) {
+      if (!isNetworkError(err)) dispatch(showToast({ type: 'error', title: 'Exclusão', message: 'Nao foi possivel excluir sua conta.' }))
     } finally {
       setIsDeletingAccount(false)
     }

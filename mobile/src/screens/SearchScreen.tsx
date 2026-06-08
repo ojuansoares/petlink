@@ -65,6 +65,7 @@ import {
 } from '../store/slices/placesSlices'
 import { OsmPlaceResult } from '../api/places.api'
 import type { AppStackParamList } from '../navigation/types'
+import { isNetworkError } from '../api/errorUtils'
 
 type ScreenRoute = RouteProp<AppStackParamList, 'Search'>
 
@@ -343,11 +344,13 @@ export default function SearchScreen() {
       const fresh = await dispatch(fetchPlaceDetailsThunk({ osmType: placeDetail.osmType, osmId: placeDetail.osmId })).unwrap()
       if (fresh) setPlaceDetail({ ...fresh, lat: Number(fresh.lat), lng: Number(fresh.lng), petFriendly: fresh.petFriendly ?? placeDetail.petFriendly })
     } catch (err: any) {
-      const msg = typeof err === 'string' ? err : err?.message || ''
-      if (msg.includes('já avaliou')) {
-        dispatch(showToast({ type: 'info', title: 'Você já avaliou', message: 'Remova a avaliação anterior para reavaliar' }))
-      } else {
-        dispatch(showToast({ type: 'error', title: 'Erro', message: 'Não foi possível avaliar' }))
+      if (!isNetworkError(err)) {
+        const msg = typeof err === 'string' ? err : err?.message || ''
+        if (msg.includes('já avaliou')) {
+          dispatch(showToast({ type: 'info', title: 'Você já avaliou', message: 'Remova a avaliação anterior para reavaliar' }))
+        } else {
+          dispatch(showToast({ type: 'error', title: 'Erro', message: 'Não foi possível avaliar' }))
+        }
       }
     } finally {
       setSubmittingReview(false)
@@ -364,8 +367,8 @@ export default function SearchScreen() {
         const fresh = await dispatch(fetchPlaceDetailsThunk({ osmType: placeDetail.osmType, osmId: placeDetail.osmId })).unwrap()
         if (fresh) setPlaceDetail({ ...fresh, lat: Number(fresh.lat), lng: Number(fresh.lng), petFriendly: fresh.petFriendly ?? placeDetail.petFriendly })
       }
-    } catch {
-      dispatch(showToast({ type: 'error', title: 'Erro', message: 'Não foi possível remover' }))
+    } catch (err) {
+      if (!isNetworkError(err)) dispatch(showToast({ type: 'error', title: 'Erro', message: 'Não foi possível remover' }))
     } finally {
       setDeletingReview(false)
       setReviewMenuTarget(null)

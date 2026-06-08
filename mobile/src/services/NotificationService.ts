@@ -20,7 +20,19 @@ export function configureNotifications() {
     handleNotification: async (event) => {
       const data = event.request.content.data as Record<string, unknown> | undefined
 
+      if (data?.type === 'feeding' || data?.type === 'vaccine' || data?.type === 'vaccine_due') {
+        const [notifEnabled, categoryEnabled] = await Promise.all([
+          AsyncStorage.getItem('petlink.notifications.enabled'),
+          AsyncStorage.getItem(data.type === 'feeding' ? 'petlink.notifications.alimentacao' : 'petlink.notifications.vacinas'),
+        ])
+        const enabled = notifEnabled !== 'false' && categoryEnabled !== 'false'
+        if (!enabled) {
+          return { shouldShowAlert: false, shouldShowBanner: false, shouldShowList: false, shouldPlaySound: false, shouldSetBadge: false }
+        }
+      }
+
       if (data?.type === 'feeding') {
+
         const petId = data.petId as string | undefined
         const mealName = data.mealName as string | undefined
         if (petId && mealName) {
@@ -153,7 +165,10 @@ export async function scheduleFeedingNotifications(
   ])
 
   const shouldSchedule = notifEnabled !== 'false' && feedingEnabled !== 'false'
-  if (!shouldSchedule) return
+  if (!shouldSchedule) {
+    await cancelFeedingNotifications(petId)
+    return
+  }
 
   // cancela notificações anteriores deste pet
   await cancelFeedingNotifications(petId)
@@ -203,6 +218,17 @@ export async function cancelFeedingNotifications(petId: string) {
   }
   delete stored[petId]
   await AsyncStorage.setItem(FEEDING_NOTIF_IDS_KEY, JSON.stringify(stored))
+}
+
+export async function cancelAllFeedingNotifications() {
+  const stored = JSON.parse((await AsyncStorage.getItem(FEEDING_NOTIF_IDS_KEY)) || '{}')
+  for (const petId of Object.keys(stored)) {
+    const ids = stored[petId]
+    for (const id of ids) {
+      await Notifications.cancelScheduledNotificationAsync(id)
+    }
+  }
+  await AsyncStorage.setItem(FEEDING_NOTIF_IDS_KEY, '{}')
 }
 
 // ─── Recuperação após limpeza de cache ────────────────────────
@@ -295,7 +321,10 @@ export async function scheduleVaccineNotifications(
   ])
 
   const shouldSchedule = notifEnabled !== 'false' && vacinaEnabled !== 'false'
-  if (!shouldSchedule) return
+  if (!shouldSchedule) {
+    await cancelAllVaccineNotifications()
+    return
+  }
 
   // cancela todas as notificações antigas de vacinas
   await cancelAllVaccineNotifications()
@@ -449,7 +478,10 @@ export async function scheduleBirthdayNotifications(
     AsyncStorage.getItem('petlink.notifications.enabled'),
     AsyncStorage.getItem('petlink.notifications.aniversario'),
   ])
-  if (notifEnabled === 'false' || aniversarioEnabled === 'false') return
+  if (notifEnabled === 'false' || aniversarioEnabled === 'false') {
+    await cancelBirthdayNotifications(petId)
+    return
+  }
 
   await cancelBirthdayNotifications(petId)
 
@@ -506,6 +538,17 @@ export async function cancelBirthdayNotifications(petId: string) {
   }
   delete stored[petId]
   await AsyncStorage.setItem(BIRTHDAY_NOTIF_IDS_KEY, JSON.stringify(stored))
+}
+
+export async function cancelAllBirthdayNotifications() {
+  const stored = JSON.parse((await AsyncStorage.getItem(BIRTHDAY_NOTIF_IDS_KEY)) || '{}')
+  for (const petId of Object.keys(stored)) {
+    const ids = stored[petId]
+    for (const id of ids) {
+      await Notifications.cancelScheduledNotificationAsync(id)
+    }
+  }
+  await AsyncStorage.setItem(BIRTHDAY_NOTIF_IDS_KEY, '{}')
 }
 
 export async function scheduleAllFromApi() {
@@ -645,20 +688,8 @@ export async function handleFeedingNotificationAction(
     await api.post(`/pets/${petId}/feeding/logs/${log.id}/check`, { checked: true })
   } catch (err: any) {
     if (err?.isOffline) {
-      try {
-        const { feedingQueueRepository } = await import('../data/repositories/FeedingQueueRepository')
-        const today = getLocalDateString()
-        const res = await api.get(`/pets/${petId}/feeding/logs`, { params: { date: today } })
-        const logs: any[] = Array.isArray(res.data) ? res.data : []
-        const log = logs.find((l: any) => l.meal_name === mealName)
-        if (log && !log.checked_at) {
-          await feedingQueueRepository.add(log.id, petId, true)
-        }
-      } catch {
-        const { feedingQueueRepository } = await import('../data/repositories/FeedingQueueRepository')
-        const today = getLocalDateString()
-        await feedingQueueRepository.addDeferred(petId, mealName, today)
-      }
+      const { feedingQueueRepository } = await import('../data/repositories/FeedingQueueRepository')
+      await feedingQueueRepository.addDeferred(petId, mealName, getLocalDateString())
     } else {
       console.error('[Notif] Erro ao processar ação de alimentação:', err)
     }
@@ -687,10 +718,16 @@ export async function scheduleWalkReminder(
   minute: number = 0
 ) {
   const notifEnabled = await AsyncStorage.getItem('petlink.notifications.enabled')
-  if (notifEnabled === 'false') return
+  if (notifEnabled === 'false') {
+    await cancelWalkReminders(petId)
+    return
+  }
 
   const walkNotif = await AsyncStorage.getItem('petlink.notifications.passeio')
-  if (walkNotif === 'false') return
+  if (walkNotif === 'false') {
+    await cancelWalkReminders(petId)
+    return
+  }
 
   await cancelWalkReminders(petId)
 

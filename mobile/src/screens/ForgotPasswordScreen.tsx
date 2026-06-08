@@ -6,6 +6,7 @@ import { AuthStackParamList } from '../navigation/types'
 import { useTheme } from '../hooks/useTheme'
 import { useAppDispatch, useAppSelector } from '../store'
 import { forgotPasswordThunk, selectAuthLoading, selectAuthError } from '../store/slices/authSlice'
+import { isNetworkError } from '../api/errorUtils'
 import { showToast } from '../store/slices/uiSlice'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
@@ -57,7 +58,7 @@ export default function ForgotPasswordScreen({ navigation }: Readonly<Props>) {
   }, [logoOpacity, logoTranslateY, panelOpacity, panelTranslateY])
 
   React.useEffect(() => {
-    if (authError) {
+    if (authError && !isNetworkError(authError)) {
       dispatch(showToast({ type: 'error', message: authError }))
     }
   }, [authError])

@@ -13,6 +13,7 @@ import { Input } from './Input'
 import { Heading, Text } from './Typography'
 import { AppLoadingOverlay } from './AppLoadingOverlay'
 import { ImagePickerSheet } from './ImagePickerSheet'
+import { isNetworkError } from '../../api/errorUtils'
 import { uploadImageWithRetry } from '../../api/uploadWithRetry'
 
 interface CreateGroupPostModalProps {
@@ -81,8 +82,8 @@ export function CreateGroupPostModal({ visible, onClose, groupId }: CreateGroupP
       const data = await uploadImageWithRetry({ formData, maxRetries: 3, baseTimeoutMs: 30000 })
       const uploadedUrl = data?.url as string | undefined
       if (uploadedUrl) setPhotoUrl(uploadedUrl)
-    } catch {
-      dispatch(showToast({ type: 'error', title: 'Upload', message: 'Erro ao enviar imagem' }))
+    } catch (err) {
+      if (!isNetworkError(err)) dispatch(showToast({ type: 'error', title: 'Upload', message: 'Erro ao enviar imagem' }))
     } finally {
       setIsUploadingPhoto(false)
     }

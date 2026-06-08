@@ -3,6 +3,12 @@ import { Ionicons } from '@expo/vector-icons'
 import { StyleSheet, Switch, View } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
+import {
+  cancelAllFeedingNotifications,
+  cancelAllVaccineNotifications,
+  cancelAllWalkReminders,
+  cancelAllBirthdayNotifications,
+} from '../services/NotificationService'
 import { useAppDispatch, useAppSelector } from '../store'
 import {
   fetchPreferencesThunk,
@@ -79,6 +85,12 @@ export default function SettingsNotificationsScreen() {
     await AsyncStorage.setItem(ASYNC_KEYS[key], value ? 'true' : 'false')
     setPrefs(prev => ({ ...prev, [key]: value }))
     dispatch(updatePreferencesThunk({ [key]: value }))
+    if (!value) {
+      if (key === 'alimentacao') cancelAllFeedingNotifications()
+      else if (key === 'vacinas') cancelAllVaccineNotifications()
+      else if (key === 'passeio') cancelAllWalkReminders()
+      else if (key === 'aniversario') cancelAllBirthdayNotifications()
+    }
   }, [dispatch])
 
   const handleMasterToggle = useCallback(async (value: boolean) => {
@@ -92,6 +104,10 @@ export default function SettingsNotificationsScreen() {
         setPrefs(prev => ({ ...prev, [cat.key]: false }))
         dispatch(updatePreferencesThunk({ [cat.key]: false }))
       }
+      cancelAllFeedingNotifications()
+      cancelAllVaccineNotifications()
+      cancelAllWalkReminders()
+      cancelAllBirthdayNotifications()
     }
   }, [dispatch])
 

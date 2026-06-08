@@ -23,6 +23,7 @@ import { useTheme } from '../hooks/useTheme'
 import { useLocation } from '../hooks/useLocation'
 import { AuthStackParamList } from '../navigation/types'
 import { useAppDispatch, useAppSelector } from '../store'
+import { isNetworkError } from '../api/errorUtils'
 import { showToast } from '../store/slices/uiSlice'
 import { registerThunk, selectAuthError, selectAuthLoading } from '../store/slices/authSlice'
 
@@ -60,7 +61,7 @@ export default function RegisterScreen({ navigation }: Readonly<Props>) {
   const { getCurrentLocation, isLoadingLocation } = useLocation()
 
   React.useEffect(() => {
-    if (authError) {
+    if (authError && !isNetworkError(authError)) {
       dispatch(showToast({ type: 'error', message: authError }))
     }
   }, [authError])

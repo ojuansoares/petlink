@@ -27,6 +27,7 @@ import {
 import { useTheme } from '../hooks/useTheme'
 import { AuthStackParamList } from '../navigation/types'
 import { useAppDispatch, useAppSelector } from '../store'
+import { isNetworkError } from '../api/errorUtils'
 import { showToast } from '../store/slices/uiSlice'
 import {
   hydrateAuthThunk,
@@ -50,7 +51,7 @@ export default function LoginScreen({ navigation }: Readonly<Props>) {
   const authError = useAppSelector(selectAuthError)
 
   React.useEffect(() => {
-    if (authError) {
+    if (authError && !isNetworkError(authError)) {
       dispatch(showToast({ type: 'error', message: authError }))
     }
   }, [authError])

@@ -33,6 +33,7 @@ api.interceptors.request.use(async (config) => {
   if (!_isOnline && method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') {
     const error = new Error('Sem internet. Conecte-se para continuar.')
     ;(error as any).isOffline = true
+    ;(error as any)._isNetworkError = true
     throw error
   }
   // Injeta token em toda requisição
@@ -97,7 +98,12 @@ api.interceptors.response.use(
     if (error.code === 'ECONNABORTED' && error.message?.includes('timeout')) {
       const timeoutError = new Error('Sem resposta do servidor. Verifique sua conexao.')
       ;(timeoutError as any).isOffline = true
+      ;(timeoutError as any)._isNetworkError = true
       throw timeoutError
+    }
+
+    if (!error.response && error.request) {
+      ;(error as any)._isNetworkError = true
     }
 
     throw error

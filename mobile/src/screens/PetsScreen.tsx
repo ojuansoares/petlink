@@ -56,6 +56,7 @@ import { AppModal } from '../components/ui/AppModal'
 import { ImagePickerSheet } from '../components/ui/ImagePickerSheet'
 import { SegmentedTabs } from '../components/ui/SegmentedTabs'
 import { exportPetData, ExportFormat } from '../api/petsExport.api'
+import { isNetworkError } from '../api/errorUtils'
 
 type PetsScreenNavigationProp = StackNavigationProp<AppStackParamList, 'Tabs'>;
 
@@ -293,7 +294,7 @@ export default function PetsScreen() {
         setIsFlowOpen(false)
         resetForm()
       } catch (err) {
-        dispatch(showToast({ type: 'error', title: 'Pet', message: 'Erro ao cadastrar pet.' }))
+        if (!isNetworkError(err)) dispatch(showToast({ type: 'error', title: 'Pet', message: 'Erro ao cadastrar pet.' }))
       }
     })
   }
@@ -340,7 +341,7 @@ export default function PetsScreen() {
         setIsEditing(false)
         setIsWeightModalOpen(false)
       } catch (err) {
-        dispatch(showToast({ type: 'error', title: 'Pet', message: 'Erro ao atualizar.' }))
+        if (!isNetworkError(err)) dispatch(showToast({ type: 'error', title: 'Pet', message: 'Erro ao atualizar.' }))
       }
     })
   }
@@ -359,7 +360,7 @@ export default function PetsScreen() {
         setIsDeleteModalOpen(false)
         setIsEditing(false)
       } catch (err) {
-        dispatch(showToast({ type: 'error', title: 'Pet', message: 'Erro ao remover.' }))
+        if (!isNetworkError(err)) dispatch(showToast({ type: 'error', title: 'Pet', message: 'Erro ao remover.' }))
       } finally {
         deletingPetRef.current = false
       }
@@ -405,7 +406,7 @@ export default function PetsScreen() {
       const data = await uploadImageWithRetry({ formData })
       if (data?.url) setPhotoUrl(data.url)
     } catch (err) {
-      dispatch(showToast({ type: 'error', title: 'Upload', message: 'Erro no upload.' }))
+      if (!isNetworkError(err)) dispatch(showToast({ type: 'error', title: 'Upload', message: 'Erro no upload.' }))
     } finally {
       setIsUploadingPhoto(false)
     }
@@ -1065,7 +1066,7 @@ export default function PetsScreen() {
                 await exportPetData(activePet.id, activePet.name, 'json')
                 setExportModalVisible(false)
               } catch (err: any) {
-                dispatch(showToast({ message: err?.message ?? 'Erro ao exportar JSON', type: 'error' }))
+                if (!isNetworkError(err)) dispatch(showToast({ message: err?.message ?? 'Erro ao exportar JSON', type: 'error' }))
               } finally {
                 setExportingFormat(null)
               }
@@ -1090,7 +1091,7 @@ export default function PetsScreen() {
                 await exportPetData(activePet.id, activePet.name, 'csv')
                 setExportModalVisible(false)
               } catch (err: any) {
-                dispatch(showToast({ message: err?.message ?? 'Erro ao exportar CSV', type: 'error' }))
+                if (!isNetworkError(err)) dispatch(showToast({ message: err?.message ?? 'Erro ao exportar CSV', type: 'error' }))
               } finally {
                 setExportingFormat(null)
               }
@@ -1115,7 +1116,7 @@ export default function PetsScreen() {
                 await exportPetData(activePet.id, activePet.name, 'pdf')
                 setExportModalVisible(false)
               } catch (err: any) {
-                dispatch(showToast({ message: err?.message ?? 'Erro ao exportar PDF', type: 'error' }))
+                if (!isNetworkError(err)) dispatch(showToast({ message: err?.message ?? 'Erro ao exportar PDF', type: 'error' }))
               } finally {
                 setExportingFormat(null)
               }

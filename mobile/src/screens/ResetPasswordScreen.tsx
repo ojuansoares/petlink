@@ -12,6 +12,7 @@ import {
   selectAuthError,
   selectIsPasswordResetFlow,
 } from '../store/slices/authSlice'
+import { isNetworkError } from '../api/errorUtils'
 import { showToast } from '../store/slices/uiSlice'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
@@ -37,7 +38,7 @@ export default function ResetPasswordScreen() {
   }, [isPasswordResetFlow, navigation])
 
   useEffect(() => {
-    if (authError) {
+    if (authError && !isNetworkError(authError)) {
       dispatch(showToast({ type: 'error', message: authError }))
     }
   }, [authError])

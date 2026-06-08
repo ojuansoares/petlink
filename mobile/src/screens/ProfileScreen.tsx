@@ -51,6 +51,7 @@ import { formatCount } from '../utils/formatNumber'
 import { getLevelColor, getBadgeColor } from '../utils/levelColors'
 import GamificationSection from '../components/GamificationSection'
 import { fetchGamificationThunk, selectGamification } from '../store/slices/gamificationSlice'
+import { isNetworkError } from '../api/errorUtils'
 
 type NavigationProp = StackNavigationProp<AppStackParamList>
 
@@ -170,7 +171,7 @@ export default function ProfileScreen() {
       dispatch(showToast({ type: 'success', title: 'Perfil', message: 'Perfil atualizado!' }))
       setIsEditModalOpen(false)
     } catch (err) {
-      dispatch(showToast({ type: 'error', title: 'Perfil', message: 'Erro ao atualizar perfil.' }))
+      if (!isNetworkError(err)) dispatch(showToast({ type: 'error', title: 'Perfil', message: 'Erro ao atualizar perfil.' }))
     } finally {
       setIsUpdating(false)
     }
@@ -236,7 +237,7 @@ export default function ProfileScreen() {
       const data = await uploadImageWithRetry({ formData })
       if (data?.url) setAvatarUrl(data.url)
     } catch (err) {
-      dispatch(showToast({ type: 'error', title: 'Upload', message: 'Erro no upload.' }))
+      if (!isNetworkError(err)) dispatch(showToast({ type: 'error', title: 'Upload', message: 'Erro no upload.' }))
     } finally {
       setIsUploadingAvatar(false)
     }

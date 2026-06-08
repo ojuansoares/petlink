@@ -19,6 +19,7 @@ import { OptionSelect } from './OptionSelect'
 import { Heading, Text } from './Typography'
 import { AppLoadingOverlay } from './AppLoadingOverlay'
 import { uploadImageWithRetry } from '../../api/uploadWithRetry'
+import { isNetworkError } from '../../api/errorUtils'
 import { AppToast } from './AppToast'
 
 interface CreatePostModalProps {
@@ -214,8 +215,8 @@ export function CreatePostModal({ visible, onClose, initialPhotoUrl, initialPetI
 
       const uploadedUrl = data?.url as string | undefined
       if (uploadedUrl) setPhotoUrl(uploadedUrl)
-    } catch {
-      dispatch(showToast({ type: 'error', title: 'Upload', message: 'Erro ao enviar imagem após várias tentativas' }))
+    } catch (err) {
+      if (!isNetworkError(err)) dispatch(showToast({ type: 'error', title: 'Upload', message: 'Erro ao enviar imagem após várias tentativas' }))
     } finally {
       setIsUploadingPhoto(false)
     }
